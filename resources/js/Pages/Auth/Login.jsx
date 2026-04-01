@@ -27,13 +27,13 @@ export default function Login({ status, canResetPassword }) {
 
             <div className="space-y-8">
                 <div className="text-center lg:text-left">
-                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">
+                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">
                         Welcome Back
                     </p>
-                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
+                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
                         Sign in to the analytics portal
                     </h2>
-                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                    <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
                         Access player insights, dashboard modules, and the upcoming recommendation engine.
                     </p>
                 </div>
@@ -87,13 +87,13 @@ export default function Login({ status, canResetPassword }) {
                                 checked={data.remember}
                                 onChange={(e) => setData('remember', e.target.checked)}
                             />
-                            <span className="text-sm text-slate-600">Remember me</span>
+                            <span className="text-sm text-slate-600 dark:text-slate-300">Remember me</span>
                         </label>
 
                         {canResetPassword && (
                             <Link
                                 href={route('password.request')}
-                                className="text-sm font-medium text-slate-600 transition hover:text-slate-950"
+                                className="text-sm font-medium text-slate-600 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
                             >
                                 Forgot password?
                             </Link>
