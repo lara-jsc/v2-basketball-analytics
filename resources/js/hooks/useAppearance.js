@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'basketball-analytics-theme';
 
-function resolveInitialTheme() {
+export function resolveInitialTheme() {
     if (typeof window === 'undefined') {
         return 'light';
     }
@@ -13,20 +13,29 @@ function resolveInitialTheme() {
         return storedTheme;
     }
 
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
+    return 'light';
+}
+
+export function applyTheme(theme) {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    const root = document.documentElement;
+
+    root.classList.toggle('dark', theme === 'dark');
+    root.dataset.theme = theme;
+
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem(STORAGE_KEY, theme);
+    }
 }
 
 export function useAppearance() {
     const [theme, setTheme] = useState(resolveInitialTheme);
 
     useEffect(() => {
-        const root = document.documentElement;
-
-        root.classList.toggle('dark', theme === 'dark');
-        root.dataset.theme = theme;
-        window.localStorage.setItem(STORAGE_KEY, theme);
+        applyTheme(theme);
     }, [theme]);
 
     const toggleTheme = () => {
