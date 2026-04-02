@@ -65,4 +65,13 @@
             radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 28%),
             linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 1));
     }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0px 1000px #0d1428 inset !important;
+        -webkit-text-fill-color: white !important;
+        border: 0 !important;
+        outline: none !important;
+    }
 }

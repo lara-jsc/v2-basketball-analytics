@@ -1,12 +1,18 @@
-import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
+import {
+    ArrowRight,
+    Eye,
+    EyeOff,
+    Lock,
+    Mail,
+    ShieldCheck,
+    UserCircle2,
+} from 'lucide-react';
+import { useState } from 'react';
 
 export default function Login({ status, canResetPassword }) {
+    const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -22,89 +28,220 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <GuestLayout>
-            <Head title="Log in" />
+        <>
+            <Head title="HoopSense+ Sign In" />
 
-            <div className="space-y-8">
-                <div className="text-center lg:text-left">
-                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">
-                        Welcome Back
-                    </p>
-                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                        Sign in to the analytics portal
-                    </h2>
-                    <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                        Access player insights, dashboard modules, and the upcoming recommendation engine.
-                    </p>
+            <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#020611] text-white">
+                <div className="absolute inset-0">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(154,196,255,0.34),transparent_22%),radial-gradient(circle_at_top_right,rgba(154,196,255,0.34),transparent_22%),linear-gradient(180deg,rgba(8,18,44,0.72)_0%,rgba(2,6,17,0.88)_35%,rgba(1,4,13,0.96)_100%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,124,41,0.12),transparent_22%),radial-gradient(circle_at_50%_120%,rgba(255,154,84,0.2),transparent_30%)]" />
+                    <div className="absolute inset-x-0 top-0 h-[58%] bg-[url('https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-25 blur-[2px]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_38%,rgba(0,0,0,0.34)_72%,rgba(0,0,0,0.62)_100%)]" />
+
+                    <div className="absolute left-[-8%] top-[-4%] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(226,240,255,0.9)_0%,rgba(147,197,253,0.45)_18%,rgba(147,197,253,0.14)_36%,transparent_64%)] blur-sm" />
+                    <div className="absolute right-[-8%] top-[-4%] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(226,240,255,0.88)_0%,rgba(147,197,253,0.44)_18%,rgba(147,197,253,0.14)_36%,transparent_64%)] blur-sm" />
+
+                    <div className="absolute bottom-0 left-0 right-0 h-[34%] bg-[linear-gradient(180deg,transparent,rgba(255,132,53,0.14)_35%,rgba(255,132,53,0.06)_55%,rgba(1,4,13,0.92)_100%)]" />
+                    <div className="absolute bottom-[12%] left-1/2 h-px w-[72%] -translate-x-1/2 bg-gradient-to-r from-transparent via-[#ff8a3d]/60 to-transparent" />
+                    <div className="absolute bottom-[8%] left-1/2 h-[22%] w-[76%] -translate-x-1/2 rounded-[50%] border border-[#ff8a3d]/18" />
+                    <div className="absolute bottom-0 left-1/2 h-[20%] w-[88%] -translate-x-1/2 rounded-t-[100%] border border-[#ff8a3d]/10" />
+
+                    <div className="absolute bottom-[13%] right-[-5%] h-64 w-64 rounded-full border border-[#3f2616] bg-[radial-gradient(circle_at_35%_30%,#d58c57_0%,#b8612f_18%,#7a351a_45%,#35130b_80%,#140708_100%)] shadow-[0_0_60px_rgba(0,0,0,0.5)] md:h-80 md:w-80">
+                        <div className="absolute left-[22%] top-0 h-full w-[2px] bg-[#2a100a]/60" />
+                        <div className="absolute right-[22%] top-0 h-full w-[2px] bg-[#2a100a]/60" />
+                        <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-[#2a100a]/60" />
+                        <div className="absolute inset-[12%] rounded-full border-[2px] border-[#2a100a]/60" />
+                    </div>
                 </div>
 
-                {status && (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                        {status}
+                <div className="relative z-10 flex min-h-screen w-full flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+                    <div className="flex flex-1 items-center justify-center">
+                        <div className="w-full max-w-5xl">
+                            <div className="mx-auto flex w-full max-w-[500px] flex-col items-center text-center">
+                                <div className="mb-7 flex items-center gap-4">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#ff9d57]/50 bg-[radial-gradient(circle_at_30%_30%,#f6b67d_0%,#d56d27_28%,#8c3d14_65%,#120a0e_100%)] shadow-[0_0_30px_rgba(255,133,50,0.35)]">
+                                        <div className="relative h-10 w-10 rounded-full border-[2.5px] border-[#1d0f10]">
+                                            <div className="absolute left-1/2 top-0 h-full w-[2px] -translate-x-1/2 bg-[#1d0f10]" />
+                                            <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-[#1d0f10]" />
+                                            <div className="absolute inset-[-2px] rounded-full border-[2px] border-transparent border-l-[#1d0f10] border-r-[#1d0f10]" />
+                                        </div>
+                                    </div>
+
+                                    <div className="text-left">
+                                        <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+                                            HoopSense<span className="text-[#ff8c42]">+</span>
+                                        </h1>
+                                        <p className="mt-1 max-w-md text-[11px] font-medium uppercase tracking-[0.22em] text-slate-300/90">
+                                            Basketball Intelligence Platform
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <p className="max-w-2xl text-balance text-sm leading-6 text-slate-200/85 sm:text-base">
+                                    An Intelligent Basketball Game Decision Support System Using
+                                    <span className="font-semibold text-[#ff9d57]"> Plus-Minus Analytics </span>
+                                    for Winning Probability Optimization
+                                </p>
+
+                                <div className="relative mt-10 w-full overflow-hidden rounded-[24px] border border-[#ff8d45]/35 bg-[linear-gradient(180deg,rgba(10,18,38,0.82),rgba(3,8,22,0.92))] px-6 py-7 shadow-[0_0_0_1px_rgba(255,140,66,0.1),0_0_28px_rgba(255,119,37,0.14),0_30px_80px_rgba(1,5,18,0.65)] backdrop-blur-xl sm:px-8 sm:py-8">
+                                    <div className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-inset ring-white/6" />
+                                    <div className="pointer-events-none absolute -left-16 top-10 h-24 w-24 rounded-full bg-[#ff8c42]/12 blur-3xl" />
+                                    <div className="pointer-events-none absolute -right-12 top-16 h-28 w-28 rounded-full bg-[#ff8c42]/12 blur-3xl" />
+
+                                    <div className="mb-6 flex w-full items-center justify-center gap-4 border-b border-white/10 pb-5">                                        
+                                        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5 shadow-inner shadow-white/5">
+                                            <UserCircle2 className="h-8 w-8 text-slate-100" />
+                                        </div>
+
+                                        <div className="text-center">
+                                            <h2 className="text-3xl text-left font-bold tracking-tight text-white">
+                                                Sign In
+                                            </h2>
+                                            <p className="mt-1 text-sm text-slate-300/80">
+                                                Access your HoopSense+ account
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {status && (
+                                        <div className="mb-5 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
+                                            {status}
+                                        </div>
+                                    )}
+
+                                    <form onSubmit={submit} className="space-y-5">
+                                        <div className="space-y-2">
+                                            <label
+                                                htmlFor="email"
+                                                className="block text-left text-sm font-semibold text-slate-100"
+                                            >
+                                                User ID
+                                            </label>
+
+                                            <div className="group flex h-14 items-center rounded-2xl border border-white/10 bg-[#0d1428]/90 px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[#ff8c42]/60 focus-within:shadow-[0_0_0_1px_rgba(255,140,66,0.2),0_0_24px_rgba(255,140,66,0.08)]">
+                                                <Mail className="h-5 w-5 text-slate-400 transition group-focus-within:text-[#ff9d57]" />
+                                                <input
+                                                    id="email"
+                                                    type="email"
+                                                    name="email"
+                                                    value={data.email}
+                                                    autoComplete="username"
+                                                    onChange={(e) => setData('email', e.target.value)}
+                                                    placeholder="Enter your email or user ID"
+                                                    className="h-full w-full border-0 bg-transparent pl-3 text-sm text-white placeholder:text-slate-500 focus:ring-0"
+                                                    autoFocus
+                                                />
+                                            </div>
+
+                                            <InputError message={errors.email} className="mt-2 text-[#ffb48f]" />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label
+                                                htmlFor="password"
+                                                className="block text-left text-sm font-semibold text-slate-100"
+                                            >
+                                                Password
+                                            </label>
+
+                                            <div className="group flex h-14 items-center rounded-2xl border border-white/10 bg-[#0d1428]/90 px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition focus-within:border-[#ff8c42]/60 focus-within:shadow-[0_0_0_1px_rgba(255,140,66,0.2),0_0_24px_rgba(255,140,66,0.08)]">
+                                                <Lock className="h-5 w-5 text-slate-400 transition group-focus-within:text-[#ff9d57]" />
+                                                <input
+                                                    id="password"
+                                                    type={showPassword ? 'text' : 'password'}
+                                                    name="password"
+                                                    value={data.password}
+                                                    autoComplete="current-password"
+                                                    onChange={(e) => setData('password', e.target.value)}
+                                                    placeholder="Enter your password"
+                                                    className="h-full w-full border-0 bg-transparent px-3 text-sm text-white placeholder:text-slate-500 focus:ring-0"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword((value) => !value)}
+                                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/5 hover:text-[#ff9d57]"
+                                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                                >
+                                                    {showPassword ? (
+                                                        <EyeOff className="h-4.5 w-4.5" />
+                                                    ) : (
+                                                        <Eye className="h-4.5 w-4.5" />
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            <InputError
+                                                message={errors.password}
+                                                className="mt-2 text-[#ffb48f]"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-3">
+                                            <label className="inline-flex items-center gap-2 text-sm text-slate-300/85">
+                                                <input
+                                                    type="checkbox"
+                                                    name="remember"
+                                                    checked={data.remember}
+                                                    onChange={(e) =>
+                                                        setData('remember', e.target.checked)
+                                                    }
+                                                    className="h-4 w-4 rounded border-white/20 bg-[#0d1428] text-[#ff8c42] focus:ring-[#ff8c42]/50"
+                                                />
+                                                Remember me
+                                            </label>
+
+                                            {canResetPassword && (
+                                                <Link
+                                                    href={route('password.request')}
+                                                    className="text-sm font-semibold text-[#77a9ff] transition hover:text-[#9bc0ff]"
+                                                >
+                                                    Forgot Password?
+                                                </Link>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            disabled={processing}
+                                            className="group inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#ff9b56]/70 bg-[linear-gradient(135deg,#ff6a00,#ff8c42)] text-lg font-bold text-white shadow-[0_0_0_1px_rgba(255,147,77,0.3),0_12px_30px_rgba(255,111,21,0.28),inset_0_1px_0_rgba(255,255,255,0.25)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(255,147,77,0.38),0_18px_38px_rgba(255,111,21,0.34),0_0_22px_rgba(255,140,66,0.28)] disabled:cursor-not-allowed disabled:opacity-70"
+                                        >
+                                            <span>{processing ? 'Signing In...' : 'Sign In'}</span>
+                                            <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+                                        </button>
+                                    </form>
+
+                                    <div className="mt-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-px flex-1 bg-white/10" />
+                                            <span className="text-sm font-semibold text-slate-400">or</span>
+                                            <div className="h-px flex-1 bg-white/10" />
+                                        </div>
+
+                                        <p className="mt-5 text-center text-sm text-slate-300/80">
+                                            Don&apos;t have an account?{' '}
+                                            <a
+                                                href="mailto:admin@hoopsenseplus.com"
+                                                className="font-semibold text-[#77a9ff] transition hover:text-[#9bc0ff]"
+                                            >
+                                                Contact Administrator
+                                            </a>
+                                        </p>
+                                    </div>
+
+                                    {/* <div className="mt-6 flex items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-xs uppercase tracking-[0.24em] text-slate-400">
+                                        <ShieldCheck className="h-4 w-4 text-[#ff9d57]" />
+                                        Secure analytics access
+                                    </div> */}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                )}
 
-                <form onSubmit={submit} className="space-y-5">
-                    <div>
-                        <InputLabel htmlFor="email" value="Email Address" className="mb-2" />
-
-                        <TextInput
-                            id="email"
-                            type="email"
-                            name="email"
-                            value={data.email}
-                            className="block w-full px-4 py-3"
-                            autoComplete="username"
-                            isFocused={true}
-                            onChange={(e) => setData('email', e.target.value)}
-                            placeholder="[email protected]"
-                        />
-
-                        <InputError message={errors.email} className="mt-2" />
-                    </div>
-
-                    <div>
-                        <InputLabel htmlFor="password" value="Password" className="mb-2" />
-
-                        <TextInput
-                            id="password"
-                            type="password"
-                            name="password"
-                            value={data.password}
-                            className="block w-full px-4 py-3"
-                            autoComplete="current-password"
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Enter your password"
-                        />
-
-                        <InputError message={errors.password} className="mt-2" />
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4">
-                        <label className="flex items-center gap-2">
-                            <Checkbox
-                                name="remember"
-                                checked={data.remember}
-                                onChange={(e) => setData('remember', e.target.checked)}
-                            />
-                            <span className="text-sm text-slate-600 dark:text-slate-300">Remember me</span>
-                        </label>
-
-                        {canResetPassword && (
-                            <Link
-                                href={route('password.request')}
-                                className="text-sm font-medium text-slate-600 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
-                            >
-                                Forgot password?
-                            </Link>
-                        )}
-                    </div>
-
-                    <PrimaryButton className="w-full justify-center px-5 py-3 text-sm">
-                        {processing ? 'Signing in...' : 'Log in'}
-                    </PrimaryButton>
-                </form>
+                    <footer className="relative z-10 flex justify-center pb-2 pt-6 text-center text-sm text-slate-400/80">
+                        <p>&copy; 2024 HoopSense+. All rights reserved.</p>
+                    </footer>
+                </div>
             </div>
-        </GuestLayout>
+        </>
     );
 }
