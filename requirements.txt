@@ -1,0 +1,6 @@
+# HoopSense+ Python Analytics Engine
+# Called via subprocess from Laravel Jobs — no web server required.
+# Install: pip install -r requirements.txt
+#
+# Currently stdlib-only (json, sys, math).
+# Add packages below when Phase 3+ ML models require them.
