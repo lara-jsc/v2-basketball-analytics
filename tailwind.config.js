@@ -38,7 +38,9 @@ export default {
                 ring: 'hsl(var(--ring))',
             },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Barlow', ...defaultTheme.fontFamily.sans],
+                display: ['Barlow Condensed', ...defaultTheme.fontFamily.sans],
+                ui: ['Rajdhani', ...defaultTheme.fontFamily.sans],
             },
             borderRadius: {
                 lg: 'var(--radius)',
