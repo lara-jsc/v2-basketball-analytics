@@ -1,0 +1,115 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreTeamRequest;
+use App\Http\Requests\UpdateTeamRequest;
+use App\Http\Requests\UploadTeamLogoRequest;
+use App\Models\Team;
+use App\Repositories\CsvImportRepository;
+use App\Repositories\PlayerRepository;
+use App\Repositories\TeamRepository;
+use App\Services\TeamService;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class TeamController extends Controller
+{
+    public function __construct(
+        private readonly TeamRepository $teamRepository,
+        private readonly PlayerRepository $playerRepository,
+        private readonly CsvImportRepository $csvImportRepository,
+        private readonly TeamService $teamService,
+    ) {}
+
+    /**
+     * List all teams.
+     */
+    public function index(): Response
+    {
+        return Inertia::render('Teams/Index', [
+            'teams' => $this->teamRepository->all(),
+        ]);
+    }
+
+    /**
+     * Show the create team form.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Teams/Create');
+    }
+
+    /**
+     * Store a new team and redirect to its show page.
+     */
+    public function store(StoreTeamRequest $request): RedirectResponse
+    {
+        $team = $this->teamRepository->create($request->validated());
+
+        return redirect()
+            ->route('teams.show', $team->id)
+            ->with('success', "Team '{$team->name}' created successfully.");
+    }
+
+    /**
+     * Show a team with its players and latest import status.
+     */
+    public function show(Team $team): Response
+    {
+        return Inertia::render('Teams/Show', [
+            'team'         => $team,
+            'players'      => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
+            'latestImport' => fn () => $this->csvImportRepository->latestForTeam($team->id),
+        ]);
+    }
+
+    /**
+     * Show the team edit form.
+     */
+    public function edit(Team $team): Response
+    {
+        return Inertia::render('Teams/Edit', [
+            'team' => $team,
+        ]);
+    }
+
+    /**
+     * Update team details.
+     */
+    public function update(UpdateTeamRequest $request, Team $team): RedirectResponse
+    {
+        $this->teamService->update($team, $request->validated());
+
+        return redirect()
+            ->route('teams.show', $team->id)
+            ->with('success', 'Team updated successfully.');
+    }
+
+    /**
+     * Toggle team active/inactive status.
+     */
+    public function toggleActive(Team $team): RedirectResponse
+    {
+        $updated = $this->teamService->toggleActive($team);
+
+        $label = $updated->is_active ? 'activated' : 'deactivated';
+
+        return redirect()
+            ->route('teams.show', $team->id)
+            ->with('success', "Team {$label}.");
+    }
+
+    /**
+     * Upload / replace the team logo.
+     */
+    public function uploadLogo(UploadTeamLogoRequest $request, Team $team): RedirectResponse
+    {
+        $this->teamService->updateLogo($team, $request->file('logo'));
+
+        return redirect()
+            ->route('teams.edit', $team->id)
+            ->with('success', 'Team logo updated.');
+    }
+}

@@ -3,49 +3,55 @@
 @tailwind utilities;
 
 @layer base {
+    /*
+     * Brand palette:
+     *   primary  #98002E  → hsl(342, 100%, 30%)  — dark red
+     *   accent   #F9A01B  → hsl(36, 95%, 54%)    — gold
+     *   base     #000000  — pure black (dark mode bg)
+     */
     :root {
-        --background: 216 36% 98%;
-        --foreground: 220 46% 14%;
+        --background: 0 0% 98%;
+        --foreground: 0 0% 8%;
         --card: 0 0% 100%;
-        --card-foreground: 220 46% 14%;
+        --card-foreground: 0 0% 8%;
         --popover: 0 0% 100%;
-        --popover-foreground: 220 46% 14%;
-        --primary: 220 67% 28%;
+        --popover-foreground: 0 0% 8%;
+        --primary: 342 100% 30%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 216 34% 93%;
-        --secondary-foreground: 220 46% 14%;
-        --muted: 214 30% 94%;
-        --muted-foreground: 217 20% 39%;
-        --accent: 216 55% 36%;
-        --accent-foreground: 0 0% 100%;
+        --secondary: 342 20% 94%;
+        --secondary-foreground: 342 60% 20%;
+        --muted: 0 0% 94%;
+        --muted-foreground: 0 0% 40%;
+        --accent: 36 95% 54%;
+        --accent-foreground: 0 0% 8%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
-        --border: 215 25% 85%;
-        --input: 215 25% 85%;
-        --ring: 220 67% 28%;
+        --border: 0 0% 88%;
+        --input: 0 0% 88%;
+        --ring: 342 100% 30%;
         --radius: 0.75rem;
     }
 
     .dark {
-        --background: 222 47% 9%;
-        --foreground: 214 32% 94%;
-        --card: 222 40% 12%;
-        --card-foreground: 214 32% 94%;
-        --popover: 222 40% 12%;
-        --popover-foreground: 214 32% 94%;
-        --primary: 217 91% 60%;
-        --primary-foreground: 222 47% 11%;
-        --secondary: 220 28% 18%;
-        --secondary-foreground: 214 32% 94%;
-        --muted: 220 25% 16%;
-        --muted-foreground: 215 20% 70%;
-        --accent: 219 65% 48%;
-        --accent-foreground: 214 32% 94%;
+        --background: 0 0% 5%;
+        --foreground: 0 0% 95%;
+        --card: 0 0% 9%;
+        --card-foreground: 0 0% 95%;
+        --popover: 0 0% 9%;
+        --popover-foreground: 0 0% 95%;
+        --primary: 342 80% 45%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 342 15% 15%;
+        --secondary-foreground: 0 0% 85%;
+        --muted: 0 0% 14%;
+        --muted-foreground: 0 0% 60%;
+        --accent: 36 95% 54%;
+        --accent-foreground: 0 0% 8%;
         --destructive: 0 63% 48%;
-        --destructive-foreground: 214 32% 94%;
-        --border: 220 22% 22%;
-        --input: 220 22% 22%;
-        --ring: 217 91% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 0 0% 18%;
+        --input: 0 0% 18%;
+        --ring: 342 80% 45%;
     }
 
     * {
@@ -55,23 +61,14 @@
     body {
         @apply bg-background text-foreground antialiased;
         font-feature-settings: "rlig" 1, "calt" 1;
-        background-image:
-            radial-gradient(circle at top, rgba(30, 64, 175, 0.12), transparent 32%),
-            linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 1));
     }
 
-    .dark body {
-        background-image:
-            radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 28%),
-            linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 1));
-    }
-
+    /* Prevent browser autofill yellow flash */
     input:-webkit-autofill,
     input:-webkit-autofill:hover,
     input:-webkit-autofill:focus {
-        -webkit-box-shadow: 0 0 0px 1000px #0d1428 inset !important;
-        -webkit-text-fill-color: white !important;
-        border: 0 !important;
-        outline: none !important;
+        -webkit-box-shadow: 0 0 0px 1000px hsl(var(--card)) inset !important;
+        -webkit-text-fill-color: hsl(var(--foreground)) !important;
+        transition: background-color 5000s ease-in-out 0s;
     }
 }

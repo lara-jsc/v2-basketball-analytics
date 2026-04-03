@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hoopsense-analytics"
+version = "0.1.0"
+description = "HoopSense+ Python analytics engine — called via Laravel Jobs (subprocess, stdin/stdout JSON). No web server."
+readme = "README.md"
+requires-python = ">=3.9"
+# No runtime dependencies — stdlib only (json, sys, math).
+# Add scipy/numpy here if advanced ML models are needed in future phases.
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
