@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CsvController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -11,7 +12,6 @@ use Inertia\Inertia;
  | Web Routes
  |--------------------------------------------------------------------------
  | All application routes are auth-gated. No guest access to app features.
- | Phase stubs are marked — controllers will be implemented per phase.
  */
 
 Route::get('/', function () {
@@ -30,32 +30,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    // ── CSV Template Download ──────────────────────────────────────────────
-    // Phase 1: template download is live; upload route stubbed for Phase 1 impl.
+    // ── Teams (Phase 1 — live) ─────────────────────────────────────────────
+    Route::get('/teams', [TeamController::class, 'index'])->name('teams.index');
+    Route::get('/teams/create', [TeamController::class, 'create'])->name('teams.create');
+    Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
+    Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+
+    // ── CSV (Phase 1 — live) ───────────────────────────────────────────────
     Route::get('/csv/template', [CsvController::class, 'template'])->name('csv.template');
+    Route::post('/csv/upload', [CsvController::class, 'upload'])->name('csv.upload');
 
-    // ── Teams (Phase 2) ────────────────────────────────────────────────────
-    // TODO (Phase 2): replace closure stubs with TeamController
-    Route::get('/teams', function () {
-        return Inertia::render('Teams/Index');
-    })->name('teams.index');
-
-    Route::get('/teams/create', function () {
-        return Inertia::render('Teams/Create');
-    })->name('teams.create');
-
-    Route::get('/teams/{team}', function () {
-        return Inertia::render('Teams/Show');
-    })->name('teams.show');
-
-    // ── Players (Phase 2) ──────────────────────────────────────────────────
-    // TODO (Phase 2): replace closure stubs with PlayerController
-    Route::get('/teams/{team}/players', function () {
-        return Inertia::render('Players/Index');
-    })->name('teams.players.index');
-
-    // ── Team Comparison + Lineup (Phase 3) ────────────────────────────────
-    // TODO (Phase 3): replace closure stub with ComparisonController
+    // ── Team Comparison (Phase 3 — stub) ──────────────────────────────────
     Route::get('/comparison', function () {
         return Inertia::render('Comparison/Index');
     })->name('comparison.index');

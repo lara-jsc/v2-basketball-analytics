@@ -108,6 +108,17 @@ export interface CsvImport {
   team?: Team;
 }
 
+// ─── Composite Types ─────────────────────────────────────────────────────────
+
+/**
+ * Player with their most recent PlayerStat row eager-loaded.
+ * `stats` is an array containing 0 or 1 entry from the server.
+ * Use `player.stats[0] ?? null` to access the stat row.
+ */
+export interface PlayerWithStats extends Player {
+  stats: PlayerStat[];
+}
+
 // ─── Analytics Engine Contracts ──────────────────────────────────────────────
 
 export interface LineupPlayer {

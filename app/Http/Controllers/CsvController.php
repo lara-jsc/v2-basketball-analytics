@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCsvUploadRequest;
+use App\Jobs\ProcessCsvImport;
+use App\Repositories\CsvImportRepository;
 use App\Services\CsvTemplateService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CsvController extends Controller
 {
     public function __construct(
         private readonly CsvTemplateService $templateService,
+        private readonly CsvImportRepository $csvImportRepository,
     ) {}
 
     /**
@@ -29,5 +35,33 @@ class CsvController extends Controller
                 'Content-Disposition' => 'attachment; filename="hoopsense-roster-template.csv"',
             ],
         );
+    }
+
+    /**
+     * Accept a CSV upload for a team, store it, and dispatch the import Job.
+     * Redirects to the team's show page where the user can track progress.
+     */
+    public function upload(StoreCsvUploadRequest $request): RedirectResponse
+    {
+        $teamId = (int) $request->validated()['team_id'];
+        $file   = $request->file('file');
+
+        // Store the file at imports/{team_id}/{original_name} — not publicly accessible
+        $storagePath = $file->storeAs(
+            "imports/{$teamId}",
+            $file->getClientOriginalName(),
+        );
+
+        $import = $this->csvImportRepository->create([
+            'team_id'  => $teamId,
+            'filename' => $storagePath,
+            'status'   => 'pending',
+        ]);
+
+        ProcessCsvImport::dispatch($import->id);
+
+        return redirect()
+            ->route('teams.show', $teamId)
+            ->with('success', 'CSV uploaded — import is processing.');
     }
 }
