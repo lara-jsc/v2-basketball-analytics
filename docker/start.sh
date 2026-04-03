@@ -11,6 +11,10 @@ echo "📦 Using bundled production dependencies and built assets..."
 echo "📦 Running migrations..."
 php artisan migrate --force
 
+# Seed demo data
+echo "🌱 Seeding database..."
+php artisan db:seed --force
+
 # Cache configuration for production
 echo "⚡ Caching config..."
 php artisan config:cache
