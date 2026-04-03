@@ -48,6 +48,7 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interactio
 
 # Copy the rest of the app
 COPY . .
+RUN rm -f public/hot
 
 # Run post-install scripts
 RUN composer dump-autoload --optimize

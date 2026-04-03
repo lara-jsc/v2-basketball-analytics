@@ -3,17 +3,9 @@ set -e
 
 echo "🏀 HoopSense+ — Starting deployment..."
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-composer install --no-dev --optimize-autoloader
-
-# Install node dependencies
-echo "📦 Installing node modules..."
-npm install
-
-# Build frontend (IMPORTANT)
-echo "⚡ Building frontend..."
-npm run build
+# Composer dependencies and frontend assets are built into the image at
+# Docker build time, so runtime startup should not depend on npm/node.
+echo "📦 Using bundled production dependencies and built assets..."
 
 # Run migrations
 echo "📦 Running migrations..."
