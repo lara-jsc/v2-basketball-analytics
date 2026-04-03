@@ -160,4 +160,6 @@ export interface PageProps {
     success?: string;
     error?: string;
   };
+  /** Required by Inertia's PageProps constraint. */
+  [key: string]: unknown;
 }

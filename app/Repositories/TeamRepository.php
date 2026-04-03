@@ -34,4 +34,14 @@ class TeamRepository
     {
         return Team::create($data);
     }
+
+    /**
+     * Update a team's attributes.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function update(Team $team, array $data): void
+    {
+        $team->update($data);
+    }
 }
