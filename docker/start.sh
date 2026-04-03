@@ -3,6 +3,18 @@ set -e
 
 echo "🏀 HoopSense+ — Starting deployment..."
 
+# Install dependencies
+echo "📦 Installing dependencies..."
+composer install --no-dev --optimize-autoloader
+
+# Install node dependencies
+echo "📦 Installing node modules..."
+npm install
+
+# Build frontend (IMPORTANT)
+echo "⚡ Building frontend..."
+npm run build
+
 # Run migrations
 echo "📦 Running migrations..."
 php artisan migrate --force
