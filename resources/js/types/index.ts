@@ -119,6 +119,18 @@ export interface PlayerWithStats extends Player {
   stats: PlayerStat[];
 }
 
+// ─── Comparison / Aggregate ──────────────────────────────────────────────────
+
+export interface TeamAggregateStats {
+  avg_pts: number;
+  avg_reb: number;
+  avg_ast: number;
+  avg_fg_pct: number;
+  avg_blk: number;
+  avg_stl: number;
+  avg_to_per_game: number;
+}
+
 // ─── Analytics Engine Contracts ──────────────────────────────────────────────
 
 export interface LineupPlayer {

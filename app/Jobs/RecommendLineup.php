@@ -2,21 +2,16 @@
 
 namespace App\Jobs;
 
+use App\Repositories\ComparisonRepository;
+use App\Services\ComparisonAggregatorService;
+use App\Services\LineupService;
+use App\Services\PythonEngineService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
+use Throwable;
 
-/**
- * Calls the Python analytics engine to generate an optimal starting lineup
- * for the home team against a specific opponent.
- *
- * Python contract:
- *   Input  (stdin JSON): { "home_team_players": [...], "opponent_team_players": [...] }
- *   Output (stdout JSON): { "recommended_lineup": [...], "confidence": float }
- *
- * Result is cached per team matchup key.
- * Cache is invalidated on new CSV upload for either team.
- * Only is_active = true players are included in both input arrays.
- */
 class RecommendLineup implements ShouldQueue
 {
     use Queueable;
@@ -26,12 +21,40 @@ class RecommendLineup implements ShouldQueue
         public readonly int $opponentTeamId,
     ) {}
 
-    /**
-     * Execute the job.
-     * Full implementation in Phase 3 — see LineupService.
-     */
-    public function handle(): void
+    public function handle(
+        ComparisonRepository $compRepo,
+        ComparisonAggregatorService $aggregator,
+        PythonEngineService $engine,
+        LineupService $lineupService,
+    ): void {
+        $homePlayers     = $compRepo->activPlayersWithStats($this->homeTeamId);
+        $opponentPlayers = $compRepo->activPlayersWithStats($this->opponentTeamId);
+
+        $payload = [
+            'home_team_players'     => $aggregator->toEnginePayload($homePlayers),
+            'opponent_team_players' => $aggregator->toEnginePayload($opponentPlayers),
+        ];
+
+        try {
+            $result = $engine->call('lineup', $payload);
+        } catch (RuntimeException $e) {
+            Log::error('RecommendLineup: engine error', [
+                'home'     => $this->homeTeamId,
+                'opponent' => $this->opponentTeamId,
+                'error'    => $e->getMessage(),
+            ]);
+            return;
+        }
+
+        $lineupService->store($this->homeTeamId, $this->opponentTeamId, $result);
+    }
+
+    public function failed(Throwable $e): void
     {
-        // TODO (Phase 3): inject LineupService, call $service->recommend($this->homeTeamId, $this->opponentTeamId)
+        Log::error('RecommendLineup job failed', [
+            'home'     => $this->homeTeamId,
+            'opponent' => $this->opponentTeamId,
+            'error'    => $e->getMessage(),
+        ]);
     }
 }

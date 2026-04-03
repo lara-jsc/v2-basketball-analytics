@@ -6,6 +6,7 @@ use App\Http\Requests\StoreCsvUploadRequest;
 use App\Jobs\ProcessCsvImport;
 use App\Repositories\CsvImportRepository;
 use App\Services\CsvTemplateService;
+use App\Services\WinProbabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -15,6 +16,7 @@ class CsvController extends Controller
     public function __construct(
         private readonly CsvTemplateService $templateService,
         private readonly CsvImportRepository $csvImportRepository,
+        private readonly WinProbabilityService $winProbabilityService,
     ) {}
 
     /**
@@ -59,6 +61,9 @@ class CsvController extends Controller
         ]);
 
         ProcessCsvImport::dispatch($import->id);
+
+        // Invalidate all cached comparison results involving this team
+        $this->winProbabilityService->invalidateForTeam($teamId);
 
         return redirect()
             ->route('teams.show', $teamId)
