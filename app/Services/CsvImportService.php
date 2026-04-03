@@ -191,32 +191,38 @@ class CsvImportService
 
     /**
      * Import one CSV data row inside a DB transaction.
-     * Returns the PlayerStat ID so BPM job can be dispatched.
+     * Uses jersey_number as the natural key per team — re-uploading the same
+     * CSV updates existing records rather than inserting duplicates.
+     * Returns the PlayerStat ID so the BPM job can be dispatched.
      *
      * @param  array<string, string>  $data
      */
     private function importRow(int $teamId, array $data): int
     {
         return DB::transaction(function () use ($teamId, $data): int {
-            $player = $this->playerRepository->create([
-                'team_id'        => $teamId,
-                'first_name'     => $data['first_name'] ?? '',
-                'last_name'      => $data['last_name'] ?? '',
-                'jersey_number'  => (int) ($data['jersey_number'] ?? 0),
-                'role'           => $data['role'] !== '' ? $data['role'] : null,
-                'height_feet'    => $data['height_feet'] !== '' ? (float) $data['height_feet'] : null,
-                'weight_kg'      => $data['weight_kg'] !== '' ? (float) $data['weight_kg'] : null,
-                'is_active'      => $this->parseBool($data['is_active'] ?? '1'),
-            ]);
+            $jerseyNumber = (int) ($data['jersey_number'] ?? 0);
 
-            $statData = ['player_id' => $player->id];
+            $player = $this->playerRepository->updateOrCreateByJersey(
+                teamId: $teamId,
+                jerseyNumber: $jerseyNumber,
+                playerData: [
+                    'first_name'   => $data['first_name'] ?? '',
+                    'last_name'    => $data['last_name'] ?? '',
+                    'role'         => $data['role'] !== '' ? $data['role'] : null,
+                    'height_feet'  => $data['height_feet'] !== '' ? (float) $data['height_feet'] : null,
+                    'weight_kg'    => $data['weight_kg'] !== '' ? (float) $data['weight_kg'] : null,
+                    'is_active'    => $this->parseBool($data['is_active'] ?? '1'),
+                ],
+            );
+
+            $statData = [];
 
             foreach (self::STAT_COLUMN_MAP as $csvCol => $dbCol) {
                 $raw = $data[$csvCol] ?? null;
                 $statData[$dbCol] = ($raw !== null && $raw !== '') ? $this->castStat($dbCol, $raw) : null;
             }
 
-            $stat = $this->playerRepository->createStat($statData);
+            $stat = $this->playerRepository->upsertStat($player, $statData);
 
             return $stat->id;
         });

@@ -35,6 +35,20 @@ class PlayerRepository
     }
 
     /**
+     * Update or create a player matched by team_id + jersey_number.
+     * Used by CSV import to prevent duplicates on re-upload.
+     *
+     * @param  array<string, mixed>  $playerData
+     */
+    public function updateOrCreateByJersey(int $teamId, int $jerseyNumber, array $playerData): Player
+    {
+        return Player::updateOrCreate(
+            ['team_id' => $teamId, 'jersey_number' => $jerseyNumber],
+            $playerData,
+        );
+    }
+
+    /**
      * Create a PlayerStat record for a player.
      *
      * @param  array<string, mixed>  $data
