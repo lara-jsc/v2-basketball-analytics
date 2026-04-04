@@ -3,6 +3,7 @@
 use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
 use App\Http\Controllers\PlayerController;
+use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Auth;
@@ -45,6 +46,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ── CSV ───────────────────────────────────────────────────────────────
     Route::get('/csv/template', [CsvController::class, 'template'])->name('csv.template');
     Route::post('/csv/upload', [CsvController::class, 'upload'])->name('csv.upload');
+
+    // ── Player Histories ──────────────────────────────────────────────────
+    Route::get('/player-histories/template/download',      [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
+    Route::post('/players/{player}/histories/import', [PlayerHistoryController::class, 'import'])->name('player-histories.import');
+    Route::get('/players/{player}/histories',         [PlayerHistoryController::class, 'index'])->name('player-histories.index');
+    Route::get('/players/{player}/histories/create',  [PlayerHistoryController::class, 'create'])->name('player-histories.create');
+    Route::post('/players/{player}/histories',        [PlayerHistoryController::class, 'store'])->name('player-histories.store');
+    Route::get('/player-histories/{history}/edit',    [PlayerHistoryController::class, 'edit'])->name('player-histories.edit');
+    Route::put('/player-histories/{history}',         [PlayerHistoryController::class, 'update'])->name('player-histories.update');
+    Route::delete('/player-histories/{history}',      [PlayerHistoryController::class, 'destroy'])->name('player-histories.destroy');
 
     // ── Team Comparison (Phase 3) ─────────────────────────────────────────
     Route::get('/comparison', [ComparisonController::class, 'index'])->name('comparison.index');

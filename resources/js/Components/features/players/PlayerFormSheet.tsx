@@ -25,7 +25,6 @@ interface PlayerFormSheetProps {
 }
 
 type PlayerFormData = {
-    // Identity
     first_name: string;
     last_name: string;
     jersey_number: string;
@@ -33,87 +32,24 @@ type PlayerFormData = {
     height_feet: string;
     weight_kg: string;
     is_active: string;
-    // Stats
-    pc: string;
-    sd: string;
-    pts: string;
-    reb: string;
-    ast: string;
-    blk: string;
-    stl: string;
-    to_per_game: string;
-    min: string;
-    gp: string;
-    gs: string;
-    fg: string;
-    fg_pct: string;
-    three_pt: string;
-    three_p_pct: string;
-    ft: string;
-    ft_pct: string;
-    sc_eff: string;
-    sh_eff: string;
-    dr: string;
-    offensive_rebounds: string;
-    ast_to: string;
-    stl_to: string;
-    pf: string;
-    flag: string;
-    tech: string;
-    eject: string;
-    dq: string;
-    dd2: string;
-    td3: string;
 };
 
 /**
- * Side-drawer form for creating or editing a player + their stats.
+ * Side-drawer form for creating or editing a player's profile info.
+ * Stats are computed from game history — not editable here.
  * Profile picture is uploaded separately via ProfilePictureUpload (edit mode only).
  */
 export function PlayerFormSheet({ open, onOpenChange, team, player }: PlayerFormSheetProps) {
-    const stat = player?.stats[0] ?? null;
     const isEdit = !!player;
 
     const { data, setData, post, put, processing, errors, reset } = useForm<PlayerFormData>({
-        // Identity
-        first_name:    player?.first_name    ?? '',
-        last_name:     player?.last_name     ?? '',
+        first_name:    player?.first_name              ?? '',
+        last_name:     player?.last_name               ?? '',
         jersey_number: player?.jersey_number?.toString() ?? '',
-        role:          player?.role          ?? '',
-        height_feet:   player?.height_feet?.toString()   ?? '',
-        weight_kg:     player?.weight_kg?.toString()     ?? '',
+        role:          player?.role                    ?? '',
+        height_feet:   player?.height_feet?.toString()  ?? '',
+        weight_kg:     player?.weight_kg?.toString()   ?? '',
         is_active:     (player?.is_active ?? true) ? 'true' : 'false',
-        // Stats
-        pc:                 stat?.pc                     ?? '',
-        sd:                 stat?.sd                     ?? '',
-        pts:                stat?.pts?.toString()         ?? '',
-        reb:                stat?.reb?.toString()         ?? '',
-        ast:                stat?.ast?.toString()         ?? '',
-        blk:                stat?.blk?.toString()         ?? '',
-        stl:                stat?.stl?.toString()         ?? '',
-        to_per_game:        stat?.to_per_game?.toString() ?? '',
-        min:                stat?.min?.toString()         ?? '',
-        gp:                 stat?.gp?.toString()          ?? '',
-        gs:                 stat?.gs?.toString()          ?? '',
-        fg:                 stat?.fg                     ?? '',
-        fg_pct:             stat?.fg_pct?.toString()      ?? '',
-        three_pt:           stat?.three_pt               ?? '',
-        three_p_pct:        stat?.three_p_pct?.toString() ?? '',
-        ft:                 stat?.ft                     ?? '',
-        ft_pct:             stat?.ft_pct?.toString()      ?? '',
-        sc_eff:             stat?.sc_eff?.toString()      ?? '',
-        sh_eff:             stat?.sh_eff?.toString()      ?? '',
-        dr:                 stat?.dr?.toString()          ?? '',
-        offensive_rebounds: stat?.offensive_rebounds?.toString() ?? '',
-        ast_to:             stat?.ast_to?.toString()      ?? '',
-        stl_to:             stat?.stl_to?.toString()      ?? '',
-        pf:                 stat?.pf?.toString()          ?? '',
-        flag:               stat?.flag?.toString()        ?? '',
-        tech:               stat?.tech?.toString()        ?? '',
-        eject:              stat?.eject?.toString()       ?? '',
-        dq:                 stat?.dq?.toString()          ?? '',
-        dd2:                stat?.dd2?.toString()         ?? '',
-        td3:                stat?.td3?.toString()         ?? '',
     });
 
     const handleSubmit: FormEventHandler = (e) => {
@@ -136,29 +72,6 @@ export function PlayerFormSheet({ open, onOpenChange, team, player }: PlayerForm
         }
     };
 
-    const field = (
-        id: keyof PlayerFormData,
-        label: string,
-        type: 'text' | 'number' = 'number',
-    ) => (
-        <div className="space-y-1.5">
-            <Label htmlFor={id} className="text-xs">
-                {label}
-            </Label>
-            <Input
-                id={id}
-                type={type}
-                value={data[id]}
-                onChange={(e) => setData(id, e.target.value)}
-                className="h-8 text-sm"
-                placeholder="—"
-            />
-            {errors[id] && (
-                <p className="text-xs text-destructive">{errors[id]}</p>
-            )}
-        </div>
-    );
-
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="right" className="w-full sm:max-w-xl p-0 flex flex-col">
@@ -166,7 +79,7 @@ export function PlayerFormSheet({ open, onOpenChange, team, player }: PlayerForm
                     <SheetTitle>{isEdit ? 'Edit Player' : 'Add Player'}</SheetTitle>
                     <SheetDescription>
                         {isEdit
-                            ? `Update ${player.first_name} ${player.last_name}'s details and stats.`
+                            ? `Update ${player.first_name} ${player.last_name}'s profile details.`
                             : `Add a new player to ${team.name}.`}
                     </SheetDescription>
                 </SheetHeader>
@@ -187,7 +100,7 @@ export function PlayerFormSheet({ open, onOpenChange, team, player }: PlayerForm
                             </>
                         )}
 
-                        {/* ── Player Identity ──────────────────────────── */}
+                        {/* ── Player Info ──────────────────────────────── */}
                         <section className="space-y-4">
                             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                 Player Info
@@ -284,80 +197,6 @@ export function PlayerFormSheet({ open, onOpenChange, team, player }: PlayerForm
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-                        </section>
-
-                        <Separator />
-
-                        {/* ── Core Stats ───────────────────────────────── */}
-                        <section className="space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Core Stats (per game)
-                            </h3>
-                            <div className="grid grid-cols-3 gap-3">
-                                {field('pts', 'PTS')}
-                                {field('reb', 'REB')}
-                                {field('ast', 'AST')}
-                                {field('blk', 'BLK')}
-                                {field('stl', 'STL')}
-                                {field('to_per_game', 'TO')}
-                                {field('min', 'MIN')}
-                                {field('gp', 'GP')}
-                                {field('gs', 'GS')}
-                                {field('dd2', 'DD2')}
-                                {field('td3', 'TD3')}
-                                {field('pc', 'PC', 'text')}
-                                {field('sd', 'SD', 'text')}
-                            </div>
-                        </section>
-
-                        <Separator />
-
-                        {/* ── Shooting ─────────────────────────────────── */}
-                        <section className="space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Shooting
-                            </h3>
-                            <div className="grid grid-cols-3 gap-3">
-                                {field('fg', 'FG (M-A)', 'text')}
-                                {field('fg_pct', 'FG%')}
-                                {field('three_pt', '3PT (M-A)', 'text')}
-                                {field('three_p_pct', '3P%')}
-                                {field('ft', 'FT (M-A)', 'text')}
-                                {field('ft_pct', 'FT%')}
-                                {field('sc_eff', 'SC-EFF')}
-                                {field('sh_eff', 'SH-EFF')}
-                            </div>
-                        </section>
-
-                        <Separator />
-
-                        {/* ── Rebounding & Ratios ──────────────────────── */}
-                        <section className="space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Rebounding &amp; Ratios
-                            </h3>
-                            <div className="grid grid-cols-3 gap-3">
-                                {field('dr', 'DR')}
-                                {field('offensive_rebounds', 'OR')}
-                                {field('ast_to', 'AST/TO')}
-                                {field('stl_to', 'STL/TO')}
-                            </div>
-                        </section>
-
-                        <Separator />
-
-                        {/* ── Fouls & Discipline ───────────────────────── */}
-                        <section className="space-y-4">
-                            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Fouls &amp; Discipline
-                            </h3>
-                            <div className="grid grid-cols-3 gap-3">
-                                {field('pf', 'PF')}
-                                {field('flag', 'FLAG')}
-                                {field('tech', 'TECH')}
-                                {field('eject', 'EJECT')}
-                                {field('dq', 'DQ')}
                             </div>
                         </section>
 

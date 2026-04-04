@@ -1,35 +1,32 @@
-import { TemplateDownloadButton } from './TemplateDownloadButton';
 import { useForm } from '@inertiajs/react';
-import { FileUp, Loader2, Paperclip } from 'lucide-react';
+import { Download, FileUp, Loader2, Paperclip } from 'lucide-react';
 import { type FormEvent, useRef } from 'react';
 
-interface CsvUploadFormProps {
-    teamId: number;
+interface PlayerHistoryImportProps {
+    /** The player whose history this import belongs to. */
+    playerId: number;
 }
 
-interface UploadFormData {
-    team_id: number;
+interface ImportFormData {
     file: File | null;
 }
 
 /**
- * CSV roster upload form.
- * Submits via Inertia multipart POST to csv.upload.
+ * Player history xlsx import panel.
  *
- * UX: custom file picker row (filename display + Browse + Import Data)
- * so the native file input chrome is hidden. Template download is a
- * secondary text link — not a CTA-weight button.
+ * - Template Download button: amber outlined, icon: download arrow
+ * - Import History button: amber filled CTA
+ * - player_id is taken from the route — not submitted in the form
  */
-export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
+export function PlayerHistoryImport({ playerId }: PlayerHistoryImportProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { data, setData, post, processing, errors, reset } = useForm<UploadFormData>({
-        team_id: teamId,
+    const { data, setData, post, processing, errors, reset } = useForm<ImportFormData>({
         file: null,
     });
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
         e.preventDefault();
-        post(route('csv.upload'), {
+        post(route('player-histories.import', { player: playerId }), {
             forceFormData: true,
             onSuccess: () => reset('file'),
         });
@@ -41,13 +38,22 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
             <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-primary/10 to-transparent px-5 py-3">
                 <div>
                     <h3 className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
-                        CSV Import
+                        Import Game History
                     </h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                        Upload a roster file to import player stats in bulk.
+                        Upload the filled Excel template (.xlsx) to import multiple game entries at once.
                     </p>
                 </div>
-                <TemplateDownloadButton />
+
+                {/* Template Download — amber outlined */}
+                <a
+                    href={route('player-histories.template')}
+                    download
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-accent px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-accent transition-colors hover:bg-accent/10"
+                >
+                    <Download size={13} />
+                    Download Template (.xlsx)
+                </a>
             </div>
 
             {/* Upload row */}
@@ -56,15 +62,9 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
                     {/* Hidden native file input */}
                     <input
                         ref={fileInputRef}
-                        type="hidden"
-                        name="team_id"
-                        value={teamId}
-                    />
-                    <input
-                        ref={fileInputRef}
-                        id="csv-file"
+                        id="history-xlsx-file"
                         type="file"
-                        accept=".csv,text/csv"
+                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                         disabled={processing}
                         className="sr-only"
                         onChange={(e) => setData('file', e.target.files?.[0] ?? null)}
@@ -78,7 +78,7 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
                         </span>
                     </div>
 
-                    {/* Browse button */}
+                    {/* Browse */}
                     <button
                         type="button"
                         disabled={processing}
@@ -88,7 +88,7 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
                         Browse
                     </button>
 
-                    {/* Import CTA — amber */}
+                    {/* Import History CTA — amber filled */}
                     <button
                         type="submit"
                         disabled={processing || data.file === null}
@@ -102,7 +102,7 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
                         ) : (
                             <>
                                 <FileUp size={13} />
-                                Import Data
+                                Import History
                             </>
                         )}
                     </button>
@@ -113,7 +113,7 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
                 )}
 
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                    CSV headers must match the template exactly. Download the template above to get started.
+                    Use the downloaded template — select teams from the dropdown cells. Delete the example row before uploading.
                 </p>
             </form>
         </div>

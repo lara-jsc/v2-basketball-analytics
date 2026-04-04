@@ -26,7 +26,82 @@ A pre-game preparation tool for basketball coaching staff that:
   - Team vs Team Statistics (AI Insights, Win Probability, Win Rate)
   - Lineup Recommendation (modal trigger from Team Comparison page)
   - Player vs Player Comparison (matchup prediction)
-- **Phase 5:** Polish — dark/light mode, tablet UI, loading/error/empty states, edge cases
+- **Phase 5:** UI Revamp — full visual overhaul of all pages and components. Logic, data flow, and backend contracts remain completely intact. Only the UI layer changes.
+
+  ### Design Theme
+  - Dark basketball arena aesthetic — deep navy backgrounds, glowing accents, court-inspired atmosphere
+  - Reference designs are in `/ui-sample/` — match the theme and feel, not pixel-for-pixel
+  - Font stack: `Barlow Condensed` (headings/display), `Rajdhani` (UI labels), `Barlow` (body)
+  - Color tokens must use CSS variables; all components respect dark/light mode toggle
+
+  ### Color Palette (Updated)
+  | Token | Hex | Usage |
+  |-------|-----|-------|
+  | `primary` | `#98002E` | Active nav items, primary CTAs, key highlights |
+  | `accent` | `#F9A01B` | Stat highlights, secondary CTAs, plus-minus values, glow effects |
+  | `bg-base` | `#080C18` | Page background |
+  | `bg-surface` | `#0D1525` | Card/panel backgrounds |
+  | `bg-elevated` | `#162035` | Modals, dropdowns, elevated surfaces |
+  | `text-primary` | `#F0F4FF` | Primary text |
+  | `text-secondary` | `#7A93B8` | Labels, subtitles, muted info |
+
+  ### Layout — App Shell
+  - Full viewport height and width (`100vh`, `100vw`) — no scrolling chrome
+  - **Collapsible sidebar** on the left:
+    - Expanded: `240px` wide — shows icon + label
+    - Collapsed: `68px` wide — shows icon only, label hidden
+    - Toggle button always visible
+    - Main content area flexes to fill remaining width on expand/collapse (CSS transition, no layout jump)
+    - Active nav item: crimson background tint + left border accent
+  - Sidebar sections: main nav items (Dashboard, Teams & Players, Team Comparison, Player Matchup) + bottom items (Settings)
+  - Reference: `ui-sample/image_1_-_sidebar_and_dashboard.png`
+
+  ### Page: Dashboard
+  - Full-width, full-height content area that adjusts when sidebar expands/collapses
+  - Summary cards: Team Win Rate, Live Plus-Minus, Top Players Plus-Minus leaderboard (horizontal bar chart with amber bars)
+  - Player Impact Analysis panel with bar chart
+  - Recommended Lineup & AI Insights panel
+  - All cards use `bg-surface` with subtle border and inner glow on hover
+  - Reference: `ui-sample/image_1_-_sidebar_and_dashboard.png`
+
+  ### Page: Teams & Players (CSV Import + Player Management)
+  - Dark card with arena header graphic / gradient backdrop
+  - CSV upload row: filename display + Browse button + Import Data button (amber CTA)
+  - Stats table: dark striped rows, monospaced stat values, amber highlight on plus-minus column
+  - Field names legend panel (right side) listing all stat abbreviations
+  - Footer bar: Team Stats % + Live Plus-Minus Net Rating
+  - Reference: `ui-sample/Image_2_-_manage_team_players__upload_csv_file.png`
+
+  ### Page: Team Comparison (Win Probability + Win Rate)
+  - **Tab 1 — Team Statistics:**
+    - Win probability percentage cards per team (large prominent display)
+    - Win rate trend chart (line chart, Home in blue, Away in red/amber)
+    - Quarter breakdown table
+    - Probability Insights panel (bullet insights with colored icons)
+    - Predictive Outcome panel with donut/arc chart
+    - Reference: `ui-sample/Image_4_-_Win_rate.png`
+  - **Tab 2 — Suggested Lineup (modal or inline):**
+    - 5 player cards side by side, each showing jersey number, name, position, key stats
+    - Net Plus-Minus expected value displayed prominently in amber (`+21.4` style)
+    - Key Factors panel listing AI reasoning bullets
+    - Confirm Lineup CTA button
+    - Reference: `ui-sample/Image_3_-_reccomendation_line_up.png`
+
+  ### Page: Player vs Player Matchup
+  - Split layout: left = Team A player, right = Team B player
+  - Player header: profile picture, name, team, position, win rate, games played
+  - Center: hexagonal radar/spider chart comparing key stats (SH-EFF, AST, DR, DD2, SC-EFF)
+  - Stat rows below each player: top teammates, flagrant fouls, win rate
+  - Stronger stat per row highlighted in amber (`#F9A01B`)
+  - Reference: `ui-sample/Image_5_-_comparing_player_vs_player.png`
+
+  ### Component Standards
+  - All shadcn/ui base components extended via `className` only — never modify `components/ui/`
+  - Custom variants live in `components/features/`
+  - Every page must handle: loading skeleton state, error state (with retry), empty state (with CTA)
+  - `plus_minus` null → display `—` in all tables and cards, never `0` or blank
+  - Smooth CSS transitions on sidebar expand/collapse, card hover states, and tab switches
+  - Tablet-first (768px–1024px) remains the primary breakpoint — all layouts designed at this size first
 
 ### Out of Scope — Parked (Post-April 16)
 > **Do NOT build, scaffold, or reference anything below until after April 16.**
