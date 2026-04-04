@@ -7,8 +7,8 @@ import {
     TableRow,
 } from '@/Components/ui/table';
 import { type PlayerStat, type PlayerWithStats, type Team } from '@/types';
-import { router } from '@inertiajs/react';
-import { ChevronDown, ChevronUp, Pencil, Power, Trash2 } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { ChevronDown, ChevronUp, ClipboardList, Pencil, Power, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { DeletePlayerDialog } from './DeletePlayerDialog';
 import { PlayerFormSheet } from './PlayerFormSheet';
@@ -120,6 +120,13 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                                     {/* Actions */}
                                     <TableCell className="sticky left-0 z-10 bg-card">
                                         <div className="flex items-center gap-1">
+                                            <Link
+                                                href={route('player-histories.index', player.id)}
+                                                title="Game history"
+                                                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                            >
+                                                <ClipboardList size={12} />
+                                            </Link>
                                             <ActionBtn
                                                 title="Edit player"
                                                 onClick={() => setEditPlayer(player)}
