@@ -13,6 +13,7 @@ class PlayerHistoryService
 {
     public function __construct(
         private readonly PlayerHistoryRepository $repository,
+        private readonly WinProbabilityService $winProbabilityService,
     ) {}
 
     /**
@@ -41,6 +42,7 @@ class PlayerHistoryService
         });
 
         RebuildPlayerStats::dispatch($player->id);
+        $this->winProbabilityService->invalidateForTeam($player->team_id);
 
         return $history;
     }
@@ -52,11 +54,14 @@ class PlayerHistoryService
      */
     public function update(PlayerHistory $history, array $data): PlayerHistory
     {
+        $teamId = $history->player->team_id;
+
         DB::transaction(function () use ($history, $data) {
             $history->update($data);
         });
 
         RebuildPlayerStats::dispatch($history->player_id);
+        $this->winProbabilityService->invalidateForTeam($teamId);
 
         return $history->fresh();
     }
@@ -67,11 +72,13 @@ class PlayerHistoryService
     public function destroy(PlayerHistory $history): void
     {
         $playerId = $history->player_id;
+        $teamId   = $history->player->team_id;
 
         DB::transaction(function () use ($history) {
             $this->repository->delete($history);
         });
 
         RebuildPlayerStats::dispatch($playerId);
+        $this->winProbabilityService->invalidateForTeam($teamId);
     }
 }
