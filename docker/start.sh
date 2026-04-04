@@ -7,6 +7,14 @@ echo "🏀 HoopSense+ — Starting deployment..."
 # Docker build time, so runtime startup should not depend on npm/node.
 echo "📦 Using bundled production dependencies and built assets..."
 
+# Ensure storage structure exists — Persistent Volume mount replaces /app/storage,
+# so required subdirectories must be recreated at runtime on every start.
+echo "📁 Ensuring storage directories..."
+mkdir -p storage/framework/{cache,sessions,views,testing} \
+    storage/logs \
+    bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
 # Run migrations
 echo "📦 Running migrations..."
 php artisan migrate --force
