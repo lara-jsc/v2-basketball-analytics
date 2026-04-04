@@ -53,9 +53,10 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
 
     if (players.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-12 text-center gap-3">
-                <p className="font-display text-sm font-bold tracking-wide text-muted-foreground">No players yet</p>
-                <p className="text-xs text-muted-foreground">Upload a CSV file or add players manually using the button above.</p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-12 text-center gap-3 relative overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(152,0,46,0.05),transparent_70%)]" />
+                <p className="font-display text-sm font-bold tracking-wide text-muted-foreground uppercase">No players yet</p>
+                <p className="text-xs text-muted-foreground font-ui">Upload a CSV file or add players manually using the button above.</p>
             </div>
         );
     }
@@ -102,7 +103,9 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                                     key={col.key}
                                     className={[
                                         'whitespace-nowrap font-ui font-semibold tracking-wide text-xs uppercase',
-                                        col.key === 'plus_minus' ? 'text-accent' : '',
+                                        col.key === 'plus_minus'
+                                            ? 'text-accent bg-accent/8 border-b border-accent/20'
+                                            : '',
                                     ].join(' ')}
                                 >
                                     {col.label}
@@ -120,7 +123,7 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                     <TableBody>
                         {players.map((player, i) => {
                             const stat: PlayerStat | null = player.stats[0] ?? null;
-                            const rowBg = i % 2 === 0 ? '' : 'bg-muted/20';
+                            const rowBg = i % 2 === 0 ? '' : 'bg-primary/[0.03]';
 
                             return (
                                 <TableRow
@@ -195,7 +198,7 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                                             className={[
                                                 'whitespace-nowrap font-mono text-sm',
                                                 col.key === 'plus_minus'
-                                                    ? 'font-bold text-accent'
+                                                    ? 'font-bold text-accent bg-accent/5'
                                                     : col.key === 'is_active'
                                                     ? ''
                                                     : 'text-foreground/80',

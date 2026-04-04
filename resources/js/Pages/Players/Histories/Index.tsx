@@ -20,7 +20,8 @@ export default function PlayerHistoriesIndex({
             <div className="flex flex-col gap-5">
                 {/* ── Arena header ──────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="relative flex items-center justify-between gap-4 bg-gradient-to-r from-primary/20 via-card to-card px-5 py-4">
+                    <div className="relative flex items-center justify-between gap-4 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent px-5 py-4">
+                        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
 
                         {/* Breadcrumb + player identity */}
                         <div className="flex items-center gap-4">
@@ -50,14 +51,26 @@ export default function PlayerHistoriesIndex({
                         </div>
 
                         {/* Player badge */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 relative">
                             <div className="text-right">
-                                <p className="font-display text-base font-bold tracking-wide text-foreground uppercase">
+                                <p className="font-display text-base font-bold tracking-wide text-foreground uppercase leading-none">
                                     {player.first_name} {player.last_name}
                                 </p>
-                                <p className="text-xs text-muted-foreground font-ui">
-                                    #{player.jersey_number} · {player.role ?? 'Player'} · {player.team?.code}
-                                </p>
+                                <div className="mt-1 flex items-center justify-end gap-2">
+                                    <span className="font-ui text-[11px] text-muted-foreground">
+                                        #{player.jersey_number}
+                                    </span>
+                                    {player.role && (
+                                        <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-ui text-[10px] font-bold uppercase tracking-widest text-accent">
+                                            {player.role}
+                                        </span>
+                                    )}
+                                    {player.team?.code && (
+                                        <span className="rounded border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-ui text-[10px] font-bold uppercase tracking-widest text-primary">
+                                            {player.team.code}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -79,17 +92,18 @@ export default function PlayerHistoriesIndex({
                 <PlayerHistoryImport playerId={player.id} />
 
                 {/* ── History table ─────────────────────────────────────── */}
-                <div className="rounded-xl border border-border bg-card px-5 py-4">
-                    <div className="mb-4 flex items-center justify-between">
+                <div className="rounded-xl border border-border bg-card overflow-hidden">
+                    <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/15 to-transparent px-5 py-3">
                         <div>
-                            <h2 className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
+                            <h2 className="font-display text-sm font-bold tracking-widest text-foreground uppercase">
                                 Game Log
                             </h2>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <p className="text-xs text-muted-foreground mt-0.5 font-ui">
                                 {histories.length} game{histories.length !== 1 ? 's' : ''} recorded
                             </p>
                         </div>
                     </div>
+                    <div className="px-5 py-4">
 
                     <PlayerHistoryTable
                         playerId={player.id}
@@ -98,6 +112,7 @@ export default function PlayerHistoriesIndex({
                         teams={teams}
                         filters={filters}
                     />
+                    </div>
                 </div>
             </div>
         </AuthenticatedLayout>

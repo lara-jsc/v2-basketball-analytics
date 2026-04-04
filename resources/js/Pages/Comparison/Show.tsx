@@ -129,18 +129,25 @@ export default function ComparisonShow({
       header={
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link href={route('comparison.index')}>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                <ArrowLeft size={14} />
-                Compare
-              </Button>
+            <Link
+              href={route('comparison.index')}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-ui font-semibold"
+            >
+              <ArrowLeft size={14} />
+              Back
             </Link>
-            <span className="text-muted-foreground">/</span>
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <GitCompare size={15} className="text-muted-foreground" />
-              <span>{teamA.name}</span>
-              <span className="text-muted-foreground font-normal">vs</span>
-              <span>{teamB.name}</span>
+            <span className="text-border">/</span>
+            <div className="flex items-center gap-2">
+              <GitCompare size={15} className="text-accent" />
+              <span className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
+                {teamA.name}
+              </span>
+              <span className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 font-display text-[10px] font-bold text-primary tracking-widest uppercase">
+                VS
+              </span>
+              <span className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
+                {teamB.name}
+              </span>
             </div>
           </div>
         </div>
@@ -148,7 +155,7 @@ export default function ComparisonShow({
     >
       <Head title={`${teamA.name} vs ${teamB.name}`} />
 
-      <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+      <div className="px-2 py-4 space-y-4">
         <Tabs defaultValue="stats">
           <TabsList className="w-full">
             <TabsTrigger value="stats" className="flex-1">
@@ -173,15 +180,13 @@ export default function ComparisonShow({
             />
 
             <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
+              <button
                 onClick={() => setLineupOpen(true)}
+                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-ui font-semibold tracking-wide text-accent-foreground transition-all hover:opacity-90 hover:shadow-[0_0_12px_rgba(249,160,27,0.4)]"
               >
                 <Users size={14} />
                 View Recommended Lineup
-              </Button>
+              </button>
             </div>
           </TabsContent>
 
@@ -196,7 +201,7 @@ export default function ComparisonShow({
                 <select
                   value={localPlayerA}
                   onChange={(e) => handlePlayerAChange(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground font-ui transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
                 >
                   <option value="">Select player…</option>
                   {playersA.map((p) => (
@@ -214,7 +219,7 @@ export default function ComparisonShow({
                 <select
                   value={localPlayerB}
                   onChange={(e) => handlePlayerBChange(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground font-ui transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
                 >
                   <option value="">Select player…</option>
                   {playersB.map((p) => (
@@ -248,6 +253,7 @@ export default function ComparisonShow({
         onClose={() => setLineupOpen(false)}
         lineup={lineup}
         teamName={teamA.name}
+        players={playersA}
       />
     </AuthenticatedLayout>
   );
