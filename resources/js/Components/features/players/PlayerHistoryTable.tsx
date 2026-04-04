@@ -8,12 +8,14 @@ import {
 } from '@/Components/ui/table';
 import type { PlayerHistory, PlayerHistoryFilters } from '@/types/PlayerHistory.types';
 import type { Team } from '@/types';
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { AlertCircle, CalendarDays, ClipboardList, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { PlayerHistorySheet } from './PlayerHistorySheet';
 
 interface PlayerHistoryTableProps {
     playerId: number;
+    playerName: string;
     histories: PlayerHistory[];
     teams: Pick<Team, 'id' | 'code' | 'name'>[];
     filters: PlayerHistoryFilters;
@@ -40,12 +42,25 @@ function fmtDate(iso: string): string {
  */
 export function PlayerHistoryTable({
     playerId,
+    playerName,
     histories,
     teams,
     filters,
     error,
 }: PlayerHistoryTableProps) {
     const [deleting, setDeleting] = useState<number | null>(null);
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [editingHistory, setEditingHistory] = useState<PlayerHistory | undefined>(undefined);
+
+    function openAdd() {
+        setEditingHistory(undefined);
+        setSheetOpen(true);
+    }
+
+    function openEdit(history: PlayerHistory) {
+        setEditingHistory(history);
+        setSheetOpen(true);
+    }
 
     function applyFilter(key: string, value: string) {
         router.get(
@@ -123,13 +138,14 @@ export function PlayerHistoryTable({
                 <div className="flex-1" />
 
                 {/* Add Game CTA */}
-                <Link
-                    href={route('player-histories.create', playerId)}
+                <button
+                    type="button"
+                    onClick={openAdd}
                     className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-ui font-semibold tracking-wide text-primary-foreground transition-opacity hover:opacity-90"
                 >
                     <Plus size={13} />
                     Add Game
-                </Link>
+                </button>
             </div>
 
             {/* ── Empty state ─────────────────────────────────────────── */}
@@ -192,13 +208,14 @@ export function PlayerHistoryTable({
                                         {/* Actions */}
                                         <TableCell className="sticky left-0 z-10 bg-card">
                                             <div className="flex items-center gap-1">
-                                                <Link
-                                                    href={route('player-histories.edit', h.id)}
+                                                <button
+                                                    type="button"
                                                     title="Edit game"
+                                                    onClick={() => openEdit(h)}
                                                     className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                                                 >
                                                     <Pencil size={12} />
-                                                </Link>
+                                                </button>
                                                 <button
                                                     title="Remove game"
                                                     disabled={deleting === h.id}
@@ -237,6 +254,15 @@ export function PlayerHistoryTable({
                     </Table>
                 </div>
             )}
+
+            <PlayerHistorySheet
+                open={sheetOpen}
+                onOpenChange={setSheetOpen}
+                playerId={playerId}
+                playerName={playerName}
+                teams={teams}
+                history={editingHistory}
+            />
         </div>
     );
 }

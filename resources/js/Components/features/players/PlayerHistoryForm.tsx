@@ -1,7 +1,6 @@
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import { ScrollArea } from '@/Components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Separator } from '@/Components/ui/separator';
 import type { PlayerHistory, PlayerHistoryFormData } from '@/types/PlayerHistory.types';
@@ -81,8 +80,7 @@ export function PlayerHistoryForm({ action, method, teams, history, onSuccess }:
 
     return (
         <form id="history-form" onSubmit={handleSubmit}>
-            <ScrollArea className="h-[calc(100vh-220px)]">
-                <div className="px-1 py-2 space-y-6">
+            <div className="space-y-6">
 
                     {/* ── Game Context ────────────────────────────────────── */}
                     <section className="space-y-4">
@@ -280,11 +278,10 @@ export function PlayerHistoryForm({ action, method, teams, history, onSuccess }:
                         </div>
                     </section>
 
-                </div>
-            </ScrollArea>
+            </div>
 
             {/* ── Footer actions ──────────────────────────────────────────── */}
-            <div className="flex items-center justify-end gap-3 border-t border-border pt-4 mt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-border pt-4 mt-6">
                 <Button
                     type="submit"
                     form="history-form"

@@ -93,6 +93,7 @@ export default function PlayerHistoriesIndex({
 
                     <PlayerHistoryTable
                         playerId={player.id}
+                        playerName={`${player.first_name} ${player.last_name}`}
                         histories={histories}
                         teams={teams}
                         filters={filters}
