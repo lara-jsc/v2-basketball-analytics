@@ -4,25 +4,25 @@ import { Label } from '@/Components/ui/label';
 import { type PlayerWithStats } from '@/types';
 import { useForm } from '@inertiajs/react';
 import { Camera } from 'lucide-react';
-import type { FormEventHandler } from 'react';
 
 interface ProfilePictureUploadProps {
     player: PlayerWithStats;
 }
 
 /**
- * Standalone profile picture upload form for the edit sheet (edit mode only).
- * Submits independently via POST /players/{player}/picture.
+ * Profile picture upload for the edit sheet (edit mode only).
+ * Uses a button + Inertia post — not a nested <form> — because PlayerFormSheet
+ * already wraps content in a form; nested forms are invalid HTML and browsers
+ * merge submits with the parent form (PUT update instead of picture POST).
  */
 export function ProfilePictureUpload({ player }: ProfilePictureUploadProps) {
     const { data, setData, post, processing, errors, reset } = useForm<{ picture: File | null }>({
         picture: null,
     });
 
-    const handleSubmit: FormEventHandler = (e) => {
-        e.preventDefault();
+    const handleUpload = (): void => {
         if (!data.picture) return;
-        post(route('players.uploadPicture', { id: player.id }), {
+        post(route('players.uploadPicture', { player: player.id }), {
             forceFormData: true,
             onSuccess: () => reset(),
         });
@@ -33,12 +33,13 @@ export function ProfilePictureUpload({ player }: ProfilePictureUploadProps) {
         : null;
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="space-y-3">
             <div className="flex items-center gap-4">
                 {/* Avatar preview */}
                 <div className="relative h-16 w-16 shrink-0 rounded-full overflow-hidden border border-border bg-muted flex items-center justify-center">
                     {pictureUrl ? (
                         <img
+                            key={player.profile_picture_path ?? 'avatar'}
                             src={pictureUrl}
                             alt={`${player.first_name} ${player.last_name}`}
                             className="h-full w-full object-cover"
@@ -65,14 +66,15 @@ export function ProfilePictureUpload({ player }: ProfilePictureUploadProps) {
             </div>
 
             <Button
-                type="submit"
+                type="button"
                 size="sm"
                 variant="outline"
                 disabled={!data.picture || processing}
                 className="w-full"
+                onClick={handleUpload}
             >
                 {processing ? 'Uploading…' : 'Upload Picture'}
             </Button>
-        </form>
+        </div>
     );
 }

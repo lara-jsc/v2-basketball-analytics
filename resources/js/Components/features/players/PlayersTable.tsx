@@ -9,7 +9,7 @@ import {
 import { type PlayerStat, type PlayerWithStats, type Team } from '@/types';
 import { Link, router } from '@inertiajs/react';
 import { ChevronDown, ChevronUp, ClipboardList, Pencil, Power, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DeletePlayerDialog } from './DeletePlayerDialog';
 import { PlayerFormSheet } from './PlayerFormSheet';
 
@@ -36,6 +36,16 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
     const [editPlayer, setEditPlayer]   = useState<PlayerWithStats | null>(null);
     const [deletePlayer, setDeletePlayer] = useState<PlayerWithStats | null>(null);
     const [showAll, setShowAll]         = useState(false);
+
+    /** Keep the edit drawer avatar in sync when `players` updates (e.g. picture upload). Merge path only so unsaved form edits are preserved. */
+    useEffect(() => {
+        setEditPlayer((prev) => {
+            if (prev === null) return prev;
+            const next = players.find((p) => p.id === prev.id);
+            if (!next || next.profile_picture_path === prev.profile_picture_path) return prev;
+            return { ...prev, profile_picture_path: next.profile_picture_path };
+        });
+    }, [players]);
 
     function handleToggleActive(player: PlayerWithStats) {
         router.patch(route('players.toggleActive', { id: player.id }));
