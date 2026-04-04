@@ -3,6 +3,7 @@ import { CsvUploadForm } from '@/Components/features/csv/CsvUploadForm';
 import { ImportStatus } from '@/Components/features/csv/ImportStatus';
 import { PlayerFormSheet } from '@/Components/features/players/PlayerFormSheet';
 import { PlayersTable } from '@/Components/features/players/PlayersTable';
+import { TeamFormSheet } from '@/Components/features/teams/TeamFormSheet';
 import { type CsvImport, type PageProps, type PlayerWithStats, type Team } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
@@ -36,6 +37,7 @@ interface TeamsShowProps extends PageProps {
 export default function TeamsShow({ team, players, latestImport }: TeamsShowProps) {
     const { flash } = usePage<TeamsShowProps>().props;
     const [addPlayerOpen, setAddPlayerOpen] = useState(false);
+    const [editTeamOpen, setEditTeamOpen] = useState(false);
     const [legendOpen, setLegendOpen] = useState(false);
 
     // ── Team plus-minus: minutes-weighted avg of active players with a value
@@ -91,13 +93,13 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
 
                         {/* Right: actions */}
                         <div className="flex items-center gap-2 shrink-0">
-                            <Link
-                                href={route('teams.edit', { id: team.id })}
+                            <button
+                                onClick={() => setEditTeamOpen(true)}
                                 className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
                                 <Pencil size={12} />
                                 Edit Team
-                            </Link>
+                            </button>
                             <button
                                 onClick={() => setAddPlayerOpen(true)}
                                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-primary-foreground transition-opacity hover:opacity-90"
@@ -200,6 +202,13 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
             <PlayerFormSheet
                 open={addPlayerOpen}
                 onOpenChange={setAddPlayerOpen}
+                team={team}
+            />
+
+            {/* Edit team drawer */}
+            <TeamFormSheet
+                open={editTeamOpen}
+                onOpenChange={setEditTeamOpen}
                 team={team}
             />
         </AuthenticatedLayout>

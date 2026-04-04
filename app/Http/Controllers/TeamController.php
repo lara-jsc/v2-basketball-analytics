@@ -109,7 +109,7 @@ class TeamController extends Controller
         $this->teamService->updateLogo($team, $request->file('logo'));
 
         return redirect()
-            ->route('teams.edit', $team->id)
+            ->route('teams.show', $team->id)
             ->with('success', 'Team logo updated.');
     }
 }
