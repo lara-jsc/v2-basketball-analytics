@@ -35,7 +35,7 @@ export function PlayerHistoryImport({ playerId }: PlayerHistoryImportProps) {
     return (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
             {/* Header band */}
-            <div className="flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-primary/10 to-transparent px-5 py-3">
+            <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
                 <div>
                     <h3 className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
                         Import Game History

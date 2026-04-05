@@ -53,7 +53,9 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
             <div className="flex flex-col gap-5">
                 {/* ── Arena header ──────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="relative flex items-center justify-between gap-4 bg-gradient-to-r from-primary/20 via-card to-card px-5 py-4">
+                    <div className="relative flex items-center justify-between gap-4 px-5 py-4">
+                        {/* Court texture overlay */}
+                        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
                         {/* Left: breadcrumb + team identity */}
                         <div className="flex items-center gap-4">
                             <Link
@@ -66,7 +68,7 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
                             <span className="text-border">/</span>
 
                             {/* Logo */}
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-primary/10">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-primary/10 transition-all hover:ring-2 hover:ring-accent/30">
                                 {logoUrl ? (
                                     <img src={logoUrl} alt="" className="h-full w-full object-cover" />
                                 ) : (
@@ -164,7 +166,8 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
                 </div>
 
                 {/* ── Footer bar ─────────────────────────────────────────── */}
-                <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3">
+                <div className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-3 relative overflow-hidden">
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-accent/5" />
                     <div className="flex items-center gap-6">
                         <FooterStat
                             label="Active Players"
@@ -231,7 +234,7 @@ function FooterStat({
             <span className="font-ui text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 {label}
             </span>
-            <span className={`font-display text-lg font-bold leading-none ${accent ? 'text-accent' : 'text-foreground'}`}>
+            <span className={`font-display text-lg font-bold leading-none ${accent ? 'text-accent drop-shadow-[0_0_6px_rgba(249,160,27,0.5)]' : 'text-foreground'}`}>
                 {value}
             </span>
         </div>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&family=Rajdhani:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&family=Rajdhani:wght@500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -102,5 +102,38 @@
         -webkit-box-shadow: 0 0 0px 1000px hsl(var(--card)) inset !important;
         -webkit-text-fill-color: hsl(var(--foreground)) !important;
         transition: background-color 5000s ease-in-out 0s;
+    }
+}
+
+@layer utilities {
+    /*
+     * Arena glass — applied to all bg-card elements in dark mode.
+     * Replaces the solid #0D1525 fill with a translucent glass panel
+     * so the court background bleeds through.
+     */
+    .dark .bg-card {
+        background-color: rgba(13, 21, 37, 0.68) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    /* Elevated surfaces (modals, popovers, dropdowns) — dark */
+    .dark .bg-popover {
+        background-color: rgba(22, 32, 53, 0.82) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Light mode glass panels */
+    :root:not(.dark) .bg-card {
+        background-color: rgba(255, 255, 255, 0.62) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    :root:not(.dark) .bg-popover {
+        background-color: rgba(255, 255, 255, 0.82) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
     }
 }

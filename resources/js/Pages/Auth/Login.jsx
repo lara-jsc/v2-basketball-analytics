@@ -33,25 +33,12 @@ export default function Login({ status, canResetPassword }) {
 
             <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#020611] text-white">
                 <div className="absolute inset-0">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(154,196,255,0.34),transparent_22%),radial-gradient(circle_at_top_right,rgba(154,196,255,0.34),transparent_22%),linear-gradient(180deg,rgba(8,18,44,0.72)_0%,rgba(2,6,17,0.88)_35%,rgba(1,4,13,0.96)_100%)]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,124,41,0.12),transparent_22%),radial-gradient(circle_at_50%_120%,rgba(255,154,84,0.2),transparent_30%)]" />
-                    <div className="absolute inset-x-0 top-0 h-[58%] bg-[url('https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-25 blur-[2px]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_38%,rgba(0,0,0,0.34)_72%,rgba(0,0,0,0.62)_100%)]" />
-
-                    <div className="absolute left-[-8%] top-[-4%] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(226,240,255,0.9)_0%,rgba(147,197,253,0.45)_18%,rgba(147,197,253,0.14)_36%,transparent_64%)] blur-sm" />
-                    <div className="absolute right-[-8%] top-[-4%] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(226,240,255,0.88)_0%,rgba(147,197,253,0.44)_18%,rgba(147,197,253,0.14)_36%,transparent_64%)] blur-sm" />
-
-                    <div className="absolute bottom-0 left-0 right-0 h-[34%] bg-[linear-gradient(180deg,transparent,rgba(255,132,53,0.14)_35%,rgba(255,132,53,0.06)_55%,rgba(1,4,13,0.92)_100%)]" />
-                    <div className="absolute bottom-[12%] left-1/2 h-px w-[72%] -translate-x-1/2 bg-gradient-to-r from-transparent via-[#ff8a3d]/60 to-transparent" />
-                    <div className="absolute bottom-[8%] left-1/2 h-[22%] w-[76%] -translate-x-1/2 rounded-[50%] border border-[#ff8a3d]/18" />
-                    <div className="absolute bottom-0 left-1/2 h-[20%] w-[88%] -translate-x-1/2 rounded-t-[100%] border border-[#ff8a3d]/10" />
-
-                    <div className="absolute bottom-[13%] right-[-5%] h-64 w-64 rounded-full border border-[#3f2616] bg-[radial-gradient(circle_at_35%_30%,#d58c57_0%,#b8612f_18%,#7a351a_45%,#35130b_80%,#140708_100%)] shadow-[0_0_60px_rgba(0,0,0,0.5)] md:h-80 md:w-80">
-                        <div className="absolute left-[22%] top-0 h-full w-[2px] bg-[#2a100a]/60" />
-                        <div className="absolute right-[22%] top-0 h-full w-[2px] bg-[#2a100a]/60" />
-                        <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-[#2a100a]/60" />
-                        <div className="absolute inset-[12%] rounded-full border-[2px] border-[#2a100a]/60" />
-                    </div>
+                    <img
+                        src="/images/login-assets/login-bg.png"
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover object-top"
+                        style={{ filter: 'brightness(0.22) saturate(0.7)' }}
+                    />
                 </div>
 
                 <div className="relative z-10 flex min-h-screen w-full flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
@@ -88,7 +75,7 @@ export default function Login({ status, canResetPassword }) {
                                     <div className="pointer-events-none absolute -left-16 top-10 h-24 w-24 rounded-full bg-[#ff8c42]/12 blur-3xl" />
                                     <div className="pointer-events-none absolute -right-12 top-16 h-28 w-28 rounded-full bg-[#ff8c42]/12 blur-3xl" />
 
-                                    <div className="mb-6 flex w-full items-center justify-center gap-4 border-b border-white/10 pb-5">                                        
+                                    <div className="mb-6 flex w-full items-center justify-center gap-4 border-b border-white/10 pb-5">
                                         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/5 shadow-inner shadow-white/5">
                                             <UserCircle2 className="h-8 w-8 text-slate-100" />
                                         </div>
@@ -238,7 +225,7 @@ export default function Login({ status, canResetPassword }) {
                     </div>
 
                     <footer className="relative z-10 flex justify-center pb-2 pt-6 text-center text-sm text-slate-400/80">
-                        <p>&copy; 2024 HoopSense+. All rights reserved.</p>
+                        <p>&copy; 2026 HoopSense+. All rights reserved.</p>
                     </footer>
                 </div>
             </div>

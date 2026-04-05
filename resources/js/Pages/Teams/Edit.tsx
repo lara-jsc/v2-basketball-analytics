@@ -76,7 +76,8 @@ export default function TeamsEdit({ team }: TeamsEditProps) {
 
                 {/* ── Team Details ──────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="border-b border-border bg-gradient-to-r from-primary/10 to-transparent px-5 py-4">
+                    <div className="relative border-b border-border bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-5 py-4 overflow-hidden">
+                        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
                         <h2 className="font-display text-base font-bold tracking-wide text-foreground">
                             Team Details
                         </h2>
@@ -134,7 +135,7 @@ export default function TeamsEdit({ team }: TeamsEditProps) {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-ui font-semibold tracking-wide text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-ui font-semibold tracking-wide text-primary-foreground transition-all hover:opacity-90 hover:shadow-[0_0_12px_rgba(152,0,46,0.4)] disabled:opacity-50"
                             >
                                 {processing && <Loader2 size={14} className="animate-spin" />}
                                 {processing ? 'Saving…' : 'Save Changes'}
@@ -145,7 +146,8 @@ export default function TeamsEdit({ team }: TeamsEditProps) {
 
                 {/* ── Team Logo ─────────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="border-b border-border bg-gradient-to-r from-primary/10 to-transparent px-5 py-4">
+                    <div className="relative border-b border-border bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-5 py-4 overflow-hidden">
+                        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
                         <h2 className="font-display text-base font-bold tracking-wide text-foreground">
                             Team Logo
                         </h2>

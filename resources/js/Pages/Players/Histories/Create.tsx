@@ -12,7 +12,7 @@ export default function PlayerHistoriesCreate({ player, teams }: PlayerHistoryCr
             <div className="flex flex-col gap-5">
                 {/* ── Arena header ──────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-primary/20 via-card to-card px-5 py-4">
+                    <div className="flex items-center justify-between gap-4 px-5 py-4">
                         <div className="flex items-center gap-4">
                             <Link
                                 href={route('player-histories.index', player.id)}
@@ -42,13 +42,18 @@ export default function PlayerHistoriesCreate({ player, teams }: PlayerHistoryCr
                 </div>
 
                 {/* ── Form card ─────────────────────────────────────────── */}
-                <div className="rounded-xl border border-border bg-card px-5 py-5 max-w-2xl">
+                <div className="rounded-xl border border-border bg-card overflow-hidden max-w-2xl">
+                    <div className="border-b border-border px-5 py-3">
+                        <h2 className="font-display text-sm font-bold tracking-widest uppercase text-foreground">Game Entry Form</h2>
+                    </div>
+                    <div className="px-5 py-5">
                     <PlayerHistoryForm
                         action={route('player-histories.store', player.id)}
                         method="post"
                         teams={teams}
                         onSuccess={() => router.visit(route('player-histories.index', player.id))}
                     />
+                    </div>
                 </div>
             </div>
         </AuthenticatedLayout>

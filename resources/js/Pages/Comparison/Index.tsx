@@ -1,132 +1,224 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Button } from '@/Components/ui/button';
 import { type PageProps, type Team } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { GitCompare } from 'lucide-react';
+import { Swords, Zap } from 'lucide-react';
 
 interface ComparisonIndexProps extends PageProps {
-  teams: Team[];
+    teams: Team[];
 }
 
-/**
- * Team selector page — choose two active teams to compare.
- * Submits POST /comparison which redirects to /comparison/{teamA}/{teamB}.
- */
 export default function ComparisonIndex({ teams }: ComparisonIndexProps) {
-  const { data, setData, post, processing, errors } = useForm({
-    team_a: '',
-    team_b: '',
-  });
+    const { data, setData, post, processing, errors } = useForm({
+        team_a: '',
+        team_b: '',
+    });
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    post(route('comparison.select'));
-  }
+    function submit(e: React.FormEvent) {
+        e.preventDefault();
+        post(route('comparison.select'));
+    }
 
-  const activeTeams = teams.filter((t) => t.is_active);
+    const activeTeams = teams.filter((t) => t.is_active);
+    const teamA = activeTeams.find((t) => String(t.id) === data.team_a);
+    const teamB = activeTeams.find((t) => String(t.id) === data.team_b);
 
-  return (
-    <AuthenticatedLayout
-      header={
-        <div className="flex items-center gap-2">
-          <GitCompare size={18} className="text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground">Team Comparison</h2>
-        </div>
-      }
-    >
-      <Head title="Compare Teams" />
+    return (
+        <AuthenticatedLayout>
+            <Head title="Team Comparison" />
 
-      <div className="mx-auto max-w-lg px-4 py-10">
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-foreground">Select two teams</h3>
-            <p className="text-sm text-muted-foreground">
-              Choose a home team and an opponent to generate a pre-game analysis.
-            </p>
-          </div>
+            <div className="flex flex-col gap-6">
+                {/* Page heading */}
+                <div>
+                    <h1 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '20px', fontWeight: 900, color: 'hsl(var(--foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                        Team Comparison
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
+                        Select two teams to generate win probability, win rate, and lineup recommendations.
+                    </p>
+                </div>
 
-          {activeTeams.length < 2 ? (
-            <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-              You need at least two active teams to run a comparison.
-            </p>
-          ) : (
-            <form onSubmit={submit} className="space-y-4">
-              <TeamSelect
-                label="Home Team"
-                id="team_a"
-                value={data.team_a}
-                onChange={(v) => setData('team_a', v)}
-                teams={activeTeams}
-                exclude={data.team_b}
-                error={errors.team_a}
-              />
+                {/* ── Arena matchup panel ── */}
+                <div className="rounded-2xl overflow-hidden relative bg-card"
+                     style={{ border: '1px solid hsl(var(--border))', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
 
-              <TeamSelect
-                label="Opponent"
-                id="team_b"
-                value={data.team_b}
-                onChange={(v) => setData('team_b', v)}
-                teams={activeTeams}
-                exclude={data.team_a}
-                error={errors.team_b}
-              />
+                    {/* Header bar */}
+                    <div className="relative flex items-center gap-3 px-6 py-4 overflow-hidden"
+                         style={{ borderBottom: '1px solid hsl(var(--border))' }}>
+                        <div className="pointer-events-none absolute inset-0"
+                             style={{ backgroundImage: 'repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(249,160,27,0.03) 60px,rgba(249,160,27,0.03) 61px)' }} />
+                        <Swords size={18} style={{ color: '#F9A01B', filter: 'drop-shadow(0 0 6px rgba(249,160,27,0.4))' }} />
+                        <div className="relative">
+                            <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                Select Matchup
+                            </h3>
+                            <p className="text-[11px] text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
+                                Choose a home team and an opponent
+                            </p>
+                        </div>
+                    </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!data.team_a || !data.team_b || processing}
-              >
-                <GitCompare size={15} className="mr-2" />
-                Compare Teams
-              </Button>
-            </form>
-          )}
-        </div>
-      </div>
-    </AuthenticatedLayout>
-  );
+                    <div className="px-6 py-6">
+                        {activeTeams.length < 2 ? (
+                            <div className="rounded-xl px-5 py-5 text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', background: 'hsl(var(--muted) / 0.4)', border: '1px solid hsl(var(--border))', fontWeight: 600 }}>
+                                You need at least two active teams to run a comparison. Go to{' '}
+                                <a href={route('teams.index')} className="font-bold transition-colors hover:underline" style={{ color: '#F9A01B' }}>
+                                    Teams &amp; Players
+                                </a>{' '}
+                                to create teams and upload rosters.
+                            </div>
+                        ) : (
+                            <form onSubmit={submit} className="space-y-6">
+                                {/* VS MATCHUP DISPLAY */}
+                                <div className="relative flex items-center justify-center gap-0 min-h-[100px]">
+                                    <TeamSlot team={teamA} side="home" placeholder="Home Team" />
+
+                                    {/* VS badge */}
+                                    <div className="relative z-10 flex h-16 w-16 shrink-0 items-center justify-center rounded-full mx-4"
+                                         style={{
+                                             background: 'rgba(249,160,27,0.08)',
+                                             border: '2px solid rgba(249,160,27,0.3)',
+                                             boxShadow: '0 0 20px rgba(249,160,27,0.15)',
+                                         }}>
+                                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '14px', fontWeight: 900, color: '#F9A01B', letterSpacing: '1px' }}>VS</span>
+                                    </div>
+
+                                    <TeamSlot team={teamB} side="away" placeholder="Opponent" />
+                                </div>
+
+                                {/* Selectors */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <TeamSelectField
+                                        label="Home Team"
+                                        id="team_a"
+                                        value={data.team_a}
+                                        onChange={(v) => setData('team_a', v)}
+                                        teams={activeTeams}
+                                        exclude={data.team_b}
+                                        error={errors.team_a}
+                                    />
+                                    <TeamSelectField
+                                        label="Opponent"
+                                        id="team_b"
+                                        value={data.team_b}
+                                        onChange={(v) => setData('team_b', v)}
+                                        teams={activeTeams}
+                                        exclude={data.team_a}
+                                        error={errors.team_b}
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={!data.team_a || !data.team_b || processing}
+                                    className="flex w-full items-center justify-center gap-2.5 rounded-xl py-3.5 text-base font-bold uppercase tracking-widest transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-y-0"
+                                    style={{
+                                        fontFamily: 'Rajdhani, sans-serif',
+                                        background: 'linear-gradient(135deg, #98002E 0%, #c0003a 50%, #98002E 100%)',
+                                        border: '1px solid rgba(255,100,100,0.2)',
+                                        color: '#fff',
+                                        boxShadow: '0 0 24px rgba(152,0,46,0.4)',
+                                        letterSpacing: '2px',
+                                    }}
+                                >
+                                    <Zap size={16} />
+                                    {processing ? 'Loading...' : 'Start Comparison'}
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </AuthenticatedLayout>
+    );
 }
 
-// ── Internal helpers ─────────────────────────────────────────────────────────
+// ── Team slot ─────────────────────────────────────────────────────────────────
 
-function TeamSelect({
-  label,
-  id,
-  value,
-  onChange,
-  teams,
-  exclude,
-  error,
+function TeamSlot({ team, side, placeholder }: { team?: Team; side: 'home' | 'away'; placeholder: string }) {
+    const logoUrl = team?.logo_path ? `/storage/${team.logo_path}` : null;
+    const isHome = side === 'home';
+
+    return (
+        <div className={`flex flex-1 flex-col items-center gap-2 ${isHome ? 'items-end pr-2' : 'items-start pl-2'}`}>
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden transition-all duration-300"
+                 style={{
+                     background: team
+                         ? (isHome ? 'rgba(152,0,46,0.12)' : 'rgba(30,60,120,0.12)')
+                         : 'hsl(var(--muted) / 0.4)',
+                     border: team ? '2px solid rgba(255,140,0,0.25)' : '2px dashed hsl(var(--border))',
+                     boxShadow: team ? '0 0 20px rgba(255,140,0,0.1)' : 'none',
+                 }}>
+                {logoUrl ? (
+                    <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                ) : team ? (
+                    <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '16px', fontWeight: 900, color: '#98002E' }}>
+                        {team.code.slice(0, 3)}
+                    </span>
+                ) : (
+                    <span className="text-muted-foreground/30" style={{ fontSize: '22px' }}>?</span>
+                )}
+            </div>
+
+            <div className={`text-center ${isHome ? 'text-right' : 'text-left'}`}>
+                {team ? (
+                    <>
+                        <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                            {team.name}
+                        </p>
+                        <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 600, color: '#F9A01B', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                            {team.code}
+                        </p>
+                    </>
+                ) : (
+                    <p className="text-muted-foreground/50" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        {placeholder}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── Select field ──────────────────────────────────────────────────────────────
+
+function TeamSelectField({
+    label, id, value, onChange, teams, exclude, error,
 }: {
-  label: string;
-  id: string;
-  value: string;
-  onChange: (v: string) => void;
-  teams: Team[];
-  exclude: string;
-  error?: string;
+    label: string;
+    id: string;
+    value: string;
+    onChange: (v: string) => void;
+    teams: Team[];
+    exclude: string;
+    error?: string;
 }) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-      >
-        <option value="">Select a team…</option>
-        {teams
-          .filter((t) => String(t.id) !== exclude)
-          .map((t) => (
-            <option key={t.id} value={String(t.id)}>
-              {t.name} ({t.code})
-            </option>
-          ))}
-      </select>
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
-  );
+    return (
+        <div className="space-y-2">
+            <label htmlFor={id} className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground"
+                   style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                {label}
+            </label>
+            <select
+                id={id}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#F9A01B]/30 bg-background text-foreground"
+                style={{
+                    fontFamily: 'Rajdhani, sans-serif',
+                    fontWeight: 600,
+                    border: '1px solid hsl(var(--border))',
+                }}
+            >
+                <option value="">Select a team…</option>
+                {teams
+                    .filter((t) => String(t.id) !== exclude)
+                    .map((t) => (
+                        <option key={t.id} value={String(t.id)}>
+                            {t.name} ({t.code})
+                        </option>
+                    ))}
+            </select>
+            {error && <p className="text-xs text-destructive" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>{error}</p>}
+        </div>
+    );
 }
