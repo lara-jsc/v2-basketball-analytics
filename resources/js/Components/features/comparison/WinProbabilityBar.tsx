@@ -1,5 +1,5 @@
 import { type Team, type WinProbabilityResult } from '@/types';
-import { Home, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface WinProbabilityBarProps {
     teamA: Team;
@@ -7,34 +7,23 @@ interface WinProbabilityBarProps {
     result: WinProbabilityResult | null;
 }
 
-/**
- * Win probability display — redesigned to match Image 4.
- * Shows large probability cards, line chart trend, quarter breakdown, and predictive outcome.
- */
 export function WinProbabilityBar({ teamA, teamB, result }: WinProbabilityBarProps) {
+    const logoA = teamA.logo_path ? `/storage/${teamA.logo_path}` : null;
+    const logoB = teamB.logo_path ? `/storage/${teamB.logo_path}` : null;
+
     if (result === null) {
         return (
-            <div className="rounded-xl border border-border bg-card p-5 space-y-5">
-                {/* Loading probability cards */}
+            <div className="rounded-2xl p-6 space-y-5"
+                 style={{ background: 'rgba(11,18,32,0.85)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="grid grid-cols-2 gap-4">
-                    <ProbabilityCard
-                        teamName={teamA.name}
-                        probability={null}
-                        winRate={null}
-                        isHome
-                        loading
-                    />
-                    <ProbabilityCard
-                        teamName={teamB.name}
-                        probability={null}
-                        winRate={null}
-                        isHome={false}
-                        loading
-                    />
+                    <ProbCard teamName={teamA.name} logoUrl={logoA} isHome loading />
+                    <ProbCard teamName={teamB.name} logoUrl={logoB} isHome={false} loading />
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground font-ui">
-                    <Loader2 size={14} className="animate-spin text-accent" />
-                    Computing win probability…
+                <div className="flex items-center gap-2">
+                    <Loader2 size={13} className="animate-spin" style={{ color: '#F9A01B' }} />
+                    <span className="text-xs" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
+                        Computing win probability…
+                    </span>
                 </div>
             </div>
         );
@@ -48,30 +37,23 @@ export function WinProbabilityBar({ teamA, teamB, result }: WinProbabilityBarPro
     const winner = aLeads ? teamA.name : teamB.name;
     const confidence = Math.max(probA, probB);
 
-    const insights = [
-        {
-            dot: 'bg-emerald-400',
-            text: `${winner} has a ${confidence}% win probability based on uploaded roster stats.`,
-        },
-        {
-            dot: 'bg-blue-400',
-            text: `Home win rate: ${rateA}% · Away win rate: ${rateB}%.`,
-        },
-    ];
-
     return (
-        <div className="rounded-xl border border-border bg-card p-5 space-y-5">
+        <div className="rounded-2xl p-5 space-y-5"
+             style={{ background: 'rgba(11,18,32,0.85)', border: '1px solid rgba(255,255,255,0.07)' }}>
+
             {/* ── Probability cards ── */}
             <div className="grid grid-cols-2 gap-4">
-                <ProbabilityCard
+                <ProbCard
                     teamName={teamA.name}
+                    logoUrl={logoA}
                     probability={probA}
                     winRate={rateA}
                     isHome
                     isLeading={aLeads}
                 />
-                <ProbabilityCard
+                <ProbCard
                     teamName={teamB.name}
+                    logoUrl={logoB}
                     probability={probB}
                     winRate={rateB}
                     isHome={false}
@@ -79,48 +61,70 @@ export function WinProbabilityBar({ teamA, teamB, result }: WinProbabilityBarPro
                 />
             </div>
 
-            {/* ── Insights + Predictive Outcome ── */}
+            {/* ── Power bar ── */}
+            <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest"
+                          style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(152,0,46,0.9)' }}>
+                        {teamA.code} {probA}%
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest"
+                          style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(100,150,255,0.9)' }}>
+                        {probB}% {teamB.code}
+                    </span>
+                </div>
+                <div className="h-3 w-full rounded-full overflow-hidden flex"
+                     style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="h-full transition-all duration-700"
+                         style={{
+                             width: `${probA}%`,
+                             background: 'linear-gradient(90deg, rgba(152,0,46,0.9), rgba(200,0,60,0.7))',
+                             boxShadow: '2px 0 8px rgba(152,0,46,0.5)',
+                         }} />
+                    <div className="h-full flex-1"
+                         style={{
+                             background: 'linear-gradient(90deg, rgba(60,100,200,0.5), rgba(40,80,180,0.8))',
+                         }} />
+                </div>
+            </div>
+
+            {/* ── Insights + Outcome ── */}
             <div className="grid grid-cols-5 gap-4">
-                {/* Probability Insights — 3 cols */}
                 <div className="col-span-3 space-y-2">
-                    <h4 className="font-display text-xs font-bold tracking-widest uppercase text-foreground">
+                    <h4 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                         Probability Insights
                     </h4>
-                    <div className="space-y-2.5 rounded-lg border border-border bg-muted/10 p-3">
-                        {insights.map((ins, i) => (
-                            <div key={i} className="flex items-start gap-2">
-                                <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${ins.dot}`} />
-                                <p className="text-[11px] text-muted-foreground font-ui leading-relaxed">{ins.text}</p>
-                            </div>
-                        ))}
+                    <div className="space-y-2.5 rounded-xl p-3"
+                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <InsightRow dot="rgba(52,211,153,0.9)" text={`${winner} has a ${confidence}% win probability based on uploaded roster stats.`} />
+                        <InsightRow dot="rgba(96,165,250,0.9)" text={`Home win rate: ${rateA}% · Away win rate: ${rateB}%.`} />
                     </div>
                 </div>
 
-                {/* Predictive Outcome — 2 cols */}
-                <div className="col-span-2 space-y-3">
-                    {/* Predictive Outcome */}
-                    <div className="rounded-lg border border-border bg-muted/20 p-3 text-center space-y-1.5">
-                        <p className="text-[10px] font-ui font-semibold uppercase tracking-widest text-muted-foreground">
-                            Predictive Winner
-                        </p>
-                        {/* CSS arc donut */}
+                <div className="col-span-2 space-y-2">
+                    <h4 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+                        Predicted Winner
+                    </h4>
+                    <div className="rounded-xl p-3 text-center space-y-2"
+                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        {/* Conic donut */}
                         <div className="flex items-center justify-center">
-                            <div
-                                className="relative h-16 w-16 rounded-full flex items-center justify-center"
-                                style={{
-                                    background: `conic-gradient(#F9A01B 0% ${confidence}%, hsl(var(--muted)) ${confidence}% 100%)`,
-                                }}
-                            >
-                                <div className="absolute h-10 w-10 rounded-full bg-card flex items-center justify-center">
-                                    <span className="font-display text-xs font-bold text-accent">{confidence}%</span>
+                            <div className="relative h-16 w-16 rounded-full flex items-center justify-center"
+                                 style={{ background: `conic-gradient(#F9A01B 0% ${confidence}%, rgba(255,255,255,0.08) ${confidence}% 100%)` }}>
+                                <div className="absolute h-10 w-10 rounded-full flex items-center justify-center"
+                                     style={{ background: '#080C18' }}>
+                                    <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 900, color: '#F9A01B' }}>
+                                        {confidence}%
+                                    </span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center justify-center gap-1">
-                            <Home size={11} className="text-blue-400" />
-                            <p className="font-display text-sm font-bold text-foreground">{winner}</p>
-                        </div>
-                        <p className="text-[10px] font-ui text-muted-foreground">Confidence: {confidence}%</p>
+                        <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                            {winner}
+                        </p>
+                        <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                            Confidence: {confidence}%
+                        </p>
                     </div>
                 </div>
             </div>
@@ -130,53 +134,88 @@ export function WinProbabilityBar({ teamA, teamB, result }: WinProbabilityBarPro
 
 // ── Probability card ──────────────────────────────────────────────────────────
 
-function ProbabilityCard({
-    teamName,
-    probability,
-    winRate,
-    isHome,
-    isLeading = false,
-    loading = false,
+function ProbCard({
+    teamName, logoUrl, probability, winRate, isHome, isLeading = false, loading = false,
 }: {
     teamName: string;
-    probability: number | null;
-    winRate: number | null;
+    logoUrl: string | null;
+    probability?: number;
+    winRate?: number;
     isHome: boolean;
     isLeading?: boolean;
     loading?: boolean;
 }) {
-    const accent = isHome ? 'border-blue-400/30 bg-blue-400/5' : 'border-primary/30 bg-primary/5';
-    const leadAccent = isLeading ? (isHome ? 'text-blue-400' : 'text-primary') : 'text-muted-foreground';
-    const icon = isHome ? '🏠' : '✈';
+    const borderColor = isHome ? 'rgba(152,0,46,0.3)' : 'rgba(60,100,200,0.3)';
+    const glowColor = isHome ? 'rgba(152,0,46,0.15)' : 'rgba(60,100,200,0.15)';
+    const numColor = isLeading ? '#F9A01B' : 'rgba(255,255,255,0.5)';
 
     return (
-        <div className={`rounded-xl border ${accent} p-4 space-y-1.5 relative overflow-hidden`}>
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.03),transparent_70%)]" />
-            <div className="flex items-center gap-1.5">
-                <span className="text-sm">{icon}</span>
-                <p className="font-ui text-xs font-semibold uppercase tracking-widest text-muted-foreground truncate">
-                    {isHome ? 'Home' : 'Away'} — {teamName}
-                </p>
+        <div className="relative rounded-2xl p-4 space-y-3 overflow-hidden"
+             style={{
+                 background: `rgba(11,18,32,0.9)`,
+                 border: `1px solid ${borderColor}`,
+                 boxShadow: `0 0 20px ${glowColor}`,
+             }}>
+            <div className="pointer-events-none absolute inset-0"
+                 style={{ background: 'radial-gradient(ellipse at top, rgba(255,255,255,0.02), transparent 70%)' }} />
+
+            {/* Team identity row */}
+            <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg overflow-hidden"
+                     style={{
+                         background: logoUrl ? 'transparent' : (isHome ? 'rgba(152,0,46,0.3)' : 'rgba(30,60,120,0.3)'),
+                         border: `1px solid ${borderColor}`,
+                     }}>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.7)' }}>
+                            {teamName.slice(0, 3).toUpperCase()}
+                        </span>
+                    )}
+                </div>
+                <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest"
+                       style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.4)' }}>
+                        {isHome ? 'Home' : 'Away'}
+                    </p>
+                    <p className="text-sm font-bold truncate max-w-[120px]"
+                       style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.85)', letterSpacing: '0.5px' }}>
+                        {teamName}
+                    </p>
+                </div>
             </div>
+
             {loading ? (
-                <div className="flex items-center gap-2 py-2">
-                    <Loader2 size={16} className="animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-ui">Computing…</span>
+                <div className="flex items-center gap-2 py-3">
+                    <Loader2 size={16} className="animate-spin" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Computing…</span>
                 </div>
             ) : (
-                <>
-                    <p className={`font-display text-4xl font-bold leading-none ${leadAccent}`}>
+                <div>
+                    <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '42px', fontWeight: 900, color: numColor, lineHeight: 1, textShadow: isLeading ? '0 0 20px rgba(249,160,27,0.4)' : 'none' }}>
                         {probability}%
                     </p>
-                    <p className="text-xs text-muted-foreground font-ui">
+                    <p className="mt-1 text-xs"
+                       style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
                         Win Rate:{' '}
-                        <span className={`font-semibold ${isLeading ? 'text-accent' : 'text-foreground'}`}>
+                        <span style={{ color: isLeading ? '#F9A01B' : 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
                             {winRate}%
                         </span>
                     </p>
-                </>
+                </div>
             )}
         </div>
     );
 }
 
+function InsightRow({ dot, text }: { dot: string; text: string }) {
+    return (
+        <div className="flex items-start gap-2">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }} />
+            <p className="text-[11px] leading-relaxed" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>
+                {text}
+            </p>
+        </div>
+    );
+}

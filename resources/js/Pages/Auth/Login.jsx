@@ -35,7 +35,12 @@ export default function Login({ status, canResetPassword }) {
                 <div className="absolute inset-0">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(154,196,255,0.34),transparent_22%),radial-gradient(circle_at_top_right,rgba(154,196,255,0.34),transparent_22%),linear-gradient(180deg,rgba(8,18,44,0.72)_0%,rgba(2,6,17,0.88)_35%,rgba(1,4,13,0.96)_100%)]" />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_22%,rgba(255,124,41,0.12),transparent_22%),radial-gradient(circle_at_50%_120%,rgba(255,154,84,0.2),transparent_30%)]" />
-                    <div className="absolute inset-x-0 top-0 h-[58%] bg-[url('https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center opacity-25 blur-[2px]" />
+                    <img
+                        src="/images/login-assets/login-bg.png"
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover object-top"
+                        style={{ filter: 'brightness(0.22) saturate(0.7)' }}
+                    />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_38%,rgba(0,0,0,0.34)_72%,rgba(0,0,0,0.62)_100%)]" />
 
                     <div className="absolute left-[-8%] top-[-4%] h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(226,240,255,0.9)_0%,rgba(147,197,253,0.45)_18%,rgba(147,197,253,0.14)_36%,transparent_64%)] blur-sm" />

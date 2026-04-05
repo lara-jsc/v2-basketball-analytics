@@ -10,10 +10,23 @@ interface LineupModalProps {
     players: PlayerWithStats[];
 }
 
-/**
- * Lineup modal — redesigned to match Image 3.
- * Jersey numbers and positions come from real player data matched by player_id.
- */
+/** Derive a 60–99 OVR from stored stats */
+function computeOvr(player: PlayerWithStats | undefined): number | null {
+    if (!player || !player.stats[0]) return null;
+    const s = player.stats[0];
+    if (s.pts == null && s.fg_pct == null && s.ast == null && s.reb == null) return null;
+
+    const pts = Number(s.pts ?? 0);
+    const fg = Number(s.fg_pct ?? 0);
+    const ast = Number(s.ast ?? 0);
+    const reb = Number(s.reb ?? 0);
+    const pm = Number(s.plus_minus ?? 0);
+
+    // Weighted score: scale to 60–99
+    const raw = (pts * 1.8) + (fg * 30) + (ast * 1.2) + (reb * 0.8) + (pm * 0.5);
+    return Math.min(99, Math.max(60, Math.round(raw)));
+}
+
 export function LineupModal({ open, onClose, lineup, teamName, players }: LineupModalProps) {
     const netPlusMinus = lineup
         ? lineup.recommended_lineup.reduce((sum, p) => sum + p.plus_minus_score, 0)
@@ -21,107 +34,130 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-w-4xl p-0 overflow-hidden border-border bg-popover">
-                {/* Header */}
-                <DialogHeader className="relative border-b border-border bg-gradient-to-r from-primary/25 via-primary/10 to-transparent px-6 py-4">
-                    <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
+            <DialogContent className="max-w-5xl p-0 overflow-hidden"
+                           style={{ background: '#080C18', border: '1px solid rgba(255,255,255,0.08)' }}>
+
+                {/* ── Header ── */}
+                <DialogHeader className="relative overflow-hidden px-6 py-5"
+                              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'linear-gradient(90deg, rgba(152,0,46,0.2), rgba(249,160,27,0.05), transparent)' }}>
+                    <div className="pointer-events-none absolute inset-0"
+                         style={{ backgroundImage: 'repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(249,160,27,0.03) 60px,rgba(249,160,27,0.03) 61px)' }} />
                     <div className="relative flex items-start justify-between gap-4">
                         <div>
-                            <DialogTitle className="font-display text-lg font-bold tracking-widest uppercase text-foreground">
+                            <DialogTitle style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '16px', fontWeight: 900, color: 'rgba(255,255,255,0.95)', letterSpacing: '2px', textTransform: 'uppercase' }}>
                                 Recommended Lineup
                             </DialogTitle>
-                            <p className="mt-0.5 font-ui text-xs text-muted-foreground">
-                                AI-Recommended Optimal Lineup — {teamName}
+                            <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '0.5px' }}>
+                                AI-Optimal Starting 5 — {teamName}
                             </p>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        >
+                        <button onClick={onClose}
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/5"
+                                style={{ color: 'rgba(255,255,255,0.4)' }}>
                             <X size={15} />
                         </button>
                     </div>
                 </DialogHeader>
 
                 {lineup === null ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-16">
-                        <Loader2 size={28} className="animate-spin text-accent" />
-                        <p className="font-ui text-sm text-muted-foreground">Computing lineup recommendation…</p>
+                    <div className="flex flex-col items-center justify-center gap-3 py-20">
+                        <Loader2 size={28} className="animate-spin" style={{ color: '#F9A01B' }} />
+                        <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
+                            Computing lineup recommendation…
+                        </p>
                     </div>
                 ) : (
                     <div className="flex gap-0">
                         {/* ── Left: 5 player cards ── */}
-                        <div className="flex flex-1 flex-col gap-4 p-6">
-                            <p className="font-display text-sm font-bold tracking-widest uppercase text-foreground">
+                        <div className="flex flex-1 flex-col gap-5 p-6">
+                            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '2px', textTransform: 'uppercase' }}>
                                 Optimized Starting Lineup
                             </p>
 
-                            {/* 5 player cards */}
+                            {/* Player cards row */}
                             <div className="flex gap-3">
-                                {lineup.recommended_lineup.slice(0, 5).map((lineupPlayer) => {
-                                    const match = players.find((p) => p.id === lineupPlayer.player_id);
+                                {lineup.recommended_lineup.slice(0, 5).map((lp) => {
+                                    const match = players.find((p) => p.id === lp.player_id);
+                                    const ovr = computeOvr(match);
+                                    const photoUrl = match?.profile_picture_path
+                                        ? `/storage/${match.profile_picture_path}`
+                                        : null;
+
                                     return (
                                         <PlayerCard
-                                            key={lineupPlayer.player_id}
-                                            name={lineupPlayer.name}
-                                            plusMinus={lineupPlayer.plus_minus_score}
+                                            key={lp.player_id}
+                                            name={lp.name}
+                                            plusMinus={lp.plus_minus_score}
                                             jerseyNumber={match?.jersey_number ?? null}
                                             position={match?.role ?? null}
+                                            photoUrl={photoUrl}
+                                            ovr={ovr}
                                         />
                                     );
                                 })}
                             </div>
 
                             {/* Net plus-minus footer */}
-                            <div className="flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 px-4 py-2.5">
-                                <span className="font-display text-xl font-bold text-accent drop-shadow-[0_0_6px_rgba(249,160,27,0.5)]">
+                            <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+                                 style={{ background: 'rgba(249,160,27,0.06)', border: '1px solid rgba(249,160,27,0.15)' }}>
+                                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#F9A01B', textShadow: '0 0 12px rgba(249,160,27,0.5)' }}>
                                     {netPlusMinus !== null && netPlusMinus >= 0 ? '+' : ''}
                                     {netPlusMinus?.toFixed(1) ?? '—'}
                                 </span>
-                                <span className="font-ui text-xs text-muted-foreground">
-                                    Net Plus-Minus Expected When Using This Lineup
-                                </span>
+                                <div>
+                                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                                        Net Plus-Minus
+                                    </p>
+                                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+                                        Expected when using this lineup
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* ── Right: Confidence panel + CTA ── */}
-                        <div className="flex flex-col w-48 shrink-0 border-l border-border bg-card/50 p-5 gap-4">
+                        {/* ── Right: confidence + CTA ── */}
+                        <div className="flex flex-col w-52 shrink-0 p-5 gap-5"
+                             style={{ borderLeft: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
                             {/* Large amber net value */}
                             <div className="text-center">
-                                <p className="font-display text-4xl font-bold text-accent drop-shadow-[0_0_12px_rgba(249,160,27,0.6)] leading-none">
+                                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '40px', fontWeight: 900, color: '#F9A01B', lineHeight: 1, textShadow: '0 0 20px rgba(249,160,27,0.5)' }}>
                                     {netPlusMinus !== null && netPlusMinus >= 0 ? '+' : ''}
                                     {netPlusMinus?.toFixed(1) ?? '—'}
                                 </p>
-                                <p className="mt-1 font-ui text-[10px] uppercase tracking-widest text-muted-foreground">
+                                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                                     Net Plus-Minus
                                 </p>
                             </div>
 
-                            {/* Confidence donut */}
+                            {/* Confidence ring */}
                             <div className="flex flex-col items-center gap-2">
-                                <div
-                                    className="relative h-16 w-16 rounded-full flex items-center justify-center"
-                                    style={{
-                                        background: `conic-gradient(#F9A01B 0% ${Math.round(lineup.confidence * 100)}%, hsl(var(--muted)) ${Math.round(lineup.confidence * 100)}% 100%)`,
-                                    }}
-                                >
-                                    <div className="absolute h-10 w-10 rounded-full bg-card flex items-center justify-center">
-                                        <span className="font-display text-xs font-bold text-accent">
+                                <div className="relative h-20 w-20 rounded-full flex items-center justify-center"
+                                     style={{ background: `conic-gradient(#F9A01B 0% ${Math.round(lineup.confidence * 100)}%, rgba(255,255,255,0.06) ${Math.round(lineup.confidence * 100)}% 100%)` }}>
+                                    <div className="absolute h-13 w-13 rounded-full flex items-center justify-center"
+                                         style={{ background: '#080C18', height: '52px', width: '52px' }}>
+                                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 900, color: '#F9A01B' }}>
                                             {Math.round(lineup.confidence * 100)}%
                                         </span>
                                     </div>
                                 </div>
-                                <p className="font-ui text-[10px] uppercase tracking-widest text-muted-foreground text-center">
+                                <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                                     Confidence
                                 </p>
                             </div>
 
                             <div className="mt-auto" />
 
-                            {/* Confirm CTA */}
                             <button
                                 onClick={onClose}
-                                className="w-full rounded-lg bg-accent px-4 py-2.5 font-ui text-sm font-semibold tracking-wide text-accent-foreground transition-all hover:opacity-90 hover:shadow-[0_0_16px_rgba(249,160,27,0.4)]"
+                                className="w-full rounded-xl py-3 text-sm font-bold uppercase tracking-widest transition-all hover:-translate-y-0.5"
+                                style={{
+                                    fontFamily: 'Rajdhani, sans-serif',
+                                    background: 'linear-gradient(135deg, #F9A01B, #d4860f)',
+                                    border: '1px solid rgba(249,160,27,0.3)',
+                                    color: '#080C18',
+                                    boxShadow: '0 0 20px rgba(249,160,27,0.3)',
+                                    letterSpacing: '1.5px',
+                                }}
                             >
                                 Confirm Lineup →
                             </button>
@@ -133,65 +169,103 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
     );
 }
 
-// ── Player card ───────────────────────────────────────────────────────────────
+// ── Player card (NBA 2K style) ────────────────────────────────────────────────
 
 function PlayerCard({
-    name,
-    plusMinus,
-    jerseyNumber,
-    position,
+    name, plusMinus, jerseyNumber, position, photoUrl, ovr,
 }: {
     name: string;
     plusMinus: number;
     jerseyNumber: number | null;
     position: string | null;
+    photoUrl: string | null;
+    ovr: number | null;
 }) {
     const [firstName, ...rest] = name.split(' ');
     const lastName = rest.join(' ');
     const isPositive = plusMinus >= 0;
 
     return (
-        <div className="flex flex-1 flex-col items-center gap-2 rounded-xl border border-border bg-card p-3 text-center transition-all hover:border-accent/30 hover:shadow-[0_0_12px_rgba(249,160,27,0.08)]">
-            {/* Jersey number circle */}
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary border-2 border-primary/60 shadow-[0_0_8px_rgba(152,0,46,0.4)]">
-                <span className="font-display text-sm font-bold text-primary-foreground leading-none">
+        <div className="flex flex-1 flex-col items-center gap-2 rounded-2xl overflow-hidden transition-all"
+             style={{
+                 background: 'linear-gradient(180deg, rgba(152,0,46,0.15) 0%, rgba(11,18,32,0.95) 40%)',
+                 border: '1px solid rgba(255,255,255,0.08)',
+                 boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+             }}>
+
+            {/* Jersey # top badge */}
+            <div className="relative w-full flex items-center justify-between px-2.5 pt-2.5">
+                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(255,255,255,0.1)', lineHeight: 1 }}>
                     {jerseyNumber ?? '—'}
                 </span>
+                {/* OVR badge */}
+                {ovr !== null && (
+                    <div className="flex flex-col items-center leading-none"
+                         style={{
+                             background: 'rgba(249,160,27,0.15)',
+                             border: '1px solid rgba(249,160,27,0.3)',
+                             borderRadius: '6px',
+                             padding: '2px 6px',
+                         }}>
+                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '14px', fontWeight: 900, color: '#F9A01B', lineHeight: 1 }}>
+                            {ovr}
+                        </span>
+                        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(249,160,27,0.7)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                            OVR
+                        </span>
+                    </div>
+                )}
             </div>
 
-            {/* Player silhouette placeholder */}
-            <div className="h-12 w-12 rounded-full bg-muted/30 border border-border flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-muted-foreground/30" stroke="currentColor" strokeWidth={1.2}>
-                    <circle cx="12" cy="7" r="4" />
-                    <path d="M4 21v-2a8 8 0 0 1 16 0v2" strokeLinecap="round" />
-                </svg>
+            {/* Player photo / silhouette */}
+            <div className="flex h-16 w-16 items-center justify-center rounded-full overflow-hidden"
+                 style={{ background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.08)' }}>
+                {photoUrl ? (
+                    <img src={photoUrl} alt={name} className="h-full w-full object-cover" />
+                ) : (
+                    <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9" style={{ color: 'rgba(255,255,255,0.15)' }} stroke="currentColor" strokeWidth={1.2}>
+                        <circle cx="12" cy="7" r="4" />
+                        <path d="M4 21v-2a8 8 0 0 1 16 0v2" strokeLinecap="round" />
+                    </svg>
+                )}
             </div>
 
             {/* Name */}
-            <div className="min-w-0 w-full">
-                <p className="font-display text-xs font-bold text-foreground leading-tight truncate">
+            <div className="text-center px-2 min-w-0 w-full">
+                <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.2, letterSpacing: '0.5px' }}
+                   className="truncate">
                     {firstName}
                 </p>
                 {lastName && (
-                    <p className="font-display text-xs font-bold text-foreground leading-tight truncate">
+                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.2 }}
+                       className="truncate">
                         {lastName}
                     </p>
                 )}
             </div>
 
-            {/* Position badge — only if available */}
+            {/* Position badge */}
             {position ? (
-                <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-ui text-[9px] font-bold uppercase tracking-widest text-accent">
+                <span className="rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest"
+                      style={{ fontFamily: 'Rajdhani, sans-serif', background: 'rgba(249,160,27,0.1)', border: '1px solid rgba(249,160,27,0.25)', color: '#F9A01B' }}>
                     {position}
                 </span>
             ) : (
-                <span className="h-4" /> // spacer to keep layout consistent
+                <span className="h-4" />
             )}
 
             {/* Plus-minus */}
-            <span className={`font-mono text-xs font-bold tabular-nums ${isPositive ? 'text-accent' : 'text-muted-foreground'}`}>
-                {isPositive ? '+' : ''}{plusMinus.toFixed(1)}
-            </span>
+            <div className="w-full px-2 pb-3 text-center">
+                <span style={{
+                    fontFamily: 'Orbitron, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 900,
+                    color: isPositive ? '#F9A01B' : 'rgba(255,255,255,0.3)',
+                    textShadow: isPositive ? '0 0 10px rgba(249,160,27,0.4)' : 'none',
+                }}>
+                    {isPositive ? '+' : ''}{plusMinus.toFixed(1)}
+                </span>
+            </div>
         </div>
     );
 }

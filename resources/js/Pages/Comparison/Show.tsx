@@ -3,7 +3,6 @@ import { TeamStatsPanel } from '@/Components/features/comparison/TeamStatsPanel'
 import { WinProbabilityBar } from '@/Components/features/comparison/WinProbabilityBar';
 import { PlayerMatchupTable } from '@/Components/features/comparison/PlayerMatchupTable';
 import { LineupModal } from '@/Components/features/lineup/LineupModal';
-import { Button } from '@/Components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import {
   type LineupRecommendation,
@@ -15,7 +14,7 @@ import {
   type WinProbabilityResult,
 } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, GitCompare, Users } from 'lucide-react';
+import { ArrowLeft, BarChart2, Swords, Users } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface ComparisonShowProps extends PageProps {
@@ -36,16 +35,6 @@ interface ComparisonShowProps extends PageProps {
 
 const POLL_INTERVAL = 3000;
 
-/**
- * Main comparison page.
- *
- * Tab 1 — Team Stats: side-by-side aggregate stats + win probability bar.
- *   - Lineup modal triggered by "View Lineup" button.
- *   - Polls for winProbability and lineup while null.
- *
- * Tab 2 — Player Matchup: two player selectors + stat comparison table.
- *   - Polls for matchup result while isPendingMatchup.
- */
 export default function ComparisonShow({
   teamA,
   teamB,
@@ -69,7 +58,7 @@ export default function ComparisonShow({
     selectedBId ? String(selectedBId) : '',
   );
 
-  // ── Polling for win probability + lineup ──────────────────────────────────
+  // ── Polling ──────────────────────────────────────────────────────────────
   const statsNeedPoll = winProbability === null || lineup === null;
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -83,9 +72,7 @@ export default function ComparisonShow({
     };
   }, [statsNeedPoll]);
 
-  // ── Polling for player matchup ─────────────────────────────────────────────
-  const isPendingMatchup =
-    selectedAId !== null && selectedBId !== null && matchup === null;
+  const isPendingMatchup = selectedAId !== null && selectedBId !== null && matchup === null;
   const matchupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -98,7 +85,6 @@ export default function ComparisonShow({
     };
   }, [isPendingMatchup]);
 
-  // ── Player matchup selection ──────────────────────────────────────────────
   const dispatchMatchup = useCallback(
     (aId: string, bId: string) => {
       if (!aId || !bId) return;
@@ -124,49 +110,163 @@ export default function ComparisonShow({
   const selectedPlayerA = playersA.find((p) => String(p.id) === localPlayerA) ?? null;
   const selectedPlayerB = playersB.find((p) => String(p.id) === localPlayerB) ?? null;
 
+  const logoA = teamA.logo_path ? `/storage/${teamA.logo_path}` : null;
+  const logoB = teamB.logo_path ? `/storage/${teamB.logo_path}` : null;
+
   return (
-    <AuthenticatedLayout
-      header={
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link
-              href={route('comparison.index')}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors font-ui font-semibold"
-            >
+    <AuthenticatedLayout>
+      <Head title={`${teamA.name} vs ${teamB.name}`} />
+
+      <div className="flex flex-col gap-5">
+
+        {/* ── Pre-game hero banner ─────────────────────────────────────────── */}
+        <div className="relative rounded-2xl overflow-hidden"
+             style={{ background: 'rgba(8,12,24,0.95)', border: '1px solid rgba(255,255,255,0.07)' }}>
+
+          {/* Arena background image */}
+          <img
+            src="/images/dashboard-assets/game-overview.png"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+            style={{ filter: 'brightness(0.15) saturate(0.5)', zIndex: 0 }}
+          />
+          {/* Gradient overlays */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: 'linear-gradient(180deg, rgba(8,12,24,0.5) 0%, rgba(8,12,24,0.85) 100%)' }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: 'radial-gradient(ellipse at center, rgba(249,160,27,0.04), transparent 70%)' }} />
+
+          {/* Back link */}
+          <div className="relative z-10 px-5 pt-4">
+            <Link href={route('comparison.index')}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors"
+                  style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.5px' }}>
               <ArrowLeft size={14} />
-              Back
+              Back to Matchup Select
             </Link>
-            <span className="text-border">/</span>
-            <div className="flex items-center gap-2">
-              <GitCompare size={15} className="text-accent" />
-              <span className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
-                {teamA.name}
-              </span>
-              <span className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 font-display text-[10px] font-bold text-primary tracking-widest uppercase">
-                VS
-              </span>
-              <span className="font-display text-sm font-bold tracking-wide text-foreground uppercase">
-                {teamB.name}
-              </span>
+          </div>
+
+          {/* Team matchup layout */}
+          <div className="relative z-10 flex items-center justify-center gap-0 px-8 py-8">
+
+            {/* Team A */}
+            <div className="flex flex-1 flex-col items-center gap-3">
+              {/* Logo */}
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl overflow-hidden"
+                   style={{
+                     background: logoA ? 'transparent' : 'linear-gradient(135deg, rgba(152,0,46,0.5), rgba(80,0,20,0.7))',
+                     border: '2px solid rgba(255,140,0,0.25)',
+                     boxShadow: '0 0 40px rgba(152,0,46,0.3), 0 0 80px rgba(152,0,46,0.1)',
+                   }}>
+                {logoA ? (
+                  <img src={logoA} alt={teamA.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(255,200,200,0.9)' }}>
+                    {teamA.code.slice(0, 3)}
+                  </span>
+                )}
+              </div>
+              {/* Team info */}
+              <div className="text-center">
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 0 16px rgba(152,0,46,0.5)' }}>
+                  {teamA.name}
+                </p>
+                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(152,0,46,0.9)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                  HOME
+                </p>
+              </div>
+              {/* Win probability if computed */}
+              {winProbability && (
+                <div className="rounded-xl px-4 py-2 text-center"
+                     style={{ background: 'rgba(152,0,46,0.15)', border: '1px solid rgba(152,0,46,0.3)' }}>
+                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#fff', textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+                    {Math.round(winProbability.team_a_win_probability * 100)}%
+                  </p>
+                  <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    Win Prob.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* VS center */}
+            <div className="flex flex-col items-center gap-2 shrink-0 mx-6">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full"
+                   style={{
+                     background: 'radial-gradient(circle, rgba(249,160,27,0.15), rgba(0,0,0,0.6))',
+                     border: '2px solid rgba(249,160,27,0.35)',
+                     boxShadow: '0 0 40px rgba(249,160,27,0.2)',
+                   }}>
+                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '18px', fontWeight: 900, color: '#F9A01B', letterSpacing: '1px', textShadow: '0 0 12px rgba(249,160,27,0.6)' }}>VS</span>
+              </div>
+              {statsNeedPoll && (
+                <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
+                     style={{ background: 'rgba(249,160,27,0.08)', border: '1px solid rgba(249,160,27,0.2)' }}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#F9A01B] animate-pulse" />
+                  <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(249,160,27,0.8)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    Computing…
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Team B */}
+            <div className="flex flex-1 flex-col items-center gap-3">
+              <div className="flex h-24 w-24 items-center justify-center rounded-2xl overflow-hidden"
+                   style={{
+                     background: logoB ? 'transparent' : 'linear-gradient(135deg, rgba(30,60,120,0.5), rgba(10,25,60,0.7))',
+                     border: '2px solid rgba(255,140,0,0.25)',
+                     boxShadow: '0 0 40px rgba(30,80,180,0.3), 0 0 80px rgba(30,60,120,0.1)',
+                   }}>
+                {logoB ? (
+                  <img src={logoB} alt={teamB.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(180,200,255,0.9)' }}>
+                    {teamB.code.slice(0, 3)}
+                  </span>
+                )}
+              </div>
+              <div className="text-center">
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 0 16px rgba(30,80,180,0.5)' }}>
+                  {teamB.name}
+                </p>
+                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(100,150,255,0.8)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                  AWAY
+                </p>
+              </div>
+              {winProbability && (
+                <div className="rounded-xl px-4 py-2 text-center"
+                     style={{ background: 'rgba(30,60,120,0.2)', border: '1px solid rgba(60,100,200,0.3)' }}>
+                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#fff', textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+                    {Math.round(winProbability.team_b_win_probability * 100)}%
+                  </p>
+                  <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    Win Prob.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      }
-    >
-      <Head title={`${teamA.name} vs ${teamB.name}`} />
 
-      <div className="px-2 py-4 space-y-4">
+        {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
         <Tabs defaultValue="stats">
-          <TabsList className="w-full">
-            <TabsTrigger value="stats" className="flex-1">
+          {/* Custom game-style tab list */}
+          <TabsList className="w-full gap-2 p-1 h-auto rounded-xl"
+                    style={{ background: 'rgba(11,18,32,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <TabsTrigger value="stats"
+                         className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
+                         style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
+              <Swords size={13} />
               Team Stats
             </TabsTrigger>
-            <TabsTrigger value="matchup" className="flex-1">
+            <TabsTrigger value="matchup"
+                         className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
+                         style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
+              <BarChart2 size={13} />
               Player Matchup
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Tab 1: Team Stats ───────────────────────────────────────── */}
+          {/* ── Tab 1: Team Stats ── */}
           <TabsContent value="stats" className="space-y-4 pt-4">
             <WinProbabilityBar teamA={teamA} teamB={teamB} result={winProbability} />
 
@@ -182,7 +282,15 @@ export default function ComparisonShow({
             <div className="flex justify-end">
               <button
                 onClick={() => setLineupOpen(true)}
-                className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-ui font-semibold tracking-wide text-accent-foreground transition-all hover:opacity-90 hover:shadow-[0_0_12px_rgba(249,160,27,0.4)]"
+                className="flex items-center gap-2.5 rounded-xl px-5 py-2.5 text-sm font-bold uppercase tracking-widest transition-all hover:-translate-y-0.5"
+                style={{
+                  fontFamily: 'Rajdhani, sans-serif',
+                  background: 'linear-gradient(135deg, #F9A01B, #d4860f)',
+                  border: '1px solid rgba(249,160,27,0.3)',
+                  color: '#080C18',
+                  boxShadow: '0 0 24px rgba(249,160,27,0.3)',
+                  letterSpacing: '1.5px',
+                }}
               >
                 <Users size={14} />
                 View Recommended Lineup
@@ -190,48 +298,24 @@ export default function ComparisonShow({
             </div>
           </TabsContent>
 
-          {/* ── Tab 2: Player Matchup ───────────────────────────────────── */}
+          {/* ── Tab 2: Player Matchup ── */}
           <TabsContent value="matchup" className="space-y-4 pt-4">
             {/* Player selectors */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                  {teamA.name}
-                </label>
-                <select
-                  value={localPlayerA}
-                  onChange={(e) => handlePlayerAChange(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground font-ui transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
-                >
-                  <option value="">Select player…</option>
-                  {playersA.map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      #{p.jersey_number} {p.first_name} {p.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                  {teamB.name}
-                </label>
-                <select
-                  value={localPlayerB}
-                  onChange={(e) => handlePlayerBChange(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground font-ui transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
-                >
-                  <option value="">Select player…</option>
-                  {playersB.map((p) => (
-                    <option key={p.id} value={String(p.id)}>
-                      #{p.jersey_number} {p.first_name} {p.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <PlayerSelectField
+                label={teamA.name}
+                value={localPlayerA}
+                onChange={handlePlayerAChange}
+                players={playersA}
+              />
+              <PlayerSelectField
+                label={teamB.name}
+                value={localPlayerB}
+                onChange={handlePlayerBChange}
+                players={playersB}
+              />
             </div>
 
-            {/* Matchup table or empty state */}
             {selectedPlayerA && selectedPlayerB ? (
               <PlayerMatchupTable
                 playerA={selectedPlayerA}
@@ -240,8 +324,11 @@ export default function ComparisonShow({
                 isPending={isPendingMatchup}
               />
             ) : (
-              <div className="rounded-xl border border-border bg-muted/30 px-5 py-10 text-center text-sm text-muted-foreground">
-                Select one player from each team to see the matchup breakdown.
+              <div className="flex items-center justify-center rounded-2xl py-14 text-center"
+                   style={{ background: 'rgba(11,18,32,0.6)', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                <p className="text-sm" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+                  Select one player from each team to see the matchup breakdown.
+                </p>
               </div>
             )}
           </TabsContent>
@@ -256,5 +343,45 @@ export default function ComparisonShow({
         players={playersA}
       />
     </AuthenticatedLayout>
+  );
+}
+
+// ── Player select field ───────────────────────────────────────────────────────
+
+function PlayerSelectField({
+  label, value, onChange, players,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  players: PlayerWithStats[];
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-[11px] font-bold uppercase tracking-widest"
+             style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.4)' }}>
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
+        style={{
+          fontFamily: 'Rajdhani, sans-serif',
+          fontWeight: 600,
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          color: 'rgba(255,255,255,0.8)',
+          appearance: 'none',
+        }}
+      >
+        <option value="" style={{ background: '#080C18' }}>Select player…</option>
+        {players.map((p) => (
+          <option key={p.id} value={String(p.id)} style={{ background: '#080C18' }}>
+            #{p.jersey_number} {p.first_name} {p.last_name}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

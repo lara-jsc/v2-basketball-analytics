@@ -41,6 +41,7 @@ export default {
                 sans: ['Barlow', ...defaultTheme.fontFamily.sans],
                 display: ['Barlow Condensed', ...defaultTheme.fontFamily.sans],
                 ui: ['Rajdhani', ...defaultTheme.fontFamily.sans],
+                game: ['Orbitron', ...defaultTheme.fontFamily.sans],
             },
             borderRadius: {
                 lg: 'var(--radius)',
