@@ -62,10 +62,8 @@ function normalize(value: number | null | undefined, max: number): number {
 export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: PlayerMatchupTableProps) {
     const statA = playerA.stats[0] ?? null;
     const statB = playerB.stats[0] ?? null;
-
     const strongerA = matchup?.stronger_stats_a ?? [];
     const strongerB = matchup?.stronger_stats_b ?? [];
-
     const picA = playerA.profile_picture_path ? `/storage/${playerA.profile_picture_path}` : null;
     const picB = playerB.profile_picture_path ? `/storage/${playerB.profile_picture_path}` : null;
 
@@ -77,63 +75,46 @@ export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: Pla
 
     return (
         <div className="space-y-4">
-            {/* ── Player headers — large game-style cards ── */}
+            {/* ── Player headers + Radar ── */}
             <div className="grid grid-cols-5 gap-3 items-stretch">
-                {/* Player A */}
                 <div className="col-span-2">
                     <PlayerHeroCard player={playerA} stat={statA} picUrl={picA} matchup={matchup} side="a" />
                 </div>
 
-                {/* Radar chart center */}
-                <div className="col-span-1 flex flex-col items-center justify-center gap-3 rounded-2xl py-4"
-                     style={{ background: 'rgba(11,18,32,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {/* Radar chart */}
+                <div className="col-span-1 flex flex-col items-center justify-center gap-3 rounded-2xl py-4 bg-card"
+                     style={{ border: '1px solid hsl(var(--border))' }}>
                     <div className="h-44 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <RadarChart data={radarData} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
-                                <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                                <PolarGrid stroke="hsl(var(--border))" />
                                 <PolarAngleAxis
                                     dataKey="stat"
                                     tick={{ fontSize: 9, fill: '#F9A01B', fontFamily: 'Rajdhani', fontWeight: 700 }}
                                 />
-                                <Radar
-                                    name={`${playerA.first_name} ${playerA.last_name}`}
-                                    dataKey="A"
-                                    stroke="#98002E"
-                                    fill="#98002E"
-                                    fillOpacity={0.35}
-                                    strokeWidth={2}
-                                />
-                                <Radar
-                                    name={`${playerB.first_name} ${playerB.last_name}`}
-                                    dataKey="B"
-                                    stroke="#60a5fa"
-                                    fill="#60a5fa"
-                                    fillOpacity={0.25}
-                                    strokeWidth={2}
-                                />
+                                <Radar name={`${playerA.first_name} ${playerA.last_name}`} dataKey="A" stroke="#98002E" fill="#98002E" fillOpacity={0.3} strokeWidth={2} />
+                                <Radar name={`${playerB.first_name} ${playerB.last_name}`} dataKey="B" stroke="#3b5fb5" fill="#3b5fb5" fillOpacity={0.25} strokeWidth={2} />
                                 <Tooltip
-                                    contentStyle={{ background: '#0D1525', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '11px', fontFamily: 'Rajdhani' }}
+                                    contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px', fontFamily: 'Rajdhani', color: 'hsl(var(--popover-foreground))' }}
                                     formatter={(value, name) => [`${value}`, String(name)]}
                                 />
                             </RadarChart>
                         </ResponsiveContainer>
                     </div>
-                    {/* Legend */}
                     <div className="flex flex-col items-center gap-1">
                         <span className="flex items-center gap-1.5 text-[10px] font-semibold"
-                              style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(152,0,46,0.9)' }}>
+                              style={{ fontFamily: 'Rajdhani, sans-serif', color: '#98002E' }}>
                             <span className="h-2 w-2 rounded-full bg-[#98002E] inline-block" />
                             {playerA.first_name} {playerA.last_name}
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] font-semibold"
-                              style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(96,165,250,0.9)' }}>
-                            <span className="h-2 w-2 rounded-full bg-blue-400 inline-block" />
+                              style={{ fontFamily: 'Rajdhani, sans-serif', color: '#3b5fb5' }}>
+                            <span className="h-2 w-2 rounded-full bg-[#3b5fb5] inline-block" />
                             {playerB.first_name} {playerB.last_name}
                         </span>
                     </div>
                 </div>
 
-                {/* Player B */}
                 <div className="col-span-2">
                     <PlayerHeroCard player={playerB} stat={statB} picUrl={picB} matchup={matchup} side="b" />
                 </div>
@@ -141,49 +122,39 @@ export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: Pla
 
             {/* ── Edge scores ── */}
             {isPending ? (
-                <div className="flex items-center gap-2 rounded-xl px-5 py-3"
-                     style={{ background: 'rgba(11,18,32,0.6)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-2 rounded-xl px-5 py-3 bg-card"
+                     style={{ border: '1px solid hsl(var(--border))' }}>
                     <Loader2 size={13} className="animate-spin" style={{ color: '#F9A01B' }} />
-                    <span className="text-sm" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
+                    <span className="text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
                         Computing matchup prediction…
                     </span>
                 </div>
             ) : matchup ? (
-                <div className="rounded-2xl px-5 py-4 space-y-3"
-                     style={{ background: 'rgba(11,18,32,0.85)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                <div className="rounded-2xl px-5 py-4 space-y-3 bg-card"
+                     style={{ border: '1px solid hsl(var(--border))' }}>
+                    <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
                         Matchup Edge Scores
                     </p>
                     <div className="flex items-center gap-4">
-                        <EdgeBar
-                            label={`${playerA.first_name} ${playerA.last_name}`}
-                            score={matchup.player_a_edge_score}
-                            isHigher={matchup.player_a_edge_score >= matchup.player_b_edge_score}
-                        />
+                        <EdgeBar label={`${playerA.first_name} ${playerA.last_name}`} score={matchup.player_a_edge_score} isHigher={matchup.player_a_edge_score >= matchup.player_b_edge_score} />
                         <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 900, color: 'rgba(249,160,27,0.6)' }}>VS</span>
-                        <EdgeBar
-                            label={`${playerB.first_name} ${playerB.last_name}`}
-                            score={matchup.player_b_edge_score}
-                            isHigher={matchup.player_b_edge_score >= matchup.player_a_edge_score}
-                            reversed
-                        />
+                        <EdgeBar label={`${playerB.first_name} ${playerB.last_name}`} score={matchup.player_b_edge_score} isHigher={matchup.player_b_edge_score >= matchup.player_a_edge_score} reversed />
                     </div>
                 </div>
             ) : null}
 
             {/* ── Stat rows ── */}
-            <div className="rounded-2xl overflow-hidden"
-                 style={{ background: 'rgba(11,18,32,0.85)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                {/* Header */}
-                <div className="grid grid-cols-3 px-4 py-3"
-                     style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'linear-gradient(90deg, rgba(152,0,46,0.15), rgba(11,18,32,0.5), rgba(60,100,200,0.1))' }}>
-                    <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            <div className="rounded-2xl overflow-hidden bg-card"
+                 style={{ border: '1px solid hsl(var(--border))' }}>
+                <div className="grid grid-cols-3 px-4 py-3 bg-muted/30"
+                     style={{ borderBottom: '1px solid hsl(var(--border))' }}>
+                    <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                         {playerA.first_name} {playerA.last_name}
                     </span>
-                    <span className="text-center" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                    <span className="text-center" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
                         STAT
                     </span>
-                    <span className="text-right" style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    <span className="text-right" style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                         {playerB.first_name} {playerB.last_name}
                     </span>
                 </div>
@@ -196,37 +167,37 @@ export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: Pla
 
                     return (
                         <div key={row.label}
-                             className="grid grid-cols-3 px-4 py-2 transition-colors hover:bg-white/[0.02] last:border-0"
+                             className="grid grid-cols-3 px-4 py-2 transition-colors hover:bg-muted/10 last:border-0"
                              style={{
-                                 borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                 borderBottom: '1px solid hsl(var(--border) / 0.5)',
                                  background: i % 2 === 1 ? 'rgba(152,0,46,0.02)' : 'transparent',
                              }}>
                             <span style={{
                                 fontFamily: 'Rajdhani, sans-serif',
                                 fontSize: '13px',
                                 fontWeight: aHighlighted ? 800 : 600,
-                                color: aHighlighted ? '#F9A01B' : 'rgba(255,255,255,0.6)',
+                                color: aHighlighted ? '#F9A01B' : 'hsl(var(--foreground))',
                                 fontVariantNumeric: 'tabular-nums',
                             }}>
                                 {aStr}
                                 {aHighlighted && (
                                     <span className="ml-1.5 inline-flex items-center justify-center rounded px-1 py-0.5 text-[9px] font-bold"
-                                          style={{ background: 'rgba(249,160,27,0.15)', color: '#F9A01B' }}>▲</span>
+                                          style={{ background: 'rgba(249,160,27,0.12)', color: '#F9A01B' }}>▲</span>
                                 )}
                             </span>
-                            <span className="text-center" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '1px' }}>
+                            <span className="text-center text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, letterSpacing: '1px' }}>
                                 {row.label}
                             </span>
                             <span className="text-right" style={{
                                 fontFamily: 'Rajdhani, sans-serif',
                                 fontSize: '13px',
                                 fontWeight: bHighlighted ? 800 : 600,
-                                color: bHighlighted ? '#F9A01B' : 'rgba(255,255,255,0.6)',
+                                color: bHighlighted ? '#F9A01B' : 'hsl(var(--foreground))',
                                 fontVariantNumeric: 'tabular-nums',
                             }}>
                                 {bHighlighted && (
                                     <span className="mr-1.5 inline-flex items-center justify-center rounded px-1 py-0.5 text-[9px] font-bold"
-                                          style={{ background: 'rgba(249,160,27,0.15)', color: '#F9A01B' }}>▲</span>
+                                          style={{ background: 'rgba(249,160,27,0.12)', color: '#F9A01B' }}>▲</span>
                                 )}
                                 {bStr}
                             </span>
@@ -240,9 +211,7 @@ export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: Pla
 
 // ── Player hero card ──────────────────────────────────────────────────────────
 
-function PlayerHeroCard({
-    player, stat, picUrl, matchup, side,
-}: {
+function PlayerHeroCard({ player, stat, picUrl, matchup, side }: {
     player: PlayerWithStats;
     stat: PlayerStat | null;
     picUrl: string | null;
@@ -253,30 +222,23 @@ function PlayerHeroCard({
     const edgeScore = side === 'a' ? matchup?.player_a_edge_score : matchup?.player_b_edge_score;
     const otherScore = side === 'a' ? matchup?.player_b_edge_score : matchup?.player_a_edge_score;
     const isLeading = edgeScore !== undefined && otherScore !== undefined && edgeScore >= otherScore;
-
-    const borderColor = isHome ? 'rgba(152,0,46,0.3)' : 'rgba(60,100,200,0.3)';
-    const glowColor = isHome ? 'rgba(152,0,46,0.15)' : 'rgba(60,100,200,0.15)';
-    const gradBg = isHome
-        ? 'linear-gradient(160deg, rgba(152,0,46,0.2) 0%, rgba(11,18,32,0.95) 50%)'
-        : 'linear-gradient(160deg, rgba(30,60,150,0.2) 0%, rgba(11,18,32,0.95) 50%)';
+    const accentBorder = isHome ? 'rgba(152,0,46,0.2)' : 'rgba(60,100,200,0.2)';
+    const gradColor = isHome ? 'rgba(152,0,46,0.08)' : 'rgba(30,60,150,0.08)';
 
     return (
-        <div className="h-full rounded-2xl overflow-hidden relative"
-             style={{ background: gradBg, border: `1px solid ${borderColor}`, boxShadow: `0 0 24px ${glowColor}` }}>
-            <div className="pointer-events-none absolute inset-0"
-                 style={{ background: 'radial-gradient(ellipse at top, rgba(255,255,255,0.02), transparent 70%)' }} />
+        <div className="h-full rounded-2xl overflow-hidden relative bg-card"
+             style={{ border: `1px solid ${accentBorder}`, background: `linear-gradient(160deg, ${gradColor} 0%, hsl(var(--card)) 50%)` }}>
 
             <div className="relative flex items-center gap-4 p-4">
                 {/* Large player photo */}
                 <div className="relative flex-shrink-0">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden"
-                         style={{ border: `2px solid ${borderColor}`, boxShadow: `0 0 20px ${glowColor}` }}>
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden bg-muted/40"
+                         style={{ border: `2px solid ${accentBorder}` }}>
                         {picUrl ? (
                             <img src={picUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
-                            <div className="h-full w-full flex items-center justify-center"
-                                 style={{ background: isHome ? 'rgba(152,0,46,0.2)' : 'rgba(30,60,150,0.2)' }}>
-                                <svg viewBox="0 0 24 24" fill="none" className="h-10 w-10" style={{ color: 'rgba(255,255,255,0.2)' }} stroke="currentColor" strokeWidth={1.2}>
+                            <div className="h-full w-full flex items-center justify-center">
+                                <svg viewBox="0 0 24 24" fill="none" className="h-10 w-10 text-muted-foreground/30" stroke="currentColor" strokeWidth={1.2}>
                                     <circle cx="12" cy="7" r="4" />
                                     <path d="M4 21v-2a8 8 0 0 1 16 0v2" strokeLinecap="round" />
                                 </svg>
@@ -285,17 +247,15 @@ function PlayerHeroCard({
                     </div>
                     {/* Jersey number overlay */}
                     <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full"
-                         style={{ background: isHome ? '#98002E' : '#1e3c96', border: '2px solid rgba(0,0,0,0.5)' }}>
+                         style={{ background: isHome ? '#98002E' : '#1e3c96', border: '2px solid hsl(var(--card))' }}>
                         <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '9px', fontWeight: 900, color: '#fff' }}>
                             {player.jersey_number ?? '—'}
                         </span>
                     </div>
                 </div>
 
-                {/* Player info */}
                 <div className="flex-1 min-w-0">
-                    <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '0.5px', textTransform: 'uppercase' }}
-                       className="truncate">
+                    <p className="truncate text-foreground" style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                         {player.first_name} {player.last_name}
                     </p>
                     {player.role && (
@@ -304,8 +264,6 @@ function PlayerHeroCard({
                             {player.role}
                         </span>
                     )}
-
-                    {/* Mini stat strip */}
                     <div className="mt-2 grid grid-cols-3 gap-1">
                         <MiniStat label="+/-" value={fmtPM(stat?.plus_minus ?? null)} highlight={(stat?.plus_minus ?? 0) > 0} />
                         <MiniStat label="PTS" value={fmt(stat?.pts)} />
@@ -314,14 +272,13 @@ function PlayerHeroCard({
                 </div>
             </div>
 
-            {/* Edge score footer */}
             {matchup && (
-                <div className="px-4 pb-3 relative">
+                <div className="px-4 pb-3">
                     <div className="flex items-center justify-between">
-                        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        <span className="text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
                             Edge Score
                         </span>
-                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 900, color: isLeading ? '#F9A01B' : 'rgba(255,255,255,0.4)', textShadow: isLeading ? '0 0 8px rgba(249,160,27,0.4)' : 'none' }}>
+                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 900, color: isLeading ? '#F9A01B' : 'hsl(var(--muted-foreground))' }}>
                             {Math.round((edgeScore ?? 0) * 100)}%
                         </span>
                     </div>
@@ -333,12 +290,11 @@ function PlayerHeroCard({
 
 function MiniStat({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
     return (
-        <div className="text-center rounded-lg py-1"
-             style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+        <div className="text-center rounded-lg py-1 bg-muted/30">
+            <p className="text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '9px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
                 {label}
             </p>
-            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 900, color: highlight ? '#F9A01B' : 'rgba(255,255,255,0.7)', lineHeight: 1.2 }}>
+            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 900, color: highlight ? '#F9A01B' : 'hsl(var(--foreground))', lineHeight: 1.2 }}>
                 {value}
             </p>
         </div>
@@ -351,22 +307,18 @@ function EdgeBar({ label, score, isHigher, reversed = false }: {
     const pct = Math.round(score * 100);
     return (
         <div className={`flex flex-1 flex-col gap-1.5 ${reversed ? 'items-end' : 'items-start'}`}>
-            <span className="text-xs font-semibold truncate max-w-[120px]"
-                  style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+            <span className="text-xs font-semibold truncate max-w-[120px] text-foreground"
+                  style={{ fontFamily: 'Rajdhani, sans-serif' }}>{label}</span>
             <div className={`flex w-full items-center gap-2 ${reversed ? 'flex-row-reverse' : ''}`}>
-                <div className="relative h-2.5 flex-1 overflow-hidden rounded-full"
-                     style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-muted/60">
                     <div className={`absolute inset-y-0 ${reversed ? 'right-0' : 'left-0'} rounded-full transition-all`}
                          style={{
                              width: `${pct}%`,
-                             background: isHigher
-                                 ? 'linear-gradient(90deg, #F9A01B, #d4860f)'
-                                 : 'rgba(152,0,46,0.5)',
-                             boxShadow: isHigher ? '0 0 6px rgba(249,160,27,0.4)' : 'none',
+                             background: isHigher ? 'linear-gradient(90deg, #F9A01B, #d4860f)' : 'rgba(152,0,46,0.4)',
                          }} />
                 </div>
                 <span className="text-xs font-bold tabular-nums shrink-0"
-                      style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', color: isHigher ? '#F9A01B' : 'rgba(255,255,255,0.3)' }}>
+                      style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', color: isHigher ? '#F9A01B' : 'hsl(var(--muted-foreground))' }}>
                     {pct}%
                 </span>
             </div>

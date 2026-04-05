@@ -10,19 +10,15 @@ interface LineupModalProps {
     players: PlayerWithStats[];
 }
 
-/** Derive a 60–99 OVR from stored stats */
 function computeOvr(player: PlayerWithStats | undefined): number | null {
     if (!player || !player.stats[0]) return null;
     const s = player.stats[0];
     if (s.pts == null && s.fg_pct == null && s.ast == null && s.reb == null) return null;
-
     const pts = Number(s.pts ?? 0);
     const fg = Number(s.fg_pct ?? 0);
     const ast = Number(s.ast ?? 0);
     const reb = Number(s.reb ?? 0);
     const pm = Number(s.plus_minus ?? 0);
-
-    // Weighted score: scale to 60–99
     const raw = (pts * 1.8) + (fg * 30) + (ast * 1.2) + (reb * 0.8) + (pm * 0.5);
     return Math.min(99, Math.max(60, Math.round(raw)));
 }
@@ -34,26 +30,25 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-w-5xl p-0 overflow-hidden"
-                           style={{ background: '#080C18', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <DialogContent className="max-w-5xl p-0 overflow-hidden bg-card"
+                           style={{ border: '1px solid hsl(var(--border))' }}>
 
                 {/* ── Header ── */}
                 <DialogHeader className="relative overflow-hidden px-6 py-5"
-                              style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'linear-gradient(90deg, rgba(152,0,46,0.2), rgba(249,160,27,0.05), transparent)' }}>
+                              style={{ borderBottom: '1px solid hsl(var(--border))', background: 'linear-gradient(90deg, rgba(152,0,46,0.12), rgba(249,160,27,0.04), transparent)' }}>
                     <div className="pointer-events-none absolute inset-0"
                          style={{ backgroundImage: 'repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(249,160,27,0.03) 60px,rgba(249,160,27,0.03) 61px)' }} />
                     <div className="relative flex items-start justify-between gap-4">
                         <div>
-                            <DialogTitle style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '16px', fontWeight: 900, color: 'rgba(255,255,255,0.95)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                            <DialogTitle style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '16px', fontWeight: 900, color: 'hsl(var(--foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
                                 Recommended Lineup
                             </DialogTitle>
-                            <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '0.5px' }}>
+                            <p className="mt-1 text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '12px', fontWeight: 600, letterSpacing: '0.5px' }}>
                                 AI-Optimal Starting 5 — {teamName}
                             </p>
                         </div>
                         <button onClick={onClose}
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/5"
-                                style={{ color: 'rgba(255,255,255,0.4)' }}>
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground">
                             <X size={15} />
                         </button>
                     </div>
@@ -62,7 +57,7 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                 {lineup === null ? (
                     <div className="flex flex-col items-center justify-center gap-3 py-20">
                         <Loader2 size={28} className="animate-spin" style={{ color: '#F9A01B' }} />
-                        <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
+                        <p className="text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '14px', fontWeight: 600 }}>
                             Computing lineup recommendation…
                         </p>
                     </div>
@@ -70,11 +65,10 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                     <div className="flex gap-0">
                         {/* ── Left: 5 player cards ── */}
                         <div className="flex flex-1 flex-col gap-5 p-6">
-                            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '11px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
                                 Optimized Starting Lineup
                             </p>
 
-                            {/* Player cards row */}
                             <div className="flex gap-3">
                                 {lineup.recommended_lineup.slice(0, 5).map((lp) => {
                                     const match = players.find((p) => p.id === lp.player_id);
@@ -82,7 +76,6 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                                     const photoUrl = match?.profile_picture_path
                                         ? `/storage/${match.profile_picture_path}`
                                         : null;
-
                                     return (
                                         <PlayerCard
                                             key={lp.player_id}
@@ -100,15 +93,15 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                             {/* Net plus-minus footer */}
                             <div className="flex items-center gap-3 rounded-xl px-4 py-3"
                                  style={{ background: 'rgba(249,160,27,0.06)', border: '1px solid rgba(249,160,27,0.15)' }}>
-                                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#F9A01B', textShadow: '0 0 12px rgba(249,160,27,0.5)' }}>
+                                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#F9A01B', textShadow: '0 0 12px rgba(249,160,27,0.3)' }}>
                                     {netPlusMinus !== null && netPlusMinus >= 0 ? '+' : ''}
                                     {netPlusMinus?.toFixed(1) ?? '—'}
                                 </span>
                                 <div>
-                                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                                         Net Plus-Minus
                                     </p>
-                                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+                                    <p className="text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 600 }}>
                                         Expected when using this lineup
                                     </p>
                                 </div>
@@ -117,14 +110,13 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
 
                         {/* ── Right: confidence + CTA ── */}
                         <div className="flex flex-col w-52 shrink-0 p-5 gap-5"
-                             style={{ borderLeft: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)' }}>
-                            {/* Large amber net value */}
+                             style={{ borderLeft: '1px solid hsl(var(--border))', background: 'hsl(var(--muted) / 0.3)' }}>
                             <div className="text-center">
-                                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '40px', fontWeight: 900, color: '#F9A01B', lineHeight: 1, textShadow: '0 0 20px rgba(249,160,27,0.5)' }}>
+                                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '40px', fontWeight: 900, color: '#F9A01B', lineHeight: 1, textShadow: '0 0 16px rgba(249,160,27,0.3)' }}>
                                     {netPlusMinus !== null && netPlusMinus >= 0 ? '+' : ''}
                                     {netPlusMinus?.toFixed(1) ?? '—'}
                                 </p>
-                                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+                                <p className="mt-1 text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                                     Net Plus-Minus
                                 </p>
                             </div>
@@ -132,15 +124,15 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                             {/* Confidence ring */}
                             <div className="flex flex-col items-center gap-2">
                                 <div className="relative h-20 w-20 rounded-full flex items-center justify-center"
-                                     style={{ background: `conic-gradient(#F9A01B 0% ${Math.round(lineup.confidence * 100)}%, rgba(255,255,255,0.06) ${Math.round(lineup.confidence * 100)}% 100%)` }}>
-                                    <div className="absolute h-13 w-13 rounded-full flex items-center justify-center"
-                                         style={{ background: '#080C18', height: '52px', width: '52px' }}>
+                                     style={{ background: `conic-gradient(#F9A01B 0% ${Math.round(lineup.confidence * 100)}%, hsl(var(--muted)) ${Math.round(lineup.confidence * 100)}% 100%)` }}>
+                                    <div className="absolute rounded-full flex items-center justify-center bg-card"
+                                         style={{ height: '52px', width: '52px' }}>
                                         <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 900, color: '#F9A01B' }}>
                                             {Math.round(lineup.confidence * 100)}%
                                         </span>
                                     </div>
                                 </div>
-                                <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+                                <p className="text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                                     Confidence
                                 </p>
                             </div>
@@ -155,7 +147,7 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                                     background: 'linear-gradient(135deg, #F9A01B, #d4860f)',
                                     border: '1px solid rgba(249,160,27,0.3)',
                                     color: '#080C18',
-                                    boxShadow: '0 0 20px rgba(249,160,27,0.3)',
+                                    boxShadow: '0 0 16px rgba(249,160,27,0.2)',
                                     letterSpacing: '1.5px',
                                 }}
                             >
@@ -169,7 +161,7 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
     );
 }
 
-// ── Player card (NBA 2K style) ────────────────────────────────────────────────
+// ── Player card ───────────────────────────────────────────────────────────────
 
 function PlayerCard({
     name, plusMinus, jerseyNumber, position, photoUrl, ovr,
@@ -186,27 +178,21 @@ function PlayerCard({
     const isPositive = plusMinus >= 0;
 
     return (
-        <div className="flex flex-1 flex-col items-center gap-2 rounded-2xl overflow-hidden transition-all"
+        <div className="flex flex-1 flex-col items-center gap-2 rounded-2xl overflow-hidden transition-all bg-card"
              style={{
-                 background: 'linear-gradient(180deg, rgba(152,0,46,0.15) 0%, rgba(11,18,32,0.95) 40%)',
-                 border: '1px solid rgba(255,255,255,0.08)',
-                 boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                 background: 'linear-gradient(180deg, rgba(152,0,46,0.08) 0%, hsl(var(--card)) 40%)',
+                 border: '1px solid hsl(var(--border))',
+                 boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
              }}>
 
-            {/* Jersey # top badge */}
+            {/* Jersey # + OVR */}
             <div className="relative w-full flex items-center justify-between px-2.5 pt-2.5">
-                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(255,255,255,0.1)', lineHeight: 1 }}>
+                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'hsl(var(--muted-foreground) / 0.2)', lineHeight: 1 }}>
                     {jerseyNumber ?? '—'}
                 </span>
-                {/* OVR badge */}
                 {ovr !== null && (
                     <div className="flex flex-col items-center leading-none"
-                         style={{
-                             background: 'rgba(249,160,27,0.15)',
-                             border: '1px solid rgba(249,160,27,0.3)',
-                             borderRadius: '6px',
-                             padding: '2px 6px',
-                         }}>
+                         style={{ background: 'rgba(249,160,27,0.1)', border: '1px solid rgba(249,160,27,0.3)', borderRadius: '6px', padding: '2px 6px' }}>
                         <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '14px', fontWeight: 900, color: '#F9A01B', lineHeight: 1 }}>
                             {ovr}
                         </span>
@@ -217,13 +203,13 @@ function PlayerCard({
                 )}
             </div>
 
-            {/* Player photo / silhouette */}
-            <div className="flex h-16 w-16 items-center justify-center rounded-full overflow-hidden"
-                 style={{ background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.08)' }}>
+            {/* Player photo */}
+            <div className="flex h-16 w-16 items-center justify-center rounded-full overflow-hidden bg-muted/40"
+                 style={{ border: '2px solid hsl(var(--border))' }}>
                 {photoUrl ? (
                     <img src={photoUrl} alt={name} className="h-full w-full object-cover" />
                 ) : (
-                    <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9" style={{ color: 'rgba(255,255,255,0.15)' }} stroke="currentColor" strokeWidth={1.2}>
+                    <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9 text-muted-foreground/30" stroke="currentColor" strokeWidth={1.2}>
                         <circle cx="12" cy="7" r="4" />
                         <path d="M4 21v-2a8 8 0 0 1 16 0v2" strokeLinecap="round" />
                     </svg>
@@ -232,13 +218,11 @@ function PlayerCard({
 
             {/* Name */}
             <div className="text-center px-2 min-w-0 w-full">
-                <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.2, letterSpacing: '0.5px' }}
-                   className="truncate">
+                <p className="truncate text-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 700, lineHeight: 1.2, letterSpacing: '0.5px' }}>
                     {firstName}
                 </p>
                 {lastName && (
-                    <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', lineHeight: 1.2 }}
-                       className="truncate">
+                    <p className="truncate text-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '13px', fontWeight: 700, lineHeight: 1.2 }}>
                         {lastName}
                     </p>
                 )}
@@ -260,8 +244,7 @@ function PlayerCard({
                     fontFamily: 'Orbitron, sans-serif',
                     fontSize: '14px',
                     fontWeight: 900,
-                    color: isPositive ? '#F9A01B' : 'rgba(255,255,255,0.3)',
-                    textShadow: isPositive ? '0 0 10px rgba(249,160,27,0.4)' : 'none',
+                    color: isPositive ? '#F9A01B' : 'hsl(var(--muted-foreground))',
                 }}>
                     {isPositive ? '+' : ''}{plusMinus.toFixed(1)}
                 </span>

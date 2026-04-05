@@ -12,64 +12,57 @@ export function TeamCard({ team }: TeamCardProps) {
     return (
         <Link
             href={route('teams.show', { id: team.id })}
-            className="group block rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
+            className="group block rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 bg-card"
             style={{
-                background: 'rgba(11,18,32,0.85)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+                border: '1px solid hsl(var(--border))',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
             }}
         >
-            {/* ── Hero section: logo + team identity ── */}
+            {/* ── Hero section ── */}
             <div className="relative flex flex-col items-center justify-center py-7 gap-4 overflow-hidden"
                  style={{
-                     background: 'linear-gradient(180deg, rgba(152,0,46,0.18) 0%, rgba(11,18,32,0) 100%)',
-                     borderBottom: '1px solid rgba(255,255,255,0.06)',
+                     background: 'linear-gradient(180deg, rgba(152,0,46,0.12) 0%, transparent 100%)',
+                     borderBottom: '1px solid hsl(var(--border))',
                  }}
             >
-                {/* Court line texture */}
-                <div className="pointer-events-none absolute inset-0 opacity-30"
-                     style={{
-                         backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(249,160,27,0.04) 60px, rgba(249,160,27,0.04) 61px)',
-                     }} />
+                <div className="pointer-events-none absolute inset-0 opacity-20"
+                     style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(249,160,27,0.06) 60px, rgba(249,160,27,0.06) 61px)' }} />
 
-                {/* Team logo — big */}
+                {/* Team logo */}
                 <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden transition-all group-hover:scale-105 duration-300"
                      style={{
-                         background: logoUrl ? 'transparent' : 'linear-gradient(135deg, rgba(152,0,46,0.4), rgba(80,0,20,0.6))',
+                         background: logoUrl ? 'transparent' : 'linear-gradient(135deg, rgba(152,0,46,0.3), rgba(80,0,20,0.5))',
                          border: '2px solid rgba(255,140,0,0.2)',
-                         boxShadow: '0 0 30px rgba(152,0,46,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                         boxShadow: '0 0 24px rgba(152,0,46,0.2)',
                      }}
                 >
                     {logoUrl ? (
                         <img src={logoUrl} alt={`${team.name} logo`} className="h-full w-full object-cover" />
                     ) : (
-                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(255,200,200,0.9)', letterSpacing: '-1px' }}>
+                        <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: '#98002E', letterSpacing: '-1px' }}>
                             {team.code.slice(0, 3).toUpperCase()}
                         </span>
                     )}
-                    {/* Glow overlay */}
-                    <div className="pointer-events-none absolute inset-0 rounded-2xl"
-                         style={{ boxShadow: 'inset 0 0 20px rgba(255,140,0,0.08)' }} />
                 </div>
 
                 {/* Team name */}
                 <div className="text-center px-4">
-                    <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.95)', letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 0 12px rgba(255,255,255,0.2)' }}>
+                    <h3 style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                         {team.name}
                     </h3>
                     <div className="mt-2 flex items-center justify-center gap-2">
                         <span className="rounded px-2 py-0.5 text-[10px] font-semibold tracking-widest uppercase"
-                              style={{ fontFamily: 'Rajdhani, sans-serif', background: 'rgba(249,160,27,0.12)', border: '1px solid rgba(249,160,27,0.3)', color: '#F9A01B' }}>
+                              style={{ fontFamily: 'Rajdhani, sans-serif', background: 'rgba(249,160,27,0.1)', border: '1px solid rgba(249,160,27,0.3)', color: '#F9A01B' }}>
                             {team.code}
                         </span>
                         {team.is_active ? (
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400"
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
                                   style={{ fontFamily: 'Rajdhani, sans-serif' }}>
                                 <CheckCircle2 size={10} /> Active
                             </span>
                         ) : (
-                            <span className="flex items-center gap-1 text-[10px] font-semibold"
-                                  style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.3)' }}>
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground"
+                                  style={{ fontFamily: 'Rajdhani, sans-serif' }}>
                                 <XCircle size={10} /> Inactive
                             </span>
                         )}
@@ -79,7 +72,7 @@ export function TeamCard({ team }: TeamCardProps) {
 
             {/* ── Footer CTA ── */}
             <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-xs" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.35)', fontWeight: 600, letterSpacing: '0.5px' }}>
+                <span className="text-xs text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, letterSpacing: '0.5px' }}>
                     Manage roster &amp; stats
                 </span>
                 <span className="flex items-center gap-1 text-xs font-semibold transition-all opacity-40 group-hover:opacity-100 group-hover:gap-2"

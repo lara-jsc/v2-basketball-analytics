@@ -23,13 +23,14 @@ interface AuthenticatedLayoutProps {
 export default function AuthenticatedLayout({ children, header }: AuthenticatedLayoutProps) {
     const { isCollapsed, toggle } = useSidebar();
     const { theme, toggleTheme } = useAppearance();
+    const isDark = theme === 'dark';
 
     function handleLogout() {
         router.post(route('logout'));
     }
 
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-[#050810] text-white">
+        <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
 
             {/* ── SIDEBAR ─────────────────────────────────────────────────── */}
             <aside
@@ -39,11 +40,12 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                     backgroundImage: `url('/images/dashboard-assets/dark-mode-bg.png')`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    borderRight: '1px solid rgba(255,140,0,0.15)',
+                    borderRight: '1px solid hsl(var(--border))',
                 }}
             >
-                {/* Dark overlay on texture */}
-                <div className="absolute inset-0 bg-[#050810]/80 pointer-events-none" />
+                {/* Overlay — dark in dark mode, light in light mode */}
+                <div className="absolute inset-0 pointer-events-none"
+                     style={{ background: isDark ? 'rgba(5,8,16,0.82)' : 'rgba(240,244,255,0.92)' }} />
 
                 {/* Orange top accent line */}
                 <div className="absolute top-0 inset-x-0 h-[2px] z-10"
@@ -51,7 +53,7 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
 
                 {/* ── Logo row ── */}
                 <div className="relative z-10 flex h-16 items-center justify-between px-3 shrink-0"
-                     style={{ borderBottom: '1px solid rgba(255,140,0,0.12)' }}>
+                     style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                     <Link href={route('dashboard')} className="flex items-center gap-2.5 overflow-hidden min-w-0">
                         <img
                             src="/images/dashboard-assets/basketball-logo.png"
@@ -59,12 +61,13 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                             className="h-9 w-9 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(255,140,0,0.7)]"
                         />
                         <span
-                            className="whitespace-nowrap font-bold tracking-tight text-white text-sm transition-all duration-300 overflow-hidden"
+                            className="whitespace-nowrap font-bold tracking-tight text-sm transition-all duration-300 overflow-hidden"
                             style={{
                                 fontFamily: 'Orbitron, sans-serif',
                                 opacity: isCollapsed ? 0 : 1,
                                 width: isCollapsed ? 0 : 'auto',
-                                textShadow: '0 0 12px rgba(255,140,0,0.4)',
+                                color: 'hsl(var(--foreground))',
+                                textShadow: isDark ? '0 0 12px rgba(255,140,0,0.4)' : 'none',
                             }}
                         >
                             Hoop<span style={{ color: '#FF8C00' }}>Sense+</span>
@@ -73,8 +76,12 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
 
                     <button
                         onClick={toggle}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/40 transition-all hover:text-[#FF8C00]"
-                        style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all hover:text-[#FF8C00]"
+                        style={{
+                            border: '1px solid hsl(var(--border))',
+                            background: 'hsl(var(--muted) / 0.4)',
+                            color: 'hsl(var(--muted-foreground))',
+                        }}
                         aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                     >
                         {isCollapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
@@ -91,12 +98,13 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
 
                 {/* ── Bottom ── */}
                 <div className="relative z-10 flex flex-col gap-1 px-2 py-3 shrink-0"
-                     style={{ borderTop: '1px solid rgba(255,140,0,0.1)' }}>
+                     style={{ borderTop: '1px solid hsl(var(--border))' }}>
                     <NavItem href="#" icon={<Settings size={20} />} label="Settings" isCollapsed={isCollapsed} />
 
                     <button
                         onClick={toggleTheme}
-                        className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-white/40 transition-all hover:bg-white/5 hover:text-white/70"
+                        className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition-all hover:bg-muted/40"
+                        style={{ color: 'hsl(var(--muted-foreground))' }}
                     >
                         <span className="flex h-[20px] w-[20px] shrink-0 items-center justify-center">
                             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -109,7 +117,8 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
 
                     <button
                         onClick={handleLogout}
-                        className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-white/40 transition-all hover:bg-red-500/10 hover:text-red-400"
+                        className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm transition-all hover:bg-red-500/10 hover:text-red-400"
+                        style={{ color: 'hsl(var(--muted-foreground))' }}
                     >
                         <span className="flex h-[20px] w-[20px] shrink-0 items-center justify-center">
                             <LogOut size={18} />
@@ -130,16 +139,20 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                         src="/images/dashboard-assets/dashboard-bg.png"
                         alt=""
                         className="w-full h-full object-cover object-top"
-                        style={{ filter: 'brightness(0.18) saturate(0.6)' }}
+                        style={{ filter: isDark ? 'brightness(0.18) saturate(0.6)' : 'brightness(0.55) saturate(0.3)' }}
                     />
-                    {/* gradient overlay so bottom is completely dark */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#050810]/70 via-[#050810]/85 to-[#050810]" />
+                    <div className="absolute inset-0"
+                         style={{
+                             background: isDark
+                                 ? 'linear-gradient(180deg, rgba(5,8,16,0.70) 0%, rgba(5,8,16,0.85) 50%, rgba(5,8,16,1) 100%)'
+                                 : 'linear-gradient(180deg, rgba(240,244,255,0.75) 0%, rgba(240,244,255,0.88) 50%, rgba(240,244,255,1) 100%)',
+                         }} />
                 </div>
 
                 {/* Optional header */}
                 {header && (
                     <div className="relative z-10 shrink-0 px-5 py-3 backdrop-blur-sm"
-                         style={{ borderBottom: '1px solid rgba(255,140,0,0.1)', background: 'rgba(5,8,16,0.7)' }}>
+                         style={{ borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--background) / 0.7)' }}>
                         {header}
                     </div>
                 )}
@@ -173,24 +186,24 @@ function NavItem({ href, icon, label, isCollapsed }: NavItemProps) {
             title={isCollapsed ? label : undefined}
             className="relative flex h-11 w-full items-center gap-3 rounded-xl px-3 transition-all duration-150 overflow-hidden"
             style={isActive ? {
-                background: 'linear-gradient(90deg, rgba(255,140,0,0.2) 0%, rgba(255,140,0,0.05) 100%)',
+                background: 'linear-gradient(90deg, rgba(255,140,0,0.18) 0%, rgba(255,140,0,0.04) 100%)',
                 borderLeft: '3px solid #FF8C00',
-                boxShadow: '0 0 20px rgba(255,140,0,0.1)',
+                boxShadow: '0 0 20px rgba(255,140,0,0.08)',
             } : {
                 borderLeft: '3px solid transparent',
             }}
         >
-            {/* Active background glow */}
+            {/* Active glow */}
             {isActive && (
                 <div className="pointer-events-none absolute inset-0"
-                     style={{ background: 'radial-gradient(ellipse at left center, rgba(255,140,0,0.15) 0%, transparent 70%)' }} />
+                     style={{ background: 'radial-gradient(ellipse at left center, rgba(255,140,0,0.12) 0%, transparent 70%)' }} />
             )}
 
             <span className="relative flex h-[20px] w-[20px] shrink-0 items-center justify-center transition-all"
                   style={isActive ? {
                       color: '#FF8C00',
                       filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.8))',
-                  } : { color: 'rgba(255,255,255,0.4)' }}>
+                  } : { color: 'hsl(var(--muted-foreground))' }}>
                 {icon}
             </span>
 
@@ -199,7 +212,7 @@ function NavItem({ href, icon, label, isCollapsed }: NavItemProps) {
                 style={{
                     opacity: isCollapsed ? 0 : 1,
                     width: isCollapsed ? 0 : 'auto',
-                    color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.4)',
+                    color: isActive ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
                 }}
             >
                 {label}

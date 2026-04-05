@@ -58,7 +58,6 @@ export default function ComparisonShow({
     selectedBId ? String(selectedBId) : '',
   );
 
-  // ── Polling ──────────────────────────────────────────────────────────────
   const statsNeedPoll = winProbability === null || lineup === null;
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -119,68 +118,65 @@ export default function ComparisonShow({
 
       <div className="flex flex-col gap-5">
 
-        {/* ── Pre-game hero banner ─────────────────────────────────────────── */}
-        <div className="relative rounded-2xl overflow-hidden"
-             style={{ background: 'rgba(8,12,24,0.95)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* ── Pre-game hero banner ── */}
+        <div className="relative rounded-2xl overflow-hidden bg-card"
+             style={{ border: '1px solid hsl(var(--border))' }}>
 
           {/* Arena background image */}
           <img
             src="/images/dashboard-assets/game-overview.png"
             alt=""
             className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
-            style={{ filter: 'brightness(0.15) saturate(0.5)', zIndex: 0 }}
+            style={{ filter: 'brightness(0.12) saturate(0.4)', zIndex: 0 }}
           />
-          {/* Gradient overlays */}
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: 'linear-gradient(180deg, rgba(8,12,24,0.5) 0%, rgba(8,12,24,0.85) 100%)' }} />
+          {/* Gradient overlay — adapts via bg-card/muted */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: 'linear-gradient(180deg, hsl(var(--card) / 0.5) 0%, hsl(var(--card) / 0.9) 100%)' }} />
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: 'radial-gradient(ellipse at center, rgba(249,160,27,0.04), transparent 70%)' }} />
 
           {/* Back link */}
           <div className="relative z-10 px-5 pt-4">
             <Link href={route('comparison.index')}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors"
-                  style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.5px' }}>
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors text-muted-foreground hover:text-foreground"
+                  style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.5px' }}>
               <ArrowLeft size={14} />
               Back to Matchup Select
             </Link>
           </div>
 
-          {/* Team matchup layout */}
+          {/* Team matchup */}
           <div className="relative z-10 flex items-center justify-center gap-0 px-8 py-8">
 
             {/* Team A */}
             <div className="flex flex-1 flex-col items-center gap-3">
-              {/* Logo */}
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl overflow-hidden"
                    style={{
-                     background: logoA ? 'transparent' : 'linear-gradient(135deg, rgba(152,0,46,0.5), rgba(80,0,20,0.7))',
-                     border: '2px solid rgba(255,140,0,0.25)',
-                     boxShadow: '0 0 40px rgba(152,0,46,0.3), 0 0 80px rgba(152,0,46,0.1)',
+                     background: logoA ? 'transparent' : 'rgba(152,0,46,0.15)',
+                     border: '2px solid rgba(255,140,0,0.2)',
+                     boxShadow: '0 0 32px rgba(152,0,46,0.2)',
                    }}>
                 {logoA ? (
                   <img src={logoA} alt={teamA.name} className="h-full w-full object-cover" />
                 ) : (
-                  <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(255,200,200,0.9)' }}>
+                  <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: '#98002E' }}>
                     {teamA.code.slice(0, 3)}
                   </span>
                 )}
               </div>
-              {/* Team info */}
               <div className="text-center">
-                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 0 16px rgba(152,0,46,0.5)' }}>
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                   {teamA.name}
                 </p>
-                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(152,0,46,0.9)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: '#98002E', letterSpacing: '2px', textTransform: 'uppercase' }}>
                   HOME
                 </p>
               </div>
-              {/* Win probability if computed */}
               {winProbability && (
                 <div className="rounded-xl px-4 py-2 text-center"
-                     style={{ background: 'rgba(152,0,46,0.15)', border: '1px solid rgba(152,0,46,0.3)' }}>
-                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#fff', textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+                     style={{ background: 'rgba(152,0,46,0.1)', border: '1px solid rgba(152,0,46,0.25)' }}>
+                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: 'hsl(var(--foreground))' }}>
                     {Math.round(winProbability.team_a_win_probability * 100)}%
                   </p>
-                  <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                     Win Prob.
                   </p>
                 </div>
@@ -191,17 +187,17 @@ export default function ComparisonShow({
             <div className="flex flex-col items-center gap-2 shrink-0 mx-6">
               <div className="flex h-20 w-20 items-center justify-center rounded-full"
                    style={{
-                     background: 'radial-gradient(circle, rgba(249,160,27,0.15), rgba(0,0,0,0.6))',
-                     border: '2px solid rgba(249,160,27,0.35)',
-                     boxShadow: '0 0 40px rgba(249,160,27,0.2)',
+                     background: 'rgba(249,160,27,0.08)',
+                     border: '2px solid rgba(249,160,27,0.3)',
+                     boxShadow: '0 0 30px rgba(249,160,27,0.15)',
                    }}>
-                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '18px', fontWeight: 900, color: '#F9A01B', letterSpacing: '1px', textShadow: '0 0 12px rgba(249,160,27,0.6)' }}>VS</span>
+                <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '18px', fontWeight: 900, color: '#F9A01B', letterSpacing: '1px' }}>VS</span>
               </div>
               {statsNeedPoll && (
                 <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
                      style={{ background: 'rgba(249,160,27,0.08)', border: '1px solid rgba(249,160,27,0.2)' }}>
                   <span className="h-1.5 w-1.5 rounded-full bg-[#F9A01B] animate-pulse" />
-                  <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(249,160,27,0.8)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: '#F9A01B', letterSpacing: '1px', textTransform: 'uppercase' }}>
                     Computing…
                   </span>
                 </div>
@@ -212,33 +208,33 @@ export default function ComparisonShow({
             <div className="flex flex-1 flex-col items-center gap-3">
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl overflow-hidden"
                    style={{
-                     background: logoB ? 'transparent' : 'linear-gradient(135deg, rgba(30,60,120,0.5), rgba(10,25,60,0.7))',
-                     border: '2px solid rgba(255,140,0,0.25)',
-                     boxShadow: '0 0 40px rgba(30,80,180,0.3), 0 0 80px rgba(30,60,120,0.1)',
+                     background: logoB ? 'transparent' : 'rgba(30,60,120,0.15)',
+                     border: '2px solid rgba(255,140,0,0.2)',
+                     boxShadow: '0 0 32px rgba(30,80,180,0.2)',
                    }}>
                 {logoB ? (
                   <img src={logoB} alt={teamB.name} className="h-full w-full object-cover" />
                 ) : (
-                  <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: 'rgba(180,200,255,0.9)' }}>
+                  <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '22px', fontWeight: 900, color: '#3b5fb5' }}>
                     {teamB.code.slice(0, 3)}
                   </span>
                 )}
               </div>
               <div className="text-center">
-                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.9)', letterSpacing: '1px', textTransform: 'uppercase', textShadow: '0 0 16px rgba(30,80,180,0.5)' }}>
+                <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '13px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                   {teamB.name}
                 </p>
-                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: 'rgba(100,150,255,0.8)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                <p className="mt-1" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '11px', fontWeight: 700, color: '#3b5fb5', letterSpacing: '2px', textTransform: 'uppercase' }}>
                   AWAY
                 </p>
               </div>
               {winProbability && (
                 <div className="rounded-xl px-4 py-2 text-center"
-                     style={{ background: 'rgba(30,60,120,0.2)', border: '1px solid rgba(60,100,200,0.3)' }}>
-                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: '#fff', textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+                     style={{ background: 'rgba(30,60,120,0.1)', border: '1px solid rgba(60,100,200,0.25)' }}>
+                  <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: 'hsl(var(--foreground))' }}>
                     {Math.round(winProbability.team_b_win_probability * 100)}%
                   </p>
-                  <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  <p style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '1px', textTransform: 'uppercase' }}>
                     Win Prob.
                   </p>
                 </div>
@@ -247,11 +243,10 @@ export default function ComparisonShow({
           </div>
         </div>
 
-        {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
+        {/* ── Tabs ── */}
         <Tabs defaultValue="stats">
-          {/* Custom game-style tab list */}
-          <TabsList className="w-full gap-2 p-1 h-auto rounded-xl"
-                    style={{ background: 'rgba(11,18,32,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <TabsList className="w-full gap-2 p-1 h-auto rounded-xl bg-card"
+                    style={{ border: '1px solid hsl(var(--border))' }}>
             <TabsTrigger value="stats"
                          className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
                          style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
@@ -266,10 +261,8 @@ export default function ComparisonShow({
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Tab 1: Team Stats ── */}
           <TabsContent value="stats" className="space-y-4 pt-4">
             <WinProbabilityBar teamA={teamA} teamB={teamB} result={winProbability} />
-
             <TeamStatsPanel
               teamA={teamA}
               teamB={teamB}
@@ -278,7 +271,6 @@ export default function ComparisonShow({
               plusMinusA={teamAPlusMinus}
               plusMinusB={teamBPlusMinus}
             />
-
             <div className="flex justify-end">
               <button
                 onClick={() => setLineupOpen(true)}
@@ -288,7 +280,7 @@ export default function ComparisonShow({
                   background: 'linear-gradient(135deg, #F9A01B, #d4860f)',
                   border: '1px solid rgba(249,160,27,0.3)',
                   color: '#080C18',
-                  boxShadow: '0 0 24px rgba(249,160,27,0.3)',
+                  boxShadow: '0 0 20px rgba(249,160,27,0.25)',
                   letterSpacing: '1.5px',
                 }}
               >
@@ -298,22 +290,10 @@ export default function ComparisonShow({
             </div>
           </TabsContent>
 
-          {/* ── Tab 2: Player Matchup ── */}
           <TabsContent value="matchup" className="space-y-4 pt-4">
-            {/* Player selectors */}
             <div className="grid grid-cols-2 gap-3">
-              <PlayerSelectField
-                label={teamA.name}
-                value={localPlayerA}
-                onChange={handlePlayerAChange}
-                players={playersA}
-              />
-              <PlayerSelectField
-                label={teamB.name}
-                value={localPlayerB}
-                onChange={handlePlayerBChange}
-                players={playersB}
-              />
+              <PlayerSelectField label={teamA.name} value={localPlayerA} onChange={handlePlayerAChange} players={playersA} />
+              <PlayerSelectField label={teamB.name} value={localPlayerB} onChange={handlePlayerBChange} players={playersB} />
             </div>
 
             {selectedPlayerA && selectedPlayerB ? (
@@ -324,9 +304,9 @@ export default function ComparisonShow({
                 isPending={isPendingMatchup}
               />
             ) : (
-              <div className="flex items-center justify-center rounded-2xl py-14 text-center"
-                   style={{ background: 'rgba(11,18,32,0.6)', border: '1px dashed rgba(255,255,255,0.08)' }}>
-                <p className="text-sm" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+              <div className="flex items-center justify-center rounded-2xl py-14 text-center bg-card"
+                   style={{ border: '1px dashed hsl(var(--border))' }}>
+                <p className="text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
                   Select one player from each team to see the matchup breakdown.
                 </p>
               </div>
@@ -346,8 +326,6 @@ export default function ComparisonShow({
   );
 }
 
-// ── Player select field ───────────────────────────────────────────────────────
-
 function PlayerSelectField({
   label, value, onChange, players,
 }: {
@@ -358,26 +336,19 @@ function PlayerSelectField({
 }) {
   return (
     <div className="space-y-2">
-      <label className="block text-[11px] font-bold uppercase tracking-widest"
-             style={{ fontFamily: 'Rajdhani, sans-serif', color: 'rgba(255,255,255,0.4)' }}>
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground"
+             style={{ fontFamily: 'Rajdhani, sans-serif' }}>
         {label}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
-        style={{
-          fontFamily: 'Rajdhani, sans-serif',
-          fontWeight: 600,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          color: 'rgba(255,255,255,0.8)',
-          appearance: 'none',
-        }}
+        className="w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#F9A01B]/30 bg-background text-foreground"
+        style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600, border: '1px solid hsl(var(--border))' }}
       >
-        <option value="" style={{ background: '#080C18' }}>Select player…</option>
+        <option value="">Select player…</option>
         {players.map((p) => (
-          <option key={p.id} value={String(p.id)} style={{ background: '#080C18' }}>
+          <option key={p.id} value={String(p.id)}>
             #{p.jersey_number} {p.first_name} {p.last_name}
           </option>
         ))}
