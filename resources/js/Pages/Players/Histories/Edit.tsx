@@ -14,8 +14,7 @@ export default function PlayerHistoriesEdit({ history, teams }: PlayerHistoryEdi
             <div className="flex flex-col gap-5">
                 {/* ── Arena header ──────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="relative flex items-center justify-between gap-4 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent px-5 py-4">
-                        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
+                    <div className="flex items-center justify-between gap-4 px-5 py-4">
                         <div className="flex items-center gap-4">
                             <Link
                                 href={route('player-histories.index', player.id)}
@@ -60,9 +59,8 @@ export default function PlayerHistoriesEdit({ history, teams }: PlayerHistoryEdi
 
                 {/* ── Form card ─────────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden max-w-2xl">
-                    <div className="relative border-b border-border bg-gradient-to-r from-primary/15 to-transparent px-5 py-3 overflow-hidden">
-                        <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
-                        <h2 className="font-display text-sm font-bold tracking-widest uppercase text-foreground relative">Game Entry Form</h2>
+                    <div className="border-b border-border px-5 py-3">
+                        <h2 className="font-display text-sm font-bold tracking-widest uppercase text-foreground">Game Entry Form</h2>
                     </div>
                     <div className="px-5 py-5">
                         <PlayerHistoryForm

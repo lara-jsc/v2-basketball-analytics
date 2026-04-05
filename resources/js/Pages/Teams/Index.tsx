@@ -1,8 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { TeamCard } from '@/Components/features/teams/TeamCard';
+import { CreateTeamSheet } from '@/Components/features/teams/CreateTeamSheet';
 import { type PageProps, type Team } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Plus, Swords, Users2 } from 'lucide-react';
+import { useState } from 'react';
 
 interface TeamsIndexProps extends PageProps {
     teams: Team[];
@@ -10,6 +12,7 @@ interface TeamsIndexProps extends PageProps {
 
 export default function TeamsIndex({ teams }: TeamsIndexProps) {
     const { flash } = usePage<TeamsIndexProps>().props;
+    const [createOpen, setCreateOpen] = useState(false);
 
     return (
         <AuthenticatedLayout>
@@ -26,8 +29,8 @@ export default function TeamsIndex({ teams }: TeamsIndexProps) {
                             Build your roster, upload stats, and head to the arena.
                         </p>
                     </div>
-                    <Link
-                        href={route('teams.create')}
+                    <button
+                        onClick={() => setCreateOpen(true)}
                         className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all hover:-translate-y-0.5"
                         style={{
                             fontFamily: 'Rajdhani, sans-serif',
@@ -41,7 +44,7 @@ export default function TeamsIndex({ teams }: TeamsIndexProps) {
                     >
                         <Plus size={14} />
                         New Team
-                    </Link>
+                    </button>
                 </div>
 
                 {/* Flash */}
@@ -71,8 +74,8 @@ export default function TeamsIndex({ teams }: TeamsIndexProps) {
                                 Create your first team, upload a roster CSV, and start dominating the competition.
                             </p>
                         </div>
-                        <Link
-                            href={route('teams.create')}
+                        <button
+                            onClick={() => setCreateOpen(true)}
                             className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5"
                             style={{
                                 fontFamily: 'Rajdhani, sans-serif',
@@ -86,7 +89,7 @@ export default function TeamsIndex({ teams }: TeamsIndexProps) {
                         >
                             <Plus size={14} />
                             Create First Team
-                        </Link>
+                        </button>
                     </div>
                 ) : (
                     <>
@@ -113,6 +116,7 @@ export default function TeamsIndex({ teams }: TeamsIndexProps) {
                     </>
                 )}
             </div>
+            <CreateTeamSheet open={createOpen} onOpenChange={setCreateOpen} />
         </AuthenticatedLayout>
     );
 }

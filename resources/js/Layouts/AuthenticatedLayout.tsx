@@ -139,13 +139,13 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                         src="/images/dashboard-assets/dashboard-bg.png"
                         alt=""
                         className="w-full h-full object-cover object-top"
-                        style={{ filter: isDark ? 'brightness(0.18) saturate(0.6)' : 'brightness(0.55) saturate(0.3)' }}
+                        style={{ filter: isDark ? 'brightness(0.38) saturate(0.8)' : 'brightness(0.75) saturate(0.5)' }}
                     />
                     <div className="absolute inset-0"
                          style={{
                              background: isDark
-                                 ? 'linear-gradient(180deg, rgba(5,8,16,0.70) 0%, rgba(5,8,16,0.85) 50%, rgba(5,8,16,1) 100%)'
-                                 : 'linear-gradient(180deg, rgba(240,244,255,0.75) 0%, rgba(240,244,255,0.88) 50%, rgba(240,244,255,1) 100%)',
+                                 ? 'linear-gradient(180deg, rgba(5,8,16,0.30) 0%, rgba(5,8,16,0.55) 50%, rgba(5,8,16,0.80) 100%)'
+                                 : 'linear-gradient(180deg, rgba(220,230,248,0.45) 0%, rgba(220,230,248,0.60) 50%, rgba(220,230,248,0.80) 100%)',
                          }} />
                 </div>
 

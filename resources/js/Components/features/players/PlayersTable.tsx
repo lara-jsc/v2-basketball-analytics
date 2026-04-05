@@ -53,8 +53,7 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
 
     if (players.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-12 text-center gap-3 relative overflow-hidden">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(152,0,46,0.05),transparent_70%)]" />
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-12 text-center gap-3">
                 <p className="font-display text-sm font-bold tracking-wide text-muted-foreground uppercase">No players yet</p>
                 <p className="text-xs text-muted-foreground font-ui">Upload a CSV file or add players manually using the button above.</p>
             </div>

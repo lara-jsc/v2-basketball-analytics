@@ -11,6 +11,15 @@ import {
     Users2,
     Zap,
 } from 'lucide-react';
+import {
+    Bar,
+    BarChart,
+    Cell,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 export default function Dashboard({ auth }: PageProps) {
     return (
@@ -66,20 +75,34 @@ export default function Dashboard({ auth }: PageProps) {
                             </span>
                         </div>
 
-                        <div className="flex flex-1 items-end gap-2 pt-2 min-h-0 relative">
-                            {PLACEHOLDER_BARS.map((h, i) => (
-                                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                                    <div className="w-full rounded-t-sm"
-                                         style={{
-                                             height: `${h}%`,
-                                             maxHeight: '120px',
-                                             minHeight: '8px',
-                                             background: `linear-gradient(to top, rgba(249,160,27,0.6), rgba(249,160,27,0.15))`,
-                                             borderTop: '1px solid rgba(249,160,27,0.5)',
-                                         }} />
-                                    <div className="h-2 w-6 rounded bg-muted/60" />
-                                </div>
-                            ))}
+                        <div className="flex-1 min-h-0 relative" style={{ minHeight: 130 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={PLACEHOLDER_IMPACT_DATA} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="impactGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#F9A01B" stopOpacity={0.85} />
+                                            <stop offset="100%" stopColor="#F9A01B" stopOpacity={0.18} />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false}
+                                        tick={{ fill: 'rgba(122,147,184,0.6)', fontSize: 9, fontFamily: 'Rajdhani, sans-serif' }} />
+                                    <YAxis axisLine={false} tickLine={false}
+                                        tick={{ fill: 'rgba(122,147,184,0.5)', fontSize: 9, fontFamily: 'Rajdhani, sans-serif' }} />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(249,160,27,0.05)' }}
+                                        contentStyle={{ background: 'rgba(13,21,37,0.95)', border: '1px solid rgba(249,160,27,0.25)', borderRadius: 8, fontFamily: 'Rajdhani, sans-serif' }}
+                                        labelStyle={{ color: '#F9A01B', fontWeight: 700, fontSize: 11 }}
+                                        itemStyle={{ color: '#F0F4FF', fontSize: 11 }}
+                                        formatter={(v) => [`+${v ?? 0}`, 'Plus-Minus']}
+                                    />
+                                    <Bar dataKey="value" fill="url(#impactGrad)" radius={[3, 3, 0, 0]}>
+                                        {PLACEHOLDER_IMPACT_DATA.map((entry, i) => (
+                                            <Cell key={i}
+                                                fill={`rgba(249,160,27,${0.22 + (entry.value / PLACEHOLDER_IMPACT_DATA.reduce((a, b) => a.value > b.value ? a : b).value) * 0.65})`} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
 
                         <EmptyOverlay
@@ -100,10 +123,28 @@ export default function Dashboard({ auth }: PageProps) {
                             </h2>
                         </div>
 
-                        <div className="flex flex-col gap-3 flex-1">
-                            {PLACEHOLDER_PLAYERS.map((p, i) => (
-                                <PlaceholderLeaderRow key={i} width={p} rank={i + 1} value={PLACEHOLDER_VALUES[i]} />
-                            ))}
+                        <div className="flex-1 min-h-0" style={{ minHeight: 130 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={PLACEHOLDER_LEADERBOARD_DATA} layout="vertical"
+                                    margin={{ top: 0, right: 36, left: 4, bottom: 0 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis type="category" dataKey="name" width={52} axisLine={false} tickLine={false}
+                                        tick={{ fill: 'rgba(122,147,184,0.7)', fontSize: 10, fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }} />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(249,160,27,0.05)' }}
+                                        contentStyle={{ background: 'rgba(13,21,37,0.95)', border: '1px solid rgba(249,160,27,0.25)', borderRadius: 8, fontFamily: 'Rajdhani, sans-serif' }}
+                                        labelStyle={{ color: '#F9A01B', fontWeight: 700, fontSize: 11 }}
+                                        itemStyle={{ color: '#F0F4FF', fontSize: 11 }}
+                                        formatter={(v) => [`+${v ?? 0}`, 'Plus-Minus']}
+                                    />
+                                    <Bar dataKey="value" radius={[0, 3, 3, 0]}
+                                        label={{ position: 'right', fill: '#F9A01B', fontSize: 10, fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, formatter: (v: unknown) => typeof v === 'number' ? `+${v}` : '' }}>
+                                        {PLACEHOLDER_LEADERBOARD_DATA.map((_, i) => (
+                                            <Cell key={i} fill={`rgba(249,160,27,${0.7 - i * 0.11})`} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
 
                         <EmptyOverlay
@@ -118,10 +159,7 @@ export default function Dashboard({ auth }: PageProps) {
                 {/* ── Recommended Lineup strip ── */}
                 <div className="flex rounded-2xl overflow-hidden relative bg-card"
                      style={{ border: '1px solid hsl(var(--border))' }}>
-                    <div className="pointer-events-none absolute inset-0"
-                         style={{ background: 'linear-gradient(90deg, rgba(152,0,46,0.08), transparent, rgba(249,160,27,0.03))' }} />
-
-                    <div className="flex flex-1 gap-3 p-4 relative">
+                    <div className="flex flex-1 gap-3 p-4">
                         <div className="flex items-center gap-2 mr-2 shrink-0">
                             <Swords size={15} style={{ color: '#F9A01B', flexShrink: 0 }} />
                             <h2 className="whitespace-nowrap" style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--foreground))', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
@@ -207,25 +245,6 @@ function SummaryCard({ label, icon, emptyText, accent = false }: { label: string
     );
 }
 
-function PlaceholderLeaderRow({ width, rank, value }: { width: number; rank: number; value: string }) {
-    return (
-        <div className="flex items-center gap-2">
-            <span className="w-4 shrink-0 text-right text-[10px] font-bold text-muted-foreground/50"
-                  style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-                {rank}
-            </span>
-            <div className="h-2 w-16 rounded shrink-0 bg-muted/60" />
-            <div className="flex-1 h-2.5 rounded-full overflow-hidden bg-muted/40">
-                <div className="h-full rounded-full"
-                     style={{ width: `${width}%`, background: 'linear-gradient(to right, rgba(249,160,27,0.5), rgba(249,160,27,0.15))' }} />
-            </div>
-            <span className="text-xs font-bold shrink-0 w-8 text-right"
-                  style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', color: 'rgba(249,160,27,0.5)' }}>
-                {value}
-            </span>
-        </div>
-    );
-}
 
 function EmptyOverlay({ icon, message, cta, href }: { icon: React.ReactNode; message: string; cta: string; href: string }) {
     return (
@@ -271,6 +290,23 @@ function PlayerSilhouette() {
     );
 }
 
-const PLACEHOLDER_BARS = [55, 80, 35, 65, 90, 45, 70, 40, 60, 75];
-const PLACEHOLDER_PLAYERS = [92, 78, 65, 54, 42];
-const PLACEHOLDER_VALUES = ['+14', '+11', '+9', '+8', '+6'];
+const PLACEHOLDER_IMPACT_DATA = [
+    { name: 'P1',  value: 7.7  },
+    { name: 'P2',  value: 11.2 },
+    { name: 'P3',  value: 4.9  },
+    { name: 'P4',  value: 9.1  },
+    { name: 'P5',  value: 12.6 },
+    { name: 'P6',  value: 6.3  },
+    { name: 'P7',  value: 9.8  },
+    { name: 'P8',  value: 5.6  },
+    { name: 'P9',  value: 8.4  },
+    { name: 'P10', value: 10.5 },
+];
+
+const PLACEHOLDER_LEADERBOARD_DATA = [
+    { name: 'Player 1', value: 14 },
+    { name: 'Player 2', value: 11 },
+    { name: 'Player 3', value: 9  },
+    { name: 'Player 4', value: 8  },
+    { name: 'Player 5', value: 6  },
+];

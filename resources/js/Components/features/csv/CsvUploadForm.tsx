@@ -46,12 +46,8 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
     return (
         <div className="rounded-xl border border-border bg-card overflow-hidden">
             {/* Header band — arena floor texture */}
-            <div className="relative flex items-center justify-between gap-4 border-b border-border bg-gradient-to-r from-primary/20 via-primary/8 to-transparent px-5 py-3 overflow-hidden">
-                {/* Subtle court floor lines */}
-                <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.04)_48px,rgba(249,160,27,0.04)_49px)]" />
-                <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_24px,rgba(249,160,27,0.02)_24px,rgba(249,160,27,0.02)_25px)]" />
-
-                <div className="relative">
+            <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                <div>
                     <h3 className="font-display text-sm font-bold tracking-widest text-foreground uppercase">
                         CSV Import
                     </h3>

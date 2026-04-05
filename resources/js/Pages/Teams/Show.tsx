@@ -53,7 +53,7 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
             <div className="flex flex-col gap-5">
                 {/* ── Arena header ──────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">
-                    <div className="relative flex items-center justify-between gap-4 bg-gradient-to-r from-primary/30 via-primary/10 to-transparent px-5 py-4">
+                    <div className="relative flex items-center justify-between gap-4 px-5 py-4">
                         {/* Court texture overlay */}
                         <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent,transparent_48px,rgba(249,160,27,0.03)_48px,rgba(249,160,27,0.03)_49px)]" />
                         {/* Left: breadcrumb + team identity */}

@@ -35,7 +35,7 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
 
                 {/* ── Header ── */}
                 <DialogHeader className="relative overflow-hidden px-6 py-5"
-                              style={{ borderBottom: '1px solid hsl(var(--border))', background: 'linear-gradient(90deg, rgba(152,0,46,0.12), rgba(249,160,27,0.04), transparent)' }}>
+                              style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                     <div className="pointer-events-none absolute inset-0"
                          style={{ backgroundImage: 'repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(249,160,27,0.03) 60px,rgba(249,160,27,0.03) 61px)' }} />
                     <div className="relative flex items-start justify-between gap-4">
@@ -180,7 +180,6 @@ function PlayerCard({
     return (
         <div className="flex flex-1 flex-col items-center gap-2 rounded-2xl overflow-hidden transition-all bg-card"
              style={{
-                 background: 'linear-gradient(180deg, rgba(152,0,46,0.08) 0%, hsl(var(--card)) 40%)',
                  border: '1px solid hsl(var(--border))',
                  boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
              }}>

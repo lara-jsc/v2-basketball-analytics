@@ -43,7 +43,7 @@ export default function ComparisonIndex({ teams }: ComparisonIndexProps) {
 
                     {/* Header bar */}
                     <div className="relative flex items-center gap-3 px-6 py-4 overflow-hidden"
-                         style={{ borderBottom: '1px solid hsl(var(--border))', background: 'linear-gradient(90deg, rgba(152,0,46,0.1), rgba(249,160,27,0.03), transparent)' }}>
+                         style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                         <div className="pointer-events-none absolute inset-0"
                              style={{ backgroundImage: 'repeating-linear-gradient(90deg,transparent,transparent 60px,rgba(249,160,27,0.03) 60px,rgba(249,160,27,0.03) 61px)' }} />
                         <Swords size={18} style={{ color: '#F9A01B', filter: 'drop-shadow(0 0 6px rgba(249,160,27,0.4))' }} />

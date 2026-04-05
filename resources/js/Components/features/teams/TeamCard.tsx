@@ -20,10 +20,7 @@ export function TeamCard({ team }: TeamCardProps) {
         >
             {/* ── Hero section ── */}
             <div className="relative flex flex-col items-center justify-center py-7 gap-4 overflow-hidden"
-                 style={{
-                     background: 'linear-gradient(180deg, rgba(152,0,46,0.12) 0%, transparent 100%)',
-                     borderBottom: '1px solid hsl(var(--border))',
-                 }}
+                 style={{ borderBottom: '1px solid hsl(var(--border))' }}
             >
                 <div className="pointer-events-none absolute inset-0 opacity-20"
                      style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(249,160,27,0.06) 60px, rgba(249,160,27,0.06) 61px)' }} />

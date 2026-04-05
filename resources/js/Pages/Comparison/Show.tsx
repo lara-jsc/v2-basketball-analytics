@@ -88,7 +88,7 @@ export default function ComparisonShow({
     (aId: string, bId: string) => {
       if (!aId || !bId) return;
       router.get(
-        route('comparison.show', [teamA.id, teamB.id]),
+        route('comparison.show', { teamA: teamA.id, teamB: teamB.id }),
         { player_a: aId, player_b: bId },
         { preserveScroll: true, preserveState: true },
       );
@@ -120,7 +120,7 @@ export default function ComparisonShow({
 
         {/* ── Pre-game hero banner ── */}
         <div className="relative rounded-2xl overflow-hidden bg-card"
-             style={{ border: '1px solid hsl(var(--border))' }}>
+          style={{ border: '1px solid hsl(var(--border))' }}>
 
           {/* Arena background image */}
           <img
@@ -136,8 +136,8 @@ export default function ComparisonShow({
           {/* Back link */}
           <div className="relative z-10 px-5 pt-4">
             <Link href={route('comparison.index')}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors text-muted-foreground hover:text-foreground"
-                  style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.5px' }}>
+              className="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors text-muted-foreground hover:text-foreground"
+              style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.5px' }}>
               <ArrowLeft size={14} />
               Back to Matchup Select
             </Link>
@@ -149,11 +149,11 @@ export default function ComparisonShow({
             {/* Team A */}
             <div className="flex flex-1 flex-col items-center gap-3">
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl overflow-hidden"
-                   style={{
-                     background: logoA ? 'transparent' : 'rgba(152,0,46,0.15)',
-                     border: '2px solid rgba(255,140,0,0.2)',
-                     boxShadow: '0 0 32px rgba(152,0,46,0.2)',
-                   }}>
+                style={{
+                  background: logoA ? 'transparent' : 'rgba(152,0,46,0.15)',
+                  border: '2px solid rgba(255,140,0,0.2)',
+                  boxShadow: '0 0 32px rgba(152,0,46,0.2)',
+                }}>
                 {logoA ? (
                   <img src={logoA} alt={teamA.name} className="h-full w-full object-cover" />
                 ) : (
@@ -172,7 +172,7 @@ export default function ComparisonShow({
               </div>
               {winProbability && (
                 <div className="rounded-xl px-4 py-2 text-center"
-                     style={{ background: 'rgba(152,0,46,0.1)', border: '1px solid rgba(152,0,46,0.25)' }}>
+                  style={{ background: 'rgba(152,0,46,0.1)', border: '1px solid rgba(152,0,46,0.25)' }}>
                   <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: 'hsl(var(--foreground))' }}>
                     {Math.round(winProbability.team_a_win_probability * 100)}%
                   </p>
@@ -186,16 +186,16 @@ export default function ComparisonShow({
             {/* VS center */}
             <div className="flex flex-col items-center gap-2 shrink-0 mx-6">
               <div className="flex h-20 w-20 items-center justify-center rounded-full"
-                   style={{
-                     background: 'rgba(249,160,27,0.08)',
-                     border: '2px solid rgba(249,160,27,0.3)',
-                     boxShadow: '0 0 30px rgba(249,160,27,0.15)',
-                   }}>
+                style={{
+                  background: 'rgba(249,160,27,0.08)',
+                  border: '2px solid rgba(249,160,27,0.3)',
+                  boxShadow: '0 0 30px rgba(249,160,27,0.15)',
+                }}>
                 <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '18px', fontWeight: 900, color: '#F9A01B', letterSpacing: '1px' }}>VS</span>
               </div>
               {statsNeedPoll && (
                 <div className="flex items-center gap-1.5 rounded-full px-3 py-1"
-                     style={{ background: 'rgba(249,160,27,0.08)', border: '1px solid rgba(249,160,27,0.2)' }}>
+                  style={{ background: 'rgba(249,160,27,0.08)', border: '1px solid rgba(249,160,27,0.2)' }}>
                   <span className="h-1.5 w-1.5 rounded-full bg-[#F9A01B] animate-pulse" />
                   <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '10px', fontWeight: 700, color: '#F9A01B', letterSpacing: '1px', textTransform: 'uppercase' }}>
                     Computing…
@@ -207,11 +207,11 @@ export default function ComparisonShow({
             {/* Team B */}
             <div className="flex flex-1 flex-col items-center gap-3">
               <div className="flex h-24 w-24 items-center justify-center rounded-2xl overflow-hidden"
-                   style={{
-                     background: logoB ? 'transparent' : 'rgba(30,60,120,0.15)',
-                     border: '2px solid rgba(255,140,0,0.2)',
-                     boxShadow: '0 0 32px rgba(30,80,180,0.2)',
-                   }}>
+                style={{
+                  background: logoB ? 'transparent' : 'rgba(30,60,120,0.15)',
+                  border: '2px solid rgba(255,140,0,0.2)',
+                  boxShadow: '0 0 32px rgba(30,80,180,0.2)',
+                }}>
                 {logoB ? (
                   <img src={logoB} alt={teamB.name} className="h-full w-full object-cover" />
                 ) : (
@@ -230,7 +230,7 @@ export default function ComparisonShow({
               </div>
               {winProbability && (
                 <div className="rounded-xl px-4 py-2 text-center"
-                     style={{ background: 'rgba(30,60,120,0.1)', border: '1px solid rgba(60,100,200,0.25)' }}>
+                  style={{ background: 'rgba(30,60,120,0.1)', border: '1px solid rgba(60,100,200,0.25)' }}>
                   <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '24px', fontWeight: 900, color: 'hsl(var(--foreground))' }}>
                     {Math.round(winProbability.team_b_win_probability * 100)}%
                   </p>
@@ -246,23 +246,23 @@ export default function ComparisonShow({
         {/* ── Tabs ── */}
         <Tabs defaultValue="stats">
           <TabsList className="w-full gap-2 p-1 h-auto rounded-xl bg-card"
-                    style={{ border: '1px solid hsl(var(--border))' }}>
+            style={{ border: '1px solid hsl(var(--border))' }}>
             <TabsTrigger value="stats"
-                         className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
-                         style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
+              style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
               <Swords size={13} />
               Team Stats
             </TabsTrigger>
             <TabsTrigger value="matchup"
-                         className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
-                         style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold uppercase tracking-widest transition-all data-[state=active]:shadow-none"
+              style={{ fontFamily: 'Rajdhani, sans-serif', letterSpacing: '1.5px' }}>
               <BarChart2 size={13} />
               Player Matchup
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="stats" className="space-y-4 pt-4">
-            <WinProbabilityBar teamA={teamA} teamB={teamB} result={winProbability} />
+            {/* <WinProbabilityBar teamA={teamA} teamB={teamB} result={winProbability} /> */}
             <TeamStatsPanel
               teamA={teamA}
               teamB={teamB}
@@ -305,7 +305,7 @@ export default function ComparisonShow({
               />
             ) : (
               <div className="flex items-center justify-center rounded-2xl py-14 text-center bg-card"
-                   style={{ border: '1px dashed hsl(var(--border))' }}>
+                style={{ border: '1px dashed hsl(var(--border))' }}>
                 <p className="text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
                   Select one player from each team to see the matchup breakdown.
                 </p>
@@ -337,7 +337,7 @@ function PlayerSelectField({
   return (
     <div className="space-y-2">
       <label className="block text-[11px] font-bold uppercase tracking-widest text-muted-foreground"
-             style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+        style={{ fontFamily: 'Rajdhani, sans-serif' }}>
         {label}
       </label>
       <select
