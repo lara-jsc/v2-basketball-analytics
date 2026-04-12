@@ -47,10 +47,10 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                                 AI-Optimal Starting 5 — {teamName}
                             </p>
                         </div>
-                        <button onClick={onClose}
+                        {/* <button onClick={onClose}
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground">
                             <X size={15} />
-                        </button>
+                        </button> */}
                     </div>
                 </DialogHeader>
 
