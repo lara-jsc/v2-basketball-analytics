@@ -41,7 +41,7 @@ class PlayerHistoryController extends Controller
         $histories = $this->historyService->listForPlayer($player, $filters);
 
         return Inertia::render('Players/Histories/Index', [
-            'player'    => $player->load('team:id,code,name'),
+            'player'    => $player->load(['team:id,code,name', 'stats']),
             'histories' => $histories,
             'teams'     => Team::select('id', 'code', 'name')->orderBy('name')->get(),
             'filters'   => $filters,

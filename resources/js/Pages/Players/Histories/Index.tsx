@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { PlayerAdvancedStatsBanner } from '@/Components/features/players/PlayerAdvancedStatsBanner';
 import { PlayerHistoryImport } from '@/Components/features/players/PlayerHistoryImport';
 import { PlayerHistoryTable } from '@/Components/features/players/PlayerHistoryTable';
 import type { PlayerHistoryIndexProps } from '@/types/PlayerHistory.types';
@@ -12,6 +13,18 @@ export default function PlayerHistoriesIndex({
     filters,
 }: PlayerHistoryIndexProps) {
     const { flash } = usePage<PlayerHistoryIndexProps>().props;
+
+    // Resolve the single aggregated stat row for this player.
+    const stat = player.stats[0] ?? null;
+
+    // sh_eff = eFG% stored as 0–1 decimal → convert to percentage form for the banner.
+    // sc_eff = TS% stored as 0–1 decimal → convert to percentage form for the banner.
+    const advancedStats = {
+        eff:         stat?.eff         ?? null,
+        efg_percent: stat?.sh_eff != null ? stat.sh_eff * 100 : null,
+        ts_percent:  stat?.sc_eff != null ? stat.sc_eff * 100 : null,
+        plus_minus:  stat?.plus_minus  ?? null,
+    };
 
     return (
         <AuthenticatedLayout>
@@ -86,6 +99,9 @@ export default function PlayerHistoriesIndex({
                         {flash.error}
                     </div>
                 )}
+
+                {/* ── Advanced stats hero banner ────────────────────────── */}
+                <PlayerAdvancedStatsBanner stat={advancedStats} />
 
                 {/* ── CSV Import ────────────────────────────────────────── */}
                 <PlayerHistoryImport playerId={player.id} />

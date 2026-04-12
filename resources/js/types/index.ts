@@ -89,6 +89,13 @@ export interface PlayerStat {
    */
   plus_minus: number | null;
 
+  /**
+   * Efficiency Rating (EFF). Computed by PlayerStatsAggregator.
+   * Formula: avg(Pts + Reb + Ast + Stl + Blk − MissedFG − MissedFT − TO) per game.
+   * Null until stats are recomputed.
+   */
+  eff: number | null;
+
   created_at: string;
   updated_at: string;
 }

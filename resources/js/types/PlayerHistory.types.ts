@@ -6,7 +6,7 @@
  *   offensive_rebounds — DB column name (CSV/display label: OR)
  */
 
-import type { PageProps, Player, Team } from '@/types';
+import type { PageProps, Player, PlayerStat, Team } from '@/types';
 
 // ─── Core Model ───────────────────────────────────────────────────────────────
 
@@ -113,7 +113,7 @@ export interface PlayerHistoryFilters {
 // ─── Inertia Page Props ───────────────────────────────────────────────────────
 
 export interface PlayerHistoryIndexProps extends PageProps {
-  player: Player & { team: Team };
+  player: Player & { team: Team; stats: PlayerStat[] };
   histories: PlayerHistory[];
   teams: Pick<Team, 'id' | 'code' | 'name'>[];
   filters: PlayerHistoryFilters;
