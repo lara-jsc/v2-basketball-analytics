@@ -66,6 +66,82 @@ class PlayerHistory extends Model
         'plus_minus'              => 'float',
     ];
 
+    // -------------------------------------------------------------------------
+    // Computed Accessors — Per-Game Advanced Stats
+    // -------------------------------------------------------------------------
+
+    /**
+     * Efficiency (EFF) — per game
+     *
+     * Formula: Pts + Reb + Ast + Stl + Blk − MissedFG − MissedFT − TO
+     *   MissedFG = FGA − FGM
+     *   MissedFT = FTA − FTM
+     */
+    public function getEfficiencyAttribute(): float
+    {
+        $missedFG = ($this->field_goals_attempted ?? 0) - ($this->field_goals_made ?? 0);
+        $missedFT = ($this->free_throws_attempted ?? 0) - ($this->free_throws_made ?? 0);
+
+        return (float) (
+            ($this->points    ?? 0)
+            + ($this->rebounds  ?? 0)
+            + ($this->assists   ?? 0)
+            + ($this->steals    ?? 0)
+            + ($this->blocks    ?? 0)
+            - $missedFG
+            - $missedFT
+            - ($this->turnovers ?? 0)
+        );
+    }
+
+    /**
+     * Effective Field Goal Percentage (eFG%) — per game
+     *
+     * Formula: (FGM + 0.5 × 3PM) / FGA
+     * Returns 0 when FGA = 0 to avoid division by zero.
+     */
+    public function getEfgPercentAttribute(): float
+    {
+        $fga = $this->field_goals_attempted ?? 0;
+        if ($fga === 0) {
+            return 0.0;
+        }
+
+        return (float) round(
+            (($this->field_goals_made ?? 0) + 0.5 * ($this->three_pointers_made ?? 0)) / $fga,
+            4
+        );
+    }
+
+    /**
+     * True Shooting Percentage (TS%) — per game
+     *
+     * Formula: Pts / (2 × (FGA + 0.44 × FTA))
+     * Returns 0 when denominator = 0 to avoid division by zero.
+     */
+    public function getTsPercentAttribute(): float
+    {
+        $denominator = 2 * (
+            ($this->field_goals_attempted ?? 0)
+            + 0.44 * ($this->free_throws_attempted ?? 0)
+        );
+
+        if ($denominator == 0) {
+            return 0.0;
+        }
+
+        return (float) round(($this->points ?? 0) / $denominator, 4);
+    }
+
+    /**
+     * Plus/Minus formatted for display — "+14", "-3", "0"
+     */
+    public function getFormattedPlusMinusAttribute(): string
+    {
+        $val = $this->plus_minus ?? 0;
+        return $val > 0 ? "+{$val}" : (string) $val;
+    }
+
     /** @return BelongsTo<Player, PlayerHistory> */
     public function player(): BelongsTo
     {

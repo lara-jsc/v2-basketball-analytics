@@ -63,16 +63,25 @@ class PlayerStatsAggregator
         $ast_to = ($tov > 0) ? round($ast / $tov, 2) : null;
         $stl_to = ($tov > 0) ? round($stl / $tov, 2) : null;
 
-        // Scoring efficiency: avg pts per fg attempt
-        $fga_avg = $gp > 0 && $fga > 0 ? ($fga / $gp) : null;
-        $sc_eff  = ($fga_avg !== null && $fga_avg > 0 && $pts !== null)
-            ? round($pts / $fga_avg, 2)
-            : null;
+        // True Shooting % (TS%) — season totals, stored as decimal (e.g. 0.6506)
+        $total_pts = (float) $histories->sum('points');
+        $ts_denom  = 2.0 * ($fga + 0.44 * $fta);
+        $sc_eff    = $ts_denom > 0 ? round($total_pts / $ts_denom, 4) : null;
 
-        // Shooting efficiency: (FGM + 0.5*3PM + 0.44*FTM - FGA) / FGA
-        $sh_eff = $fga > 0
-            ? round(($fgm + 0.5 * $tpm + 0.44 * $ftm - $fga) / $fga, 4)
-            : null;
+        // Effective FG% (eFG%) — season totals, stored as decimal (e.g. 0.6944)
+        $sh_eff = $fga > 0 ? round(($fgm + 0.5 * $tpm) / $fga, 4) : null;
+
+        // Efficiency Rating (EFF) — per-game average
+        $total_reb = (float) $histories->sum('rebounds');
+        $total_ast = (float) $histories->sum('assists');
+        $total_stl = (float) $histories->sum('steals');
+        $total_blk = (float) $histories->sum('blocks');
+        $total_tov = (float) $histories->sum('turnovers');
+        $total_eff = $total_pts + $total_reb + $total_ast + $total_stl + $total_blk
+            - ($fga - $fgm)   // missed field goals
+            - ($fta - $ftm)   // missed free throws
+            - $total_tov;
+        $eff = $gp > 0 ? round($total_eff / $gp, 2) : null;
 
         // Double-double / triple-double counts
         [$dd2, $td3] = $this->doubleDoubles($histories);
@@ -108,6 +117,7 @@ class PlayerStatsAggregator
             'stl_to'             => $stl_to,
             'sc_eff'             => $sc_eff,
             'sh_eff'             => $sh_eff,
+            'eff'                => $eff,
             'dd2'                => $dd2,
             'td3'                => $td3,
             'pc'                 => $pc,
@@ -151,6 +161,7 @@ class PlayerStatsAggregator
             'stl_to'             => null,
             'sc_eff'             => null,
             'sh_eff'             => null,
+            'eff'                => null,
             'dd2'                => 0,
             'td3'                => 0,
             'pc'                 => null,

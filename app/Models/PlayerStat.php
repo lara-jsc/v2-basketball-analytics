@@ -39,6 +39,7 @@ class PlayerStat extends Model
         'eject',
         'flag',
         'tech',
+        'eff',                // nullable until PlayerStatsComputationService writes it
         'plus_minus',         // nullable until ComputePlayerPlusMinus Job completes
     ];
 
@@ -60,8 +61,41 @@ class PlayerStat extends Model
         'min'                 => 'float',
         'pf'                  => 'float',
         'to_per_game'         => 'float',
+        'eff'                 => 'float',
         'plus_minus'          => 'float',
     ];
+
+    // -------------------------------------------------------------------------
+    // Display Accessors — Formatted Output
+    // -------------------------------------------------------------------------
+
+    /** True Shooting % formatted: "65.1%" (stored as 0–1 decimal) */
+    public function getTsPercentFormattedAttribute(): string
+    {
+        return $this->sc_eff !== null ? round($this->sc_eff * 100, 1) . '%' : '—';
+    }
+
+    /** Effective FG% formatted: "69.4%" (stored as 0–1 decimal) */
+    public function getEfgPercentFormattedAttribute(): string
+    {
+        return $this->sh_eff !== null ? round($this->sh_eff * 100, 1) . '%' : '—';
+    }
+
+    /** Efficiency Rating formatted: "31.0" */
+    public function getEfficiencyFormattedAttribute(): string
+    {
+        return $this->eff !== null ? number_format((float) $this->eff, 1) : '—';
+    }
+
+    /** Plus/Minus formatted for display: "+14", "-3", "0" */
+    public function getFormattedPlusMinusAttribute(): string
+    {
+        if ($this->plus_minus === null) {
+            return '—';
+        }
+        $val = (float) $this->plus_minus;
+        return $val > 0 ? "+{$val}" : (string) $val;
+    }
 
     /** @return BelongsTo<Player, PlayerStat> */
     public function player(): BelongsTo
