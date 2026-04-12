@@ -35,6 +35,7 @@ class PlayerHistory extends Model
         'disqualifications',
         'is_started',
         'notes',
+        'plus_minus',
     ];
 
     protected $casts = [
@@ -60,6 +61,7 @@ class PlayerHistory extends Model
         'ejections'               => 'integer',
         'disqualifications'       => 'integer',
         'is_started'              => 'boolean',
+        'plus_minus'              => 'float',
     ];
 
     /** @return BelongsTo<Player, PlayerHistory> */

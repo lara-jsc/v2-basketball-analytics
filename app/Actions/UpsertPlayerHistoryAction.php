@@ -95,6 +95,11 @@ class UpsertPlayerHistoryAction
 
         $isStarted = $this->parseBool($row['is_started'] ?? '0');
 
+        $plusMinus = null;
+        if (isset($row['plus_minus']) && $row['plus_minus'] !== null && $row['plus_minus'] !== '') {
+            $plusMinus = (float) $row['plus_minus'];
+        }
+
         return $this->repository->upsert([
             'player_id'        => $playerId,
             'game_date'        => $gameDate,
@@ -108,6 +113,7 @@ class UpsertPlayerHistoryAction
             'notes'            => isset($row['notes']) && $row['notes'] !== ''
                 ? trim((string) $row['notes'])
                 : null,
+            'plus_minus'       => $plusMinus,
             ...$intStats,
         ]);
     }

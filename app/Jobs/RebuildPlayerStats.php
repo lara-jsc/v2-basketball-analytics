@@ -43,7 +43,7 @@ class RebuildPlayerStats implements ShouldQueue
             $statsData,
         );
 
-        ComputePlayerPlusMinus::dispatch($stat->id);
+        ComputePlayerPlusMinus::dispatch($this->playerId);
     }
 
     public function failed(Throwable $exception): void

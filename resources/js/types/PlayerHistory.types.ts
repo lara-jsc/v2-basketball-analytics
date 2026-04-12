@@ -53,6 +53,9 @@ export interface PlayerHistory {
   is_started: boolean;
   notes: string | null;
 
+  /** Net points scored by player's team minus opponent while this player was on court. */
+  plus_minus: number | null;
+
   created_at: string;
   updated_at: string;
 
@@ -95,6 +98,7 @@ export interface PlayerHistoryFormData {
   disqualifications: string;
   is_started: boolean;
   notes: string;
+  plus_minus: string;
 }
 
 // ─── Filters ──────────────────────────────────────────────────────────────────

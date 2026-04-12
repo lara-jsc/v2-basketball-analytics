@@ -19,6 +19,11 @@ function fmt(value: number | null | undefined): string {
     return String(value);
 }
 
+function fmtPlusMinus(value: number | null | undefined): string {
+    if (value === null || value === undefined) return '—';
+    return value >= 0 ? `+${value}` : String(value);
+}
+
 function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-US', {
         year: 'numeric', month: 'short', day: 'numeric',
@@ -279,6 +284,14 @@ export function PlayerHistoryTable({
                                     <StatItem label="PF"  value={fmt(selected.personal_fouls)} />
                                 </StatPanel>
 
+                                <StatPanel label="Impact">
+                                    <StatItem
+                                        label="+/-"
+                                        value={fmtPlusMinus(selected.plus_minus)}
+                                        accent={selected.plus_minus !== null && selected.plus_minus !== undefined}
+                                    />
+                                </StatPanel>
+
                                 <StatPanel label="Discipline">
                                     <StatItem label="FLAG"  value={fmt(selected.flagrant_fouls)} />
                                     <StatItem label="TECH"  value={fmt(selected.technical_fouls)} />
@@ -362,13 +375,13 @@ function StatPanel({ label, children }: { label: string; children: React.ReactNo
     );
 }
 
-function StatItem({ label, value }: { label: string; value: string }) {
+function StatItem({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
     return (
         <div className="flex flex-col items-start gap-0.5">
             <span className="text-[10px] font-ui font-semibold tracking-widest text-muted-foreground uppercase">
                 {label}
             </span>
-            <span className="font-mono text-lg font-bold text-foreground leading-none">
+            <span className={`font-mono text-lg font-bold leading-none ${accent ? 'text-accent' : 'text-foreground'}`}>
                 {value}
             </span>
         </div>

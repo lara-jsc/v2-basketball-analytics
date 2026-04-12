@@ -56,6 +56,7 @@ class UpdatePlayerHistoryRequest extends FormRequest
             'disqualifications'        => ['sometimes', 'nullable', 'integer', 'min:0', 'max:255'],
             'is_started'               => ['sometimes', 'boolean'],
             'notes'                    => ['sometimes', 'nullable', 'string'],
+            'plus_minus'               => ['sometimes', 'nullable', 'numeric', 'min:-9999.99', 'max:9999.99'],
         ];
     }
 

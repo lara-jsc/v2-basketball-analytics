@@ -1,9 +1,10 @@
 import { type PlayerStat, type PlayerWithStats, type Team } from '@/types';
 import { Link, router } from '@inertiajs/react';
-import { ChevronDown, ChevronUp, ClipboardList, Pencil, Power, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardList, Info, Pencil, Power, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { DeletePlayerDialog } from './DeletePlayerDialog';
 import { PlayerFormSheet } from './PlayerFormSheet';
+import { PlusMinusBreakdownModal } from './PlusMinusBreakdownModal';
 
 interface PlayersTableProps {
     players: PlayerWithStats[];
@@ -11,11 +12,18 @@ interface PlayersTableProps {
 }
 
 export function PlayersTable({ players, team }: PlayersTableProps) {
-    const [editPlayer, setEditPlayer]     = useState<PlayerWithStats | null>(null);
-    const [deletePlayer, setDeletePlayer] = useState<PlayerWithStats | null>(null);
-    const [selectedId, setSelectedId]     = useState<number | null>(players[0]?.id ?? null);
-    const [search, setSearch]             = useState('');
-    const [showAll, setShowAll]           = useState(false);
+    const [editPlayer, setEditPlayer]         = useState<PlayerWithStats | null>(null);
+    const [deletePlayer, setDeletePlayer]     = useState<PlayerWithStats | null>(null);
+    const [selectedId, setSelectedId]         = useState<number | null>(players[0]?.id ?? null);
+    const [search, setSearch]                 = useState('');
+    const [showAll, setShowAll]               = useState(false);
+    const [showBreakdown, setShowBreakdown]   = useState(false);
+    const [breakdownPlayerId, setBreakdownPlayerId] = useState<number | null>(null);
+
+    function openBreakdown(playerId: number) {
+        setBreakdownPlayerId(playerId);
+        setShowBreakdown(true);
+    }
 
     /** Keep the edit drawer avatar in sync when `players` updates (e.g. picture upload). */
     useEffect(() => {
@@ -136,13 +144,21 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                                 </div>
                             </div>
 
-                            {/* Plus-minus badge */}
-                            <div className="rounded-lg border border-accent/30 bg-accent/10 px-4 py-2 text-center shrink-0">
+                            {/* Plus-minus badge — click to see computation breakdown */}
+                            <button
+                                type="button"
+                                title="Click to see how this rating is calculated"
+                                onClick={() => openBreakdown(selectedPlayer.id)}
+                                className="rounded-lg border border-accent/30 bg-accent/10 px-4 py-2 text-center shrink-0 cursor-pointer hover:bg-accent/20 transition-colors group"
+                            >
                                 <p className="font-display text-2xl font-bold text-accent leading-none">
                                     {formatPlusMinus(stat?.plus_minus ?? null)}
                                 </p>
-                                <p className="text-[10px] font-ui text-muted-foreground mt-1">+/- Rating</p>
-                            </div>
+                                <p className="text-[10px] font-ui text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                                    +/- Rating
+                                    <Info size={9} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                                </p>
+                            </button>
                         </div>
 
                         {/* Stat panels */}
@@ -275,6 +291,18 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                     open={!!deletePlayer}
                     onOpenChange={(open) => !open && setDeletePlayer(null)}
                     player={deletePlayer}
+                />
+            )}
+
+            {/* Plus/minus breakdown modal */}
+            {breakdownPlayerId !== null && (
+                <PlusMinusBreakdownModal
+                    open={showBreakdown}
+                    onOpenChange={(open) => {
+                        setShowBreakdown(open);
+                        if (! open) setBreakdownPlayerId(null);
+                    }}
+                    playerId={breakdownPlayerId}
                 />
             )}
         </>

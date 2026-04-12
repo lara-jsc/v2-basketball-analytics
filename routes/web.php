@@ -4,6 +4,7 @@ use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
+use App\Http\Controllers\PlayerStatController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Auth;
@@ -42,6 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/players/{player}', [PlayerController::class, 'destroy'])->name('players.destroy');
     Route::patch('/players/{player}/toggle-active', [PlayerController::class, 'toggleActive'])->name('players.toggleActive');
     Route::post('/players/{player}/picture', [PlayerController::class, 'uploadPicture'])->name('players.uploadPicture');
+    Route::get('/players/{player}/stats/plus-minus-breakdown', [PlayerStatController::class, 'plusMinusBreakdown'])->name('players.stats.plusMinusBreakdown');
 
     // ── CSV ───────────────────────────────────────────────────────────────
     Route::get('/csv/template', [CsvController::class, 'template'])->name('csv.template');

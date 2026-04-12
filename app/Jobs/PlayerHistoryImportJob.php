@@ -30,7 +30,7 @@ class PlayerHistoryImportJob implements ShouldQueue
 {
     use Queueable;
 
-    /** Exact header order — case-sensitive */
+    /** Exact header order — case-sensitive (required columns) */
     public const HEADERS = [
         'game_date', 'playing_team_id', 'opponent_team_id',
         'position_played', 'minutes_played', 'points',
@@ -44,12 +44,21 @@ class PlayerHistoryImportJob implements ShouldQueue
         'is_started', 'notes',
     ];
 
+    /**
+     * Accepted aliases for the optional plus_minus column (case-insensitive).
+     * When present as the column immediately after HEADERS, it is mapped to 'plus_minus'.
+     */
+    public const PLUS_MINUS_ALIASES = ['plus_minus', '+/-', 'plus/minus'];
+
     /** Column index (1-based) for team dropdown columns */
     private const PLAYING_TEAM_COL  = 2; // playing_team_id
     private const OPPONENT_TEAM_COL = 3; // opponent_team_id
 
     /** Column index (1-based) for the game_date column */
     private const GAME_DATE_COL = 1;
+
+    /** Set to true during handle() if the file contains a recognized plus_minus column */
+    private bool $hasPlusMinusColumn = false;
 
     public function __construct(
         public readonly int $csvImportId,
@@ -142,7 +151,9 @@ class PlayerHistoryImportJob implements ShouldQueue
     }
 
     /**
-     * Validate that the sheet's header row matches HEADERS exactly.
+     * Validate that the sheet's required header columns match HEADERS exactly.
+     * An optional plus_minus column (any alias from PLUS_MINUS_ALIASES) may follow.
+     * Sets $this->hasPlusMinusColumn if the optional column is present.
      *
      * @throws RuntimeException
      */
@@ -160,6 +171,21 @@ class PlayerHistoryImportJob implements ShouldQueue
                 . "Expected: " . implode(', ', self::HEADERS) . "\n"
                 . "Received: " . implode(', ', $actual)
             );
+        }
+
+        // Check optional plus_minus column immediately after the required columns
+        $optionalCol   = count(self::HEADERS) + 1;
+        $optionalValue = strtolower(trim((string) $sheet->getCell([$optionalCol, 1])->getValue()));
+
+        if ($optionalValue !== '') {
+            if (! in_array($optionalValue, self::PLUS_MINUS_ALIASES, strict: true)) {
+                throw new RuntimeException(
+                    "Unexpected column after required headers: '{$optionalValue}'. "
+                    . "Only an optional plus_minus column (aliases: " . implode(', ', self::PLUS_MINUS_ALIASES) . ") is allowed here."
+                );
+            }
+
+            $this->hasPlusMinusColumn = true;
         }
     }
 
@@ -189,6 +215,12 @@ class PlayerHistoryImportJob implements ShouldQueue
             };
 
             $data[$header] = $value;
+        }
+
+        if ($this->hasPlusMinusColumn) {
+            $plusMinusCol        = count(self::HEADERS) + 1;
+            $raw                 = $sheet->getCell([$plusMinusCol, $rowIndex])->getValue();
+            $data['plus_minus']  = ($raw !== null && $raw !== '') ? (float) $raw : null;
         }
 
         return $data;

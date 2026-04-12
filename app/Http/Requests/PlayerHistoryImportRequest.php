@@ -68,6 +68,15 @@ class PlayerHistoryImportRequest extends FormRequest
                 . "Received: " . implode(', ', $headerRow);
         }
 
+        // Validate optional plus_minus column if present
+        $optionalCol   = count(PlayerHistoryImportJob::HEADERS) + 1;
+        $optionalValue = strtolower(trim((string) $sheet->getCell([$optionalCol, 1])->getValue()));
+
+        if ($optionalValue !== '' && ! in_array($optionalValue, PlayerHistoryImportJob::PLUS_MINUS_ALIASES, strict: true)) {
+            return "Unexpected column after required headers: '{$optionalValue}'. "
+                . "Only an optional plus_minus column is allowed here.";
+        }
+
         return null;
     }
 }

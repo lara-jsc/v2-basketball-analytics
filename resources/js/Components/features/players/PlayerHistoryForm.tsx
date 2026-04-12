@@ -54,6 +54,7 @@ export function PlayerHistoryForm({ action, method, teams, history, onSuccess }:
         disqualifications:        toStr(history?.disqualifications),
         is_started:               history?.is_started ?? false,
         notes:                    history?.notes ?? '',
+        plus_minus:               toStr(history?.plus_minus),
     });
 
     const handleSubmit: FormEventHandler = (e) => {
@@ -254,6 +255,33 @@ export function PlayerHistoryForm({ action, method, teams, history, onSuccess }:
                             {numField('technical_fouls', 'TECH')}
                             {numField('ejections', 'EJECT')}
                             {numField('disqualifications', 'DQ')}
+                        </div>
+                    </section>
+
+                    <Separator />
+
+                    {/* ── Impact ──────────────────────────────────────────── */}
+                    <section className="space-y-4">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            Impact
+                        </h3>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="plus_minus" className="text-xs">+/- (Plus/Minus)</Label>
+                                <Input
+                                    id="plus_minus"
+                                    type="number"
+                                    step="0.1"
+                                    value={data.plus_minus}
+                                    onChange={(e) => setData('plus_minus', e.target.value)}
+                                    className="h-8 text-sm font-mono"
+                                    placeholder="—"
+                                />
+                                {errors.plus_minus && <p className="text-xs text-destructive">{errors.plus_minus}</p>}
+                                <p className="text-[10px] text-muted-foreground">
+                                    Team pts minus opponent pts while on court. Can be negative.
+                                </p>
+                            </div>
                         </div>
                     </section>
 

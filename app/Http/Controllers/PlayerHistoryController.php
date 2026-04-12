@@ -126,7 +126,7 @@ class PlayerHistoryController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Template');
 
-        $headers = PlayerHistoryImportJob::HEADERS;
+        $headers = array_merge(PlayerHistoryImportJob::HEADERS, ['plus_minus']);
 
         // Write header row (bold)
         foreach ($headers as $colIndex => $header) {
@@ -164,6 +164,7 @@ class PlayerHistoryController extends Controller
             0,                                // disqualifications
             1,                                // is_started       — pick from dropdown
             'DELETE THIS ROW - EXAMPLE ONLY', // notes
+            5,                                // plus_minus       — optional, can be negative
         ];
 
         foreach ($exampleValues as $colIndex => $value) {

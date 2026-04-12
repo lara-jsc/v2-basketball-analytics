@@ -53,6 +53,7 @@ class StorePlayerHistoryRequest extends FormRequest
             'disqualifications'        => ['nullable', 'integer', 'min:0', 'max:255'],
             'is_started'               => ['boolean'],
             'notes'                    => ['nullable', 'string'],
+            'plus_minus'               => ['nullable', 'numeric', 'min:-9999.99', 'max:9999.99'],
         ];
     }
 
