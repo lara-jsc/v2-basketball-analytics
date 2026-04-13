@@ -31,12 +31,12 @@ class PlayerService
             ]);
 
             if ($this->hasAnyStatValue($statsData)) {
-                $this->playerRepository->createStat([
+                $stat = $this->playerRepository->createStat([
                     ...$statsData,
                     'player_id' => $player->id,
                 ]);
 
-                ComputePlayerPlusMinus::dispatch($player->id);
+                ComputePlayerPlusMinus::dispatch($stat->id);
             }
 
             return $player;
@@ -54,9 +54,9 @@ class PlayerService
         return DB::transaction(function () use ($player, $playerData, $statsData) {
             $this->playerRepository->update($player, $playerData);
 
-            $this->playerRepository->upsertStat($player, $statsData);
+            $stat = $this->playerRepository->upsertStat($player, $statsData);
 
-            ComputePlayerPlusMinus::dispatch($player->id);
+            ComputePlayerPlusMinus::dispatch($stat->id);
 
             return $player->fresh();
         });
