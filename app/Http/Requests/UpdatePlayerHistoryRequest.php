@@ -30,8 +30,7 @@ class UpdatePlayerHistoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'playing_team_id'          => ['sometimes', 'integer', 'exists:teams,id'],
-            'opponent_team_id'         => ['sometimes', 'integer', 'exists:teams,id', 'different:playing_team_id'],
+            'opponent_team_id'         => ['sometimes', 'integer', 'exists:teams,id'],
             'game_date'                => ['sometimes', 'date_format:Y-m-d'],
             'position_played'          => ['sometimes', 'nullable', 'string', 'max:50'],
             'minutes_played'           => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999.99'],
@@ -64,8 +63,6 @@ class UpdatePlayerHistoryRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'opponent_team_id.different' => 'The opponent team must be different from the playing team.',
-        ];
+        return [];
     }
 }

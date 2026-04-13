@@ -64,7 +64,10 @@ class PlayerHistoryController extends Controller
      */
     public function store(StorePlayerHistoryRequest $request, Player $player): RedirectResponse
     {
-        $this->historyService->store($player, $request->validated());
+        $this->historyService->store($player, [
+            ...$request->validated(),
+            'playing_team_id' => $player->team_id,
+        ]);
 
         return redirect()
             ->route('player-histories.index', $player->id)
@@ -139,7 +142,6 @@ class PlayerHistoryController extends Controller
         // Example data row
         $exampleValues = [
             '2025-01-15',                     // game_date
-            '',                               // playing_team_id  — pick from dropdown
             '',                               // opponent_team_id — pick from dropdown
             'PG',                             // position_played  — pick from dropdown
             32.5,                             // minutes_played
@@ -192,28 +194,21 @@ class PlayerHistoryController extends Controller
         $spreadsheet->setActiveSheetIndex(0);
 
         $dropdowns = [
-            'C' => [
-                'formula1'     => $teamListSource,
-                'promptTitle'  => 'Playing Team',
-                'prompt'       => 'Select a team from the dropdown list.',
-                'errorTitle'   => 'Invalid team',
-                'error'        => 'Please select a team from the dropdown list.',
-            ],
-            'D' => [
+            'B' => [
                 'formula1'     => $teamListSource,
                 'promptTitle'  => 'Opponent Team',
                 'prompt'       => 'Select a team from the dropdown list.',
                 'errorTitle'   => 'Invalid team',
                 'error'        => 'Please select a team from the dropdown list.',
             ],
-            'E' => [
+            'C' => [
                 'formula1'     => '"PG,SG,SF,PF,C,G,F"',
                 'promptTitle'  => 'Position',
                 'prompt'       => 'Select a position: PG, SG, SF, PF, C, G, or F.',
                 'errorTitle'   => 'Invalid position',
                 'error'        => 'Please select a valid position from the dropdown.',
             ],
-            'Y' => [
+            'X' => [
                 'formula1'     => '"1,0"',
                 'promptTitle'  => 'Started?',
                 'prompt'       => '1 = started the game, 0 = came off the bench.',
