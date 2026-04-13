@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\ComputePlayerPlusMinus;
 use App\Models\CsvImport;
 use App\Repositories\CsvImportRepository;
 use App\Repositories\PlayerRepository;
@@ -16,53 +15,11 @@ use RuntimeException;
  *
  * Called exclusively by the ProcessCsvImport Job — never directly from controllers.
  *
- * CSV column → DB mapping:
- *   first_name, last_name, jersey_number, role, height_feet, weight_kg, is_active → players
- *   pc, sd, 3P%, 3PT, AST, AST/TO, BLK, DD2, DQ, DR, EJECT, FG, FG%, FLAG,
- *   FT, FT%, GP, GS, MIN, OR → offensive_rebounds, PF, PTS, REB, SC-EFF, SH-EFF,
- *   STL, STL/TO, TD3, TECH, TO → to_per_game  →  player_stats
+ * CSV is roster-only: creates/updates player records (name, jersey, role, height, weight).
+ * Stats are populated exclusively through game history entries via RebuildPlayerStats.
  */
 class CsvImportService
 {
-    /** CSV header → player_stats column mapping (non-obvious names only) */
-    private const STAT_COLUMN_MAP = [
-        '3P%'     => 'three_p_pct',
-        '3PT'     => 'three_pt',
-        'AST'     => 'ast',
-        'AST/TO'  => 'ast_to',
-        'BLK'     => 'blk',
-        'DD2'     => 'dd2',
-        'DQ'      => 'dq',
-        'DR'      => 'dr',
-        'EJECT'   => 'eject',
-        'FG'      => 'fg',
-        'FG%'     => 'fg_pct',
-        'FLAG'    => 'flag',
-        'FT'      => 'ft',
-        'FT%'     => 'ft_pct',
-        'GP'      => 'gp',
-        'GS'      => 'gs',
-        'MIN'     => 'min',
-        'OR'      => 'offensive_rebounds',  // reserved word: "or"
-        'PF'      => 'pf',
-        'PTS'     => 'pts',
-        'REB'     => 'reb',
-        'SC-EFF'  => 'sc_eff',
-        'SH-EFF'  => 'sh_eff',
-        'STL'     => 'stl',
-        'STL/TO'  => 'stl_to',
-        'TD3'     => 'td3',
-        'TECH'    => 'tech',
-        'TO'      => 'to_per_game',         // reserved word: "to"
-        'pc'      => 'pc',
-        'sd'      => 'sd',
-    ];
-
-    /** Player-level CSV columns (not stored in player_stats) */
-    private const PLAYER_COLUMNS = [
-        'first_name', 'last_name', 'jersey_number', 'role',
-        'height_feet', 'weight_kg', 'is_active',
-    ];
 
     public function __construct(
         private readonly CsvImportRepository $csvImportRepository,
@@ -177,8 +134,7 @@ class CsvImportService
             }
 
             try {
-                $playerStatId = $this->importRow($import->team_id, $data);
-                ComputePlayerPlusMinus::dispatch($playerStatId);
+                $this->importRow($import->team_id, $data);
                 $rowsImported++;
             } catch (\Throwable $e) {
                 Log::warning("CSV import line {$lineNumber} failed", ['error' => $e->getMessage()]);
@@ -193,16 +149,15 @@ class CsvImportService
      * Import one CSV data row inside a DB transaction.
      * Uses jersey_number as the natural key per team — re-uploading the same
      * CSV updates existing records rather than inserting duplicates.
-     * Returns the PlayerStat ID so the BPM job can be dispatched.
      *
      * @param  array<string, string>  $data
      */
-    private function importRow(int $teamId, array $data): int
+    private function importRow(int $teamId, array $data): void
     {
-        return DB::transaction(function () use ($teamId, $data): int {
+        DB::transaction(function () use ($teamId, $data): void {
             $jerseyNumber = (int) ($data['jersey_number'] ?? 0);
 
-            $player = $this->playerRepository->updateOrCreateByJersey(
+            $this->playerRepository->updateOrCreateByJersey(
                 teamId: $teamId,
                 jerseyNumber: $jerseyNumber,
                 playerData: [
@@ -214,39 +169,11 @@ class CsvImportService
                     'is_active'    => $this->parseBool($data['is_active'] ?? '1'),
                 ],
             );
-
-            $statData = [];
-
-            foreach (self::STAT_COLUMN_MAP as $csvCol => $dbCol) {
-                $raw = $data[$csvCol] ?? null;
-                $statData[$dbCol] = ($raw !== null && $raw !== '') ? $this->castStat($dbCol, $raw) : null;
-            }
-
-            $stat = $this->playerRepository->upsertStat($player, $statData);
-
-            return $stat->id;
         });
     }
 
     private function parseBool(string $value): bool
     {
         return in_array(strtolower(trim($value)), ['1', 'true', 'yes'], strict: true);
-    }
-
-    /** Cast a raw CSV string to the correct PHP type for a given stat column. */
-    private function castStat(string $dbCol, string $raw): mixed
-    {
-        // Integer columns
-        if (in_array($dbCol, ['gp', 'gs', 'dd2', 'td3', 'dq', 'eject', 'flag', 'tech'], strict: true)) {
-            return (int) $raw;
-        }
-
-        // String columns stored as-is (made-attempted strings)
-        if (in_array($dbCol, ['three_pt', 'fg', 'ft', 'pc', 'sd'], strict: true)) {
-            return $raw;
-        }
-
-        // Everything else is decimal/float
-        return (float) $raw;
     }
 }

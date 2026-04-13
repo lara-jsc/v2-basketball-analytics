@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Models\Player;
-use App\Models\PlayerStat;
 use Illuminate\Database\Eloquent\Collection;
 
 class PlayerRepository
@@ -49,16 +48,6 @@ class PlayerRepository
     }
 
     /**
-     * Create a PlayerStat record for a player.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    public function createStat(array $data): PlayerStat
-    {
-        return PlayerStat::create($data);
-    }
-
-    /**
      * Find a player by PK. Throws ModelNotFoundException if not found.
      */
     public function findOrFail(int $id): Player
@@ -76,21 +65,4 @@ class PlayerRepository
         $player->update($data);
     }
 
-    /**
-     * Update the player's most recent stat row, or create one if none exists.
-     *
-     * @param  array<string, mixed>  $statsData
-     */
-    public function upsertStat(Player $player, array $statsData): PlayerStat
-    {
-        $existing = $player->stats()->latest()->first();
-
-        if ($existing) {
-            $existing->update($statsData);
-
-            return $existing;
-        }
-
-        return $this->createStat([...$statsData, 'player_id' => $player->id]);
-    }
 }

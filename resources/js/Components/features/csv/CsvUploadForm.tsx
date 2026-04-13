@@ -52,7 +52,7 @@ export function CsvUploadForm({ teamId }: CsvUploadFormProps) {
                         CSV Import
                     </h3>
                     <p className="mt-0.5 text-xs text-muted-foreground font-ui">
-                        Upload a roster file to import player stats in bulk.
+                        Upload a roster file to create your player list. Add game history per player to populate stats.
                     </p>
                 </div>
                 <div className="relative">
