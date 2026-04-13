@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\Player;
+use App\Models\PlayerStat;
 use Illuminate\Database\Eloquent\Collection;
 
 class PlayerRepository
@@ -65,4 +66,30 @@ class PlayerRepository
         $player->update($data);
     }
 
+    /**
+     * Create a new stats row for a player.
+     *
+     * @param  array<string, mixed>  $data  Must include player_id
+     */
+    public function createStat(array $data): PlayerStat
+    {
+        return PlayerStat::create($data);
+    }
+
+    /**
+     * Update the existing stats row for a player, or create one if none exists.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function upsertStat(Player $player, array $data): PlayerStat
+    {
+        $stat = $player->stats()->first();
+
+        if ($stat) {
+            $stat->update($data);
+            return $stat->fresh();
+        }
+
+        return PlayerStat::create([...$data, 'player_id' => $player->id]);
+    }
 }
