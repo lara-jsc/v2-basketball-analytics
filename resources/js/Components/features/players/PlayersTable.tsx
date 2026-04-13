@@ -199,6 +199,9 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                                         <StatItem label="FT"     value={stat?.ft ?? '—'} />
                                         <StatItem label="SC-EFF" value={fmt(stat?.sc_eff)} />
                                         <StatItem label="SH-EFF" value={fmt(stat?.sh_eff)} />
+                                        <StatItem label="EFF"    value={fmtAdv(stat?.eff, 1)} />
+                                        <StatItem label="eFG%"   value={fmtPct(stat?.efg_pct)} />
+                                        <StatItem label="TS%"    value={fmtPct(stat?.ts_pct)} />
                                     </StatPanel>
 
                                     <StatPanel label="Turnovers & Fouls">
@@ -334,6 +337,16 @@ function ActionBtn({
 function fmt(value: number | null | undefined): string {
     if (value === null || value === undefined) return '—';
     return value.toString();
+}
+
+function fmtPct(value: number | null | undefined): string {
+    if (value === null || value === undefined) return '—';
+    return `${(value * 100).toFixed(1)}%`;
+}
+
+function fmtAdv(value: number | null | undefined, decimals: number): string {
+    if (value === null || value === undefined) return '—';
+    return value.toFixed(decimals);
 }
 
 function formatPlusMinus(value: number | null): string {

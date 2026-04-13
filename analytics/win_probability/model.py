@@ -86,6 +86,7 @@ def compute_win_probability(payload: dict) -> dict[str, float]:
 _MATCHUP_STAT_KEYS: list[str] = [
     "pts", "ast", "reb", "blk", "stl", "fg_pct",
     "three_p_pct", "dr", "offensive_rebounds", "min",
+    "eff", "efg_pct", "ts_pct",
 ]
 
 

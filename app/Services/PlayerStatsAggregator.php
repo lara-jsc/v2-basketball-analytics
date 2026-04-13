@@ -74,6 +74,34 @@ class PlayerStatsAggregator
             ? round(($fgm + 0.5 * $tpm + 0.44 * $ftm - $fga) / $fga, 4)
             : null;
 
+        // Per-game averages for advanced stat formulas
+        $fgaAvg    = $gp > 0 ? $fga / $gp : 0.0;
+        $fgmAvg    = $gp > 0 ? $fgm / $gp : 0.0;
+        $ftaAvg    = $gp > 0 ? $fta / $gp : 0.0;
+        $ftmAvg    = $gp > 0 ? $ftm / $gp : 0.0;
+        $threePmAvg = $gp > 0 ? $tpm / $gp : 0.0;
+        $toPg      = $tov ?? 0.0;
+
+        // EFF = Pts + Reb + Ast + Stl + Blk − MissedFG − MissedFT − TO
+        $missedFg = $fgaAvg - $fgmAvg;
+        $missedFt = $ftaAvg - $ftmAvg;
+        $eff = round(
+            ($pts ?? 0.0) + ($reb ?? 0.0) + ($ast ?? 0.0) + ($stl ?? 0.0) + ($blk ?? 0.0)
+            - $missedFg - $missedFt - $toPg,
+            2
+        );
+
+        // eFG% = (FGM + 0.5 × 3PM) / FGA — null if FGA == 0
+        $efg_pct = $fgaAvg > 0
+            ? round(min(($fgmAvg + 0.5 * $threePmAvg) / $fgaAvg, 1.0), 4)
+            : null;
+
+        // TS% = Pts / (2 × (FGA + 0.44 × FTA)) — null if denominator == 0
+        $tsDenominator = 2 * ($fgaAvg + 0.44 * $ftaAvg);
+        $ts_pct = $tsDenominator > 0
+            ? round(min(($pts ?? 0.0) / $tsDenominator, 1.0), 4)
+            : null;
+
         // Double-double / triple-double counts
         [$dd2, $td3] = $this->doubleDoubles($histories);
 
@@ -108,6 +136,9 @@ class PlayerStatsAggregator
             'stl_to'             => $stl_to,
             'sc_eff'             => $sc_eff,
             'sh_eff'             => $sh_eff,
+            'eff'                => $eff,
+            'efg_pct'            => $efg_pct,
+            'ts_pct'             => $ts_pct,
             'dd2'                => $dd2,
             'td3'                => $td3,
             'pc'                 => $pc,
@@ -151,6 +182,9 @@ class PlayerStatsAggregator
             'stl_to'             => null,
             'sc_eff'             => null,
             'sh_eff'             => null,
+            'eff'                => null,
+            'efg_pct'            => null,
+            'ts_pct'             => null,
             'dd2'                => 0,
             'td3'                => 0,
             'pc'                 => null,
