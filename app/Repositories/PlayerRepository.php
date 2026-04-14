@@ -49,16 +49,6 @@ class PlayerRepository
     }
 
     /**
-     * Create a PlayerStat record for a player.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    public function createStat(array $data): PlayerStat
-    {
-        return PlayerStat::create($data);
-    }
-
-    /**
      * Find a player by PK. Throws ModelNotFoundException if not found.
      */
     public function findOrFail(int $id): Player
@@ -77,20 +67,29 @@ class PlayerRepository
     }
 
     /**
-     * Update the player's most recent stat row, or create one if none exists.
+     * Create a new stats row for a player.
      *
-     * @param  array<string, mixed>  $statsData
+     * @param  array<string, mixed>  $data  Must include player_id
      */
-    public function upsertStat(Player $player, array $statsData): PlayerStat
+    public function createStat(array $data): PlayerStat
     {
-        $existing = $player->stats()->latest()->first();
+        return PlayerStat::create($data);
+    }
 
-        if ($existing) {
-            $existing->update($statsData);
+    /**
+     * Update the existing stats row for a player, or create one if none exists.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function upsertStat(Player $player, array $data): PlayerStat
+    {
+        $stat = $player->stats()->first();
 
-            return $existing;
+        if ($stat) {
+            $stat->update($data);
+            return $stat->fresh();
         }
 
-        return $this->createStat([...$statsData, 'player_id' => $player->id]);
+        return PlayerStat::create([...$data, 'player_id' => $player->id]);
     }
 }

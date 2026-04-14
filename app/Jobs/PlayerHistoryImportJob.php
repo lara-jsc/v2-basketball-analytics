@@ -7,6 +7,7 @@ use App\Models\CsvImport;
 use App\Repositories\CsvImportRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -32,7 +33,7 @@ class PlayerHistoryImportJob implements ShouldQueue
 
     /** Exact header order — case-sensitive */
     public const HEADERS = [
-        'game_date', 'playing_team_id', 'opponent_team_id',
+        'game_date', 'opponent_team_id',
         'position_played', 'minutes_played', 'points',
         'field_goals_made', 'field_goals_attempted',
         'three_pointers_made', 'three_pointers_attempted',
@@ -44,9 +45,8 @@ class PlayerHistoryImportJob implements ShouldQueue
         'is_started', 'notes',
     ];
 
-    /** Column index (1-based) for team dropdown columns */
-    private const PLAYING_TEAM_COL  = 2; // playing_team_id
-    private const OPPONENT_TEAM_COL = 3; // opponent_team_id
+    /** Column index (1-based) for team dropdown column */
+    private const OPPONENT_TEAM_COL = 2; // opponent_team_id
 
     /** Column index (1-based) for the game_date column */
     private const GAME_DATE_COL = 1;
@@ -111,12 +111,15 @@ class PlayerHistoryImportJob implements ShouldQueue
 
         $this->assertHeaders($sheet);
 
+        $playingTeamId = (int) DB::table('players')->where('id', $this->playerId)->value('team_id');
+
         $rowsImported = 0;
         $errors       = [];
         $highestRow   = $sheet->getHighestDataRow();
 
         for ($rowIndex = 2; $rowIndex <= $highestRow; $rowIndex++) {
-            $rowData = $this->readRow($sheet, $rowIndex);
+            $rowData                    = $this->readRow($sheet, $rowIndex);
+            $rowData['playing_team_id'] = $playingTeamId;
 
             // Skip completely empty rows
             if ($this->isEmptyRow($rowData)) {
@@ -180,12 +183,9 @@ class PlayerHistoryImportJob implements ShouldQueue
             $cell = $sheet->getCell([$col, $rowIndex]);
 
             $value = match ($col) {
-                self::PLAYING_TEAM_COL,
                 self::OPPONENT_TEAM_COL => $this->extractTeamId($cell->getValue()),
-
-                self::GAME_DATE_COL => $this->resolveDate($cell),
-
-                default => $cell->getValue(),
+                self::GAME_DATE_COL     => $this->resolveDate($cell),
+                default                 => $cell->getValue(),
             };
 
             $data[$header] = $value;

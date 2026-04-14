@@ -12,9 +12,8 @@ class CsvTemplateService
 {
     /**
      * Exact CSV header columns in spec order (case-sensitive).
-     * Mapping notes:
-     *   OR  → offensive_rebounds in DB  (MySQL reserved word avoided)
-     *   TO  → to_per_game in DB         (MySQL reserved word avoided)
+     * Roster-only: player identity fields only — no stat columns.
+     * Stats are populated exclusively through game history entries.
      */
     public const HEADERS = [
         'first_name',
@@ -24,36 +23,6 @@ class CsvTemplateService
         'height_feet',
         'weight_kg',
         'is_active',
-        'pc',
-        'sd',
-        '3P%',
-        '3PT',
-        'AST',
-        'AST/TO',
-        'BLK',
-        'DD2',
-        'DQ',
-        'DR',
-        'EJECT',
-        'FG',
-        'FG%',
-        'FLAG',
-        'FT',
-        'FT%',
-        'GP',
-        'GS',
-        'MIN',
-        'OR',
-        'PF',
-        'PTS',
-        'REB',
-        'SC-EFF',
-        'SH-EFF',
-        'STL',
-        'STL/TO',
-        'TD3',
-        'TECH',
-        'TO',
     ];
 
     /**

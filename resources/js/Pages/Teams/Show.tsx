@@ -297,5 +297,4 @@ const FIELD_LEGEND = [
     { abbr: 'DD2',    desc: 'Double-doubles' },
     { abbr: 'TD3',    desc: 'Triple-doubles' },
     { abbr: 'PC',     desc: 'Position on court' },
-    { abbr: 'SD',     desc: 'Spatial data' },
 ];

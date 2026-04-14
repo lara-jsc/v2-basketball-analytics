@@ -89,6 +89,15 @@ export interface PlayerStat {
    */
   plus_minus: number | null;
 
+  /**
+   * Advanced stats — computed by PHP service layer from aggregated history.
+   * All nullable until RebuildPlayerStats Job completes.
+   * UI must render "—" instead of null/0.
+   */
+  eff:     number | null;
+  efg_pct: number | null;
+  ts_pct:  number | null;
+
   created_at: string;
   updated_at: string;
 }

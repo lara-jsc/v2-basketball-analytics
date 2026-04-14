@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlayerStat extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'player_id',
         'pc',
@@ -40,6 +42,9 @@ class PlayerStat extends Model
         'flag',
         'tech',
         'plus_minus',         // nullable until ComputePlayerPlusMinus Job completes
+        'eff',
+        'efg_pct',
+        'ts_pct',
     ];
 
     protected $casts = [
@@ -61,6 +66,9 @@ class PlayerStat extends Model
         'pf'                  => 'float',
         'to_per_game'         => 'float',
         'plus_minus'          => 'float',
+        'eff'                 => 'float',
+        'efg_pct'             => 'float',
+        'ts_pct'              => 'float',
     ];
 
     /** @return BelongsTo<Player, PlayerStat> */

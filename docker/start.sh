@@ -19,9 +19,14 @@ chmod -R 775 storage bootstrap/cache
 echo "📦 Running migrations..."
 php artisan migrate --force
 
-# Seed demo data
-echo "🌱 Seeding database..."
-php artisan db:seed --force
+# Seed demo data — only on first deploy (skip if teams already exist)
+TEAM_COUNT=$(php artisan tinker --execute="echo App\Models\Team::count();" 2>/dev/null | tail -1)
+if [ "$TEAM_COUNT" = "0" ] || [ -z "$TEAM_COUNT" ]; then
+    echo "🌱 Empty database detected — seeding demo data..."
+    php artisan db:seed --force
+else
+    echo "✅ Database already has data — skipping seed to preserve prod data."
+fi
 
 # Cache configuration for production
 echo "⚡ Caching config..."

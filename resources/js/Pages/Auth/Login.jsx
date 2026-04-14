@@ -46,13 +46,11 @@ export default function Login({ status, canResetPassword }) {
                         <div className="w-full max-w-5xl">
                             <div className="mx-auto flex w-full max-w-[500px] flex-col items-center text-center">
                                 <div className="mb-7 flex items-center gap-4">
-                                    <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#ff9d57]/50 bg-[radial-gradient(circle_at_30%_30%,#f6b67d_0%,#d56d27_28%,#8c3d14_65%,#120a0e_100%)] shadow-[0_0_30px_rgba(255,133,50,0.35)]">
-                                        <div className="relative h-10 w-10 rounded-full border-[2.5px] border-[#1d0f10]">
-                                            <div className="absolute left-1/2 top-0 h-full w-[2px] -translate-x-1/2 bg-[#1d0f10]" />
-                                            <div className="absolute left-0 top-1/2 h-[2px] w-full -translate-y-1/2 bg-[#1d0f10]" />
-                                            <div className="absolute inset-[-2px] rounded-full border-[2px] border-transparent border-l-[#1d0f10] border-r-[#1d0f10]" />
-                                        </div>
-                                    </div>
+                                    <img
+                                        src="/images/dashboard-assets/basketball-logo.png"
+                                        alt="HoopSense+ Logo"
+                                        className="h-16 w-16 drop-shadow-[0_0_12px_rgba(255,133,50,0.5)]"
+                                    />
 
                                     <div className="text-left">
                                         <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">

@@ -41,6 +41,9 @@ const STAT_ROWS: StatRow[] = [
     { label: 'STL/TO', getValue: (s) => fmt(s.stl_to),                dbKey: 'stl_to',             higherIsBetter: true },
     { label: 'SC-EFF', getValue: (s) => fmt(s.sc_eff),                dbKey: 'sc_eff',             higherIsBetter: true },
     { label: 'SH-EFF', getValue: (s) => fmt(s.sh_eff),                dbKey: 'sh_eff',             higherIsBetter: true },
+    { label: 'EFF',    getValue: (s) => fmtAdv(s.eff, 1),             dbKey: 'eff',                higherIsBetter: true },
+    { label: 'eFG%',   getValue: (s) => fmtPct(s.efg_pct),           dbKey: 'efg_pct',            higherIsBetter: true },
+    { label: 'TS%',    getValue: (s) => fmtPct(s.ts_pct),            dbKey: 'ts_pct',             higherIsBetter: true },
     { label: 'PF',     getValue: (s) => fmt(s.pf),                    dbKey: 'pf',                 higherIsBetter: false },
     { label: 'GP',     getValue: (s) => (s.gp ?? '—').toString(),     dbKey: 'gp',                 higherIsBetter: true },
 ];
@@ -334,4 +337,16 @@ function fmt(value: number | null | undefined): string {
 function fmtPM(value: number | null): string {
     if (value === null) return '—';
     return value >= 0 ? `+${value.toFixed(1)}` : `${value.toFixed(1)}`;
+}
+
+/** Format a raw decimal as a percentage string (e.g. 0.6 → "60.0%"). Returns "—" for null. */
+function fmtPct(value: number | null | undefined): string {
+    if (value === null || value === undefined) return '—';
+    return `${(value * 100).toFixed(1)}%`;
+}
+
+/** Format an advanced stat (EFF) to N decimal places. Returns "—" for null. */
+function fmtAdv(value: number | null | undefined, decimals: number): string {
+    if (value === null || value === undefined) return '—';
+    return value.toFixed(decimals);
 }
