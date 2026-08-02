@@ -9,6 +9,10 @@ use App\Models\LiveGamePlayerStat;
 
 class LiveGameProjectionService
 {
+    public function __construct(
+        private readonly LiveGameAlertService $alertService,
+    ) {}
+
     public function rebuild(LiveGame $game): void
     {
         $game->refresh();
@@ -19,6 +23,9 @@ class LiveGameProjectionService
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->all();
+        $effectiveEvents = $events
+            ->reject(fn (LiveGameEvent $event): bool => in_array($event->id, $voidedEventIds, true) || $event->type === 'correction')
+            ->values();
 
         $startingPlayerIds = $this->playerIds($game->starting_player_ids);
         $activePlayerIds = $startingPlayerIds;
@@ -35,11 +42,7 @@ class LiveGameProjectionService
         $homeScore = 0;
         $opponentScore = 0;
 
-        foreach ($events as $event) {
-            if (in_array($event->id, $voidedEventIds, true) || $event->type === 'correction') {
-                continue;
-            }
-
+        foreach ($effectiveEvents as $event) {
             if ($event->type === 'substitution') {
                 $activePlayerIds = $this->applySubstitution(
                     $game,
@@ -103,6 +106,8 @@ class LiveGameProjectionService
             'opponent_score' => $opponentScore,
             'active_player_ids' => array_values($activePlayerIds),
         ])->save();
+
+        $this->alertService->sync($game, $effectiveEvents);
     }
 
     /** @param list<int> $startingPlayerIds @param list<int> $activePlayerIds @param array<int, LiveGameLineupStint> $activeStints @return list<int> */

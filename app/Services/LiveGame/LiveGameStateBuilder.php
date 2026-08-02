@@ -50,6 +50,7 @@ class LiveGameStateBuilder
                 ->all(),
             'alerts' => LiveGameAlert::query()
                 ->where('live_game_id', $game->id)
+                ->whereNull('resolved_at')
                 ->orderByDesc('triggered_at')
                 ->get()
                 ->map(fn (LiveGameAlert $alert): array => $this->alert($alert))
