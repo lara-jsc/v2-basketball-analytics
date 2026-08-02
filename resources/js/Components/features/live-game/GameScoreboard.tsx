@@ -3,7 +3,7 @@ import type { LiveGame, LiveGameClock, Team } from '@/types';
 import { Pause, Play, RotateCcw, TimerReset } from 'lucide-react';
 
 interface GameScoreboardProps {
-    game: LiveGame;
+    status: LiveGame['status'];
     clock: LiveGameClock;
     homeTeam?: Team;
     opponentTeam?: Team;
@@ -12,8 +12,8 @@ interface GameScoreboardProps {
     onClockAction: (action: 'start' | 'stop' | 'reset_period' | 'set_period', period?: number) => void;
 }
 
-export function GameScoreboard({ game, clock, homeTeam, opponentTeam, score, processing, onClockAction }: GameScoreboardProps) {
-    const isFinished = game.status === 'finished';
+export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, processing, onClockAction }: GameScoreboardProps) {
+    const isFinished = status === 'finished';
 
     return (
         <section className="grid gap-3 border-b border-border bg-background/90 px-3 py-3 backdrop-blur-sm sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:px-5" aria-label="Game scoreboard">

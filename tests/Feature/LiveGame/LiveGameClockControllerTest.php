@@ -30,4 +30,26 @@ class LiveGameClockControllerTest extends TestCase
             'clock_running' => true,
         ]);
     }
+
+    public function test_a_finished_game_rejects_clock_actions(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_FINISHED,
+            'clock_seconds_remaining' => 120,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson("/live-games/{$game->id}/clock", ['action' => 'start'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('game');
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'status' => LiveGame::STATUS_FINISHED,
+            'clock_seconds_remaining' => 120,
+            'clock_running' => false,
+        ]);
+    }
 }

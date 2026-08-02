@@ -17,7 +17,8 @@ interface EventPadProps {
 const eventButtons: Array<{ label: string; icon: typeof Target; event: Omit<RecordableEvent, 'player_id'>; tone?: 'amber' | 'neutral' }> = [
     { label: '2PT made', icon: Target, event: { type: 'shot_made', team_scope: 'own', payload: { points: 2 } }, tone: 'amber' },
     { label: '3PT made', icon: Target, event: { type: 'shot_made', team_scope: 'own', payload: { points: 3 } }, tone: 'amber' },
-    { label: 'FG miss', icon: TrendingDown, event: { type: 'shot_missed', team_scope: 'own', payload: { points: 2 } } },
+    { label: '2PT miss', icon: TrendingDown, event: { type: 'shot_missed', team_scope: 'own', payload: { points: 2 } } },
+    { label: '3PT miss', icon: TrendingDown, event: { type: 'shot_missed', team_scope: 'own', payload: { points: 3 } } },
     { label: 'FT made', icon: CircleDot, event: { type: 'free_throw_made', team_scope: 'own' }, tone: 'amber' },
     { label: 'FT miss', icon: CircleDot, event: { type: 'free_throw_missed', team_scope: 'own' } },
     { label: 'Rebound', icon: Hand, event: { type: 'rebound', team_scope: 'own', payload: { kind: 'defensive' } } },
@@ -32,7 +33,9 @@ export function EventPad({ selectedPlayer, disabled, onRecord }: EventPadProps) 
         <section className="rounded-lg border border-border bg-card p-4" aria-labelledby="event-pad-heading">
             <div className="mb-3 flex items-center justify-between gap-3">
                 <div><h2 id="event-pad-heading" className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Event pad</h2><p className="mt-1 truncate text-xs text-muted-foreground">{selectedPlayer ? `${selectedPlayer.first_name} ${selectedPlayer.last_name} selected` : 'Select an active player'}</p></div>
-                <button type="button" disabled={disabled} onClick={() => onRecord({ type: 'opponent_score', team_scope: 'opponent', payload: { points: 2 } })} className="shrink-0 rounded-md border border-red-400/40 bg-red-400/10 px-3 py-2 text-xs font-bold uppercase tracking-wide text-red-200 transition-colors hover:bg-red-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">Opp +2</button>
+                <div className="grid shrink-0 grid-cols-3 gap-1">
+                    {[1, 2, 3].map((points) => <button key={points} type="button" disabled={disabled} onClick={() => onRecord({ type: 'opponent_score', team_scope: 'opponent', payload: { points } })} className="h-9 rounded-md border border-red-400/40 bg-red-400/10 px-2 text-xs font-bold uppercase tracking-wide text-red-200 transition-colors hover:bg-red-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">+{points}</button>)}
+                </div>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-2">
                 {eventButtons.map(({ label, icon: Icon, event, tone }) => {

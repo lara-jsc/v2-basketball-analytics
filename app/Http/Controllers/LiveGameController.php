@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameClockService;
 use App\Services\LiveGame\LiveGameEventRecorder;
+use App\Services\LiveGame\LiveGameFinalizer;
 use App\Services\LiveGame\LiveGameStateBuilder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -99,11 +100,13 @@ class LiveGameController extends Controller
         return redirect()->route('live-games.show', $liveGame);
     }
 
-    public function finish(Request $request, LiveGame $liveGame, LiveGameClockService $clock, LiveGameStateBuilder $stateBuilder): RedirectResponse
+    public function finish(Request $request, LiveGame $liveGame, LiveGameClockService $clock, LiveGameFinalizer $finalizer, LiveGameStateBuilder $stateBuilder): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
         $clock->handle($liveGame, $user, ['action' => 'stop']);
+
+        $finalizer->finalize($liveGame);
 
         $liveGame->forceFill([
             'status' => LiveGame::STATUS_FINISHED,

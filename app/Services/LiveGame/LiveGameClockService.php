@@ -21,6 +21,12 @@ class LiveGameClockService
         $snapshot = DB::transaction(function () use ($game, $input): array {
             $game = LiveGame::query()->lockForUpdate()->findOrFail($game->id);
 
+            if ($game->status === LiveGame::STATUS_FINISHED) {
+                throw ValidationException::withMessages([
+                    'game' => 'Clock actions are not available after the game is finished.',
+                ]);
+            }
+
             match ($input['action'] ?? null) {
                 'start' => $this->start($game),
                 'stop' => $this->stop($game),
