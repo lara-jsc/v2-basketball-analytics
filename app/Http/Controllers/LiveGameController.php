@@ -68,6 +68,7 @@ class LiveGameController extends Controller
             'opponent_team_id' => $validated['opponent_team_id'],
             'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_SETUP,
+            'game_date' => now()->toDateString(),
             'period_length_seconds' => $validated['period_length_seconds'],
             'clock_seconds_remaining' => $validated['period_length_seconds'],
             'starting_player_ids' => array_values($validated['starting_player_ids']),

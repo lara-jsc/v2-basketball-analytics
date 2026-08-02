@@ -19,9 +19,9 @@ class LiveGameBroadcastingTest extends TestCase
         ])->assertUnauthorized();
     }
 
-    public function test_authenticated_users_can_authorize_an_existing_live_game_channel(): void
+    public function test_verified_users_can_authorize_an_existing_live_game_channel(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
         $liveGame = LiveGame::factory()->create();
 
         $this->actingAs($user)
@@ -33,9 +33,22 @@ class LiveGameBroadcastingTest extends TestCase
             ->assertJsonStructure(['auth']);
     }
 
+    public function test_unverified_users_cannot_authorize_a_live_game_channel(): void
+    {
+        $user = User::factory()->unverified()->create();
+        $liveGame = LiveGame::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson('/broadcasting/auth', [
+                'channel_name' => "private-live-game.{$liveGame->id}",
+                'socket_id' => '123.456',
+            ])
+            ->assertForbidden();
+    }
+
     public function test_authenticated_users_cannot_authorize_a_missing_live_game_channel(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email_verified_at' => now()]);
 
         $this->actingAs($user)
             ->postJson('/broadcasting/auth', [

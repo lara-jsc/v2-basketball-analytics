@@ -9,6 +9,7 @@ use App\Services\LiveGame\LiveGameClockService;
 use App\Services\LiveGame\LiveGameStateBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class LiveGameClockServiceTest extends TestCase
@@ -156,9 +157,34 @@ class LiveGameClockServiceTest extends TestCase
         $this->assertSame(480, $snapshot['clock']['seconds_remaining']);
     }
 
+    public function test_set_period_rejects_backward_and_out_of_range_transitions(): void
+    {
+        $game = LiveGame::factory()->create(['current_period' => 2]);
+
+        $this->assertValidationException(
+            fn (): array => $this->handle($game, ['action' => 'set_period', 'period' => 1]),
+        );
+        $this->assertValidationException(
+            fn (): array => $this->handle($game, ['action' => 'set_period', 'period' => 5]),
+        );
+
+        $this->assertDatabaseHas('live_games', ['id' => $game->id, 'current_period' => 2]);
+    }
+
     /** @param array<string, mixed> $input @return array<string, mixed> */
     private function handle(LiveGame $game, array $input): array
     {
         return app(LiveGameClockService::class)->handle($game, User::factory()->create(), $input);
+    }
+
+    /** @param callable(): array<string, mixed> $callback */
+    private function assertValidationException(callable $callback): void
+    {
+        try {
+            $callback();
+            $this->fail('Expected clock action to fail validation.');
+        } catch (ValidationException $exception) {
+            $this->assertNotEmpty($exception->errors()['period']);
+        }
     }
 }

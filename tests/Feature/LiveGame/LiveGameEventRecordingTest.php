@@ -21,7 +21,10 @@ class LiveGameEventRecordingTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
         $player = Player::factory()->for($game->homeTeam)->create();
-        $game->update(['starting_player_ids' => [$player->id]]);
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
 
         $response = $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
             'type' => 'shot_made',
@@ -62,6 +65,10 @@ class LiveGameEventRecordingTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
         $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
 
         $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
             'type' => 'assist',

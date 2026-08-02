@@ -77,6 +77,51 @@ class LiveGameEventRecorderTest extends TestCase
         $this->assertDatabaseCount('live_game_events', 1);
     }
 
+    public function test_it_records_running_clock_substitutions_with_the_effective_clock_and_correct_stint_duration(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        [$game, $starter, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $bench = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
+
+        $this->travel(90)->seconds();
+        $this->record($game, $user, $this->substitution($starter, $bench));
+
+        $this->assertDatabaseHas('live_game_events', [
+            'live_game_id' => $game->id,
+            'type' => 'substitution',
+            'clock_seconds_remaining' => 510,
+        ]);
+        $this->assertDatabaseHas('live_game_lineup_stints', [
+            'live_game_id' => $game->id,
+            'player_id' => $starter->id,
+            'duration_seconds' => 90,
+        ]);
+    }
+
+    public function test_it_rejects_an_own_player_event_for_a_benched_player_until_a_substitution_activates_them(): void
+    {
+        [$game, $starter, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $bench = Player::factory()->for($game->homeTeam)->create();
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $user, $this->ownEvent($bench)),
+            'player_id',
+        );
+
+        $this->record($game, $user, $this->substitution($starter, $bench));
+        $this->record($game, $user, $this->ownEvent($bench));
+
+        $this->assertDatabaseHas('live_game_events', [
+            'live_game_id' => $game->id,
+            'type' => 'shot_made',
+            'player_id' => $bench->id,
+        ]);
+    }
+
     /** @return array{LiveGame, Player, User} */
     private function gameWithStarter(string $status = LiveGame::STATUS_SETUP): array
     {

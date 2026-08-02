@@ -168,6 +168,75 @@ class LiveGameFinalizationTest extends TestCase
         Queue::assertPushed(RebuildPlayerStats::class, 4);
     }
 
+    public function test_a_post_midnight_correction_keeps_the_game_history_on_its_original_game_date(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+        $this->travelTo('2026-08-02 23:59:00');
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => null,
+        ]);
+        $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
+        $scoredEvent = $this->recordThreePointShot($game, $player);
+
+        $this->actingAs($user)->post(route('live-games.finish', $game))
+            ->assertRedirect(route('live-games.index'));
+
+        $this->travel(2)->minutes();
+        $this->actingAs($user)->postJson(route('live-games.correction', $game), [
+            'voids_event_id' => $scoredEvent->id,
+        ])->assertOk();
+
+        $this->assertDatabaseCount('player_histories', 1);
+        $history = PlayerHistory::query()->where('player_id', $player->id)->sole();
+        $this->assertSame('2026-08-02', $history->game_date->toDateString());
+        $this->assertSame(0, $history->points);
+        $this->assertSame('2026-08-02', $game->fresh()->game_date->toDateString());
+    }
+
+    public function test_finalization_rejects_a_manual_history_row_instead_of_overwriting_it(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
+        $this->recordThreePointShot($game, $player);
+        $manualHistory = PlayerHistory::factory()->create([
+            'player_id' => $player->id,
+            'playing_team_id' => $game->home_team_id,
+            'opponent_team_id' => $game->opponent_team_id,
+            'game_date' => '2026-08-02',
+            'points' => 17,
+            'notes' => null,
+        ]);
+
+        $this->actingAs($user)->postJson(route('live-games.finish', $game))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('game');
+
+        $this->assertDatabaseHas('player_histories', [
+            'id' => $manualHistory->id,
+            'points' => 17,
+            'notes' => null,
+        ]);
+        $this->assertDatabaseHas('live_games', ['id' => $game->id, 'status' => LiveGame::STATUS_LIVE]);
+    }
+
     private function recordThreePointShot(LiveGame $game, Player $player, int $clockSecondsRemaining = 600, int $points = 3): LiveGameEvent
     {
         return LiveGameEvent::factory()->create([

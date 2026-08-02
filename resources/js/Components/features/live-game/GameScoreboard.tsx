@@ -34,9 +34,9 @@ export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, p
                             <button type="button" onClick={() => onClockAction('reset_period')} disabled={processing} aria-label="Reset period clock" title="Reset period clock" className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">
                                 <TimerReset size={16} />
                             </button>
-                            <button type="button" onClick={() => onClockAction('set_period', clock.period === 4 ? 1 : clock.period + 1)} disabled={processing} aria-label="Advance period" title="Advance period" className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">
+                            {clock.period < 4 && <button type="button" onClick={() => onClockAction('set_period', clock.period + 1)} disabled={processing} aria-label="Advance period" title="Advance period" className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-muted/40 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">
                                 <RotateCcw size={16} />
-                            </button>
+                            </button>}
                         </>
                     )}
                 </div>

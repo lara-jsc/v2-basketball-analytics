@@ -90,8 +90,16 @@ class LiveGameClockService
     /** @param array<string, mixed> $input */
     private function setPeriod(LiveGame $game, array $input): void
     {
+        $period = (int) ($input['period'] ?? 0);
+
+        if ($period < 1 || $period > 4 || $period < $game->current_period) {
+            throw ValidationException::withMessages([
+                'period' => 'The period must be between 1 and 4 and cannot move backward.',
+            ]);
+        }
+
         $game->forceFill([
-            'current_period' => (int) $input['period'],
+            'current_period' => $period,
             'clock_seconds_remaining' => isset($input['clock_seconds_remaining'])
                 ? (int) $input['clock_seconds_remaining']
                 : $game->period_length_seconds,

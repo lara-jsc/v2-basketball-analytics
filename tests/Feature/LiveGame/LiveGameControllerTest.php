@@ -39,8 +39,17 @@ class LiveGameControllerTest extends TestCase
             );
     }
 
+    public function test_an_unverified_user_cannot_access_live_game_pages(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->actingAs($user)->get(route('live-games.index'))
+            ->assertRedirect(route('verification.notice'));
+    }
+
     public function test_a_verified_user_can_create_a_live_game_with_a_starting_five(): void
     {
+        $this->travelTo('2026-08-02 12:00:00');
         $user = User::factory()->create(['email_verified_at' => now()]);
         $home = Team::factory()->create();
         $opponent = Team::factory()->create();
@@ -64,6 +73,7 @@ class LiveGameControllerTest extends TestCase
             'period_length_seconds' => 480,
             'clock_seconds_remaining' => 480,
         ]);
+        $this->assertSame('2026-08-02', $game->fresh()->game_date->toDateString());
         $this->assertSame($players->modelKeys(), $game->starting_player_ids);
         $this->assertSame($players->modelKeys(), $game->active_player_ids);
     }

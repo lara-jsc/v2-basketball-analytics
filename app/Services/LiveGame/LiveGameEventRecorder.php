@@ -15,6 +15,7 @@ class LiveGameEventRecorder
         private readonly LiveGameProjectionService $projectionService,
         private readonly LiveGameFinalizer $finalizer,
         private readonly LiveGameStateBuilder $stateBuilder,
+        private readonly LiveGameClockService $clockService,
     ) {}
 
     /** @param array<string, mixed> $input @return array<string, mixed> */
@@ -32,7 +33,7 @@ class LiveGameEventRecorder
                 'team_scope' => $input['team_scope'],
                 'player_id' => $input['player_id'] ?? null,
                 'period' => $input['period'] ?? $game->current_period,
-                'clock_seconds_remaining' => $input['clock_seconds_remaining'] ?? $game->clock_seconds_remaining,
+                'clock_seconds_remaining' => $input['clock_seconds_remaining'] ?? $this->clockService->effectiveSecondsRemaining($game),
                 'occurred_at' => $input['occurred_at'] ?? now(),
                 'payload' => $input['payload'] ?? [],
                 'voids_event_id' => $input['voids_event_id'] ?? null,
@@ -92,6 +93,17 @@ class LiveGameEventRecorder
 
             if ($playerInId && in_array((int) $playerInId, $activePlayerIds, true)) {
                 $errors['payload.player_in_id'][] = 'The incoming player must be inactive.';
+            }
+        }
+
+        $ownPlayerEventTypes = [
+            'shot_made', 'shot_missed', 'free_throw_made', 'free_throw_missed', 'rebound', 'assist', 'foul', 'turnover',
+        ];
+        if (($input['team_scope'] ?? null) === 'own' && in_array($type, $ownPlayerEventTypes, true)) {
+            $activePlayerIds = array_map('intval', $game->active_player_ids ?? $game->starting_player_ids ?? []);
+
+            if (! in_array((int) ($input['player_id'] ?? 0), $activePlayerIds, true)) {
+                $errors['player_id'][] = 'The player must be active to record this event.';
             }
         }
 
