@@ -49,7 +49,7 @@ class LiveGameFinalizationTest extends TestCase
             'clock_running' => false,
         ]);
         $this->assertFinalizedHistory($game, $player, 1.50);
-        Queue::assertPushed(RebuildPlayerStats::class, fn (RebuildPlayerStats $job): bool => $job->playerId === $player->id);
+        Queue::assertPushed(RebuildPlayerStats::class, fn (RebuildPlayerStats $job): bool => $job->playerId === $player->id && $job->afterCommit === true);
     }
 
     public function test_finalizer_rebuilds_stale_live_projections_before_writing_history(): void

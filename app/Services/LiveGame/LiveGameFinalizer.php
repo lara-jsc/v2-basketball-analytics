@@ -72,13 +72,13 @@ class LiveGameFinalizer
                     'notes' => $notes,
                 ]);
 
-                RebuildPlayerStats::dispatch($stat->player_id);
+                RebuildPlayerStats::dispatch($stat->player_id)->afterCommit();
             })
             ->pluck('player_id')
             ->all();
 
         foreach (array_diff($previouslyFinalizedPlayerIds, $participatingPlayerIds) as $playerId) {
-            RebuildPlayerStats::dispatch($playerId);
+            RebuildPlayerStats::dispatch($playerId)->afterCommit();
         }
     }
 
