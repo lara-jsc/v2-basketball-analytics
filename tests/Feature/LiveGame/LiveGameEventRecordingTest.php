@@ -19,7 +19,7 @@ class LiveGameEventRecordingTest extends TestCase
         Event::fake([LiveGameStateUpdated::class]);
 
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
         $player = Player::factory()->for($game->homeTeam)->create();
         $game->update(['starting_player_ids' => [$player->id]]);
 
@@ -60,7 +60,7 @@ class LiveGameEventRecordingTest extends TestCase
         Event::fake([LiveGameStateUpdated::class]);
 
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
         $player = Player::factory()->for($game->homeTeam)->create();
 
         $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
@@ -90,5 +90,24 @@ class LiveGameEventRecordingTest extends TestCase
             'payload' => ['points' => 1],
         ])->assertUnprocessable()
             ->assertJsonValidationErrors(['player_id', 'payload.points']);
+    }
+
+    public function test_it_returns_validation_errors_when_recording_against_a_setup_game(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create();
+        $player = Player::factory()->for($game->homeTeam)->create();
+
+        $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'shot_made',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'payload' => ['points' => 2],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('game');
+
+        $this->assertDatabaseCount('live_game_events', 0);
     }
 }

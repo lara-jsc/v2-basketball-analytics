@@ -7,6 +7,7 @@ use App\Models\LiveGame;
 use App\Models\LiveGameEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class LiveGameEventRecorder
 {
@@ -20,6 +21,8 @@ class LiveGameEventRecorder
     {
         $snapshot = DB::transaction(function () use ($game, $user, $input): array {
             $game = LiveGame::query()->lockForUpdate()->findOrFail($game->id);
+
+            $this->validateRecording($game, $input);
 
             LiveGameEvent::query()->create([
                 'live_game_id' => $game->id,
@@ -43,5 +46,52 @@ class LiveGameEventRecorder
         event(new LiveGameStateUpdated($game->id, $snapshot));
 
         return $snapshot;
+    }
+
+    /** @param array<string, mixed> $input */
+    private function validateRecording(LiveGame $game, array $input): void
+    {
+        $errors = [];
+        $type = $input['type'] ?? null;
+
+        if ($game->status === LiveGame::STATUS_SETUP) {
+            $errors['game'][] = 'Events cannot be recorded until the game is live.';
+        }
+
+        if ($game->status === LiveGame::STATUS_FINISHED && $type !== 'correction') {
+            $errors['game'][] = 'Only correction events can be recorded after the game is finished.';
+        }
+
+        if ($type === 'substitution') {
+            $payload = is_array($input['payload'] ?? null) ? $input['payload'] : [];
+            $playerOutId = $payload['player_out_id'] ?? null;
+            $playerInId = $payload['player_in_id'] ?? null;
+
+            if (! $playerOutId) {
+                $errors['payload.player_out_id'][] = 'The outgoing player is required.';
+            }
+
+            if (! $playerInId) {
+                $errors['payload.player_in_id'][] = 'The incoming player is required.';
+            }
+
+            if ($playerOutId && $playerInId && (int) $playerOutId === (int) $playerInId) {
+                $errors['payload.player_in_id'][] = 'The incoming player must differ from the outgoing player.';
+            }
+
+            $activePlayerIds = array_map('intval', $game->active_player_ids ?? $game->starting_player_ids ?? []);
+
+            if ($playerOutId && ! in_array((int) $playerOutId, $activePlayerIds, true)) {
+                $errors['payload.player_out_id'][] = 'The outgoing player must be active.';
+            }
+
+            if ($playerInId && in_array((int) $playerInId, $activePlayerIds, true)) {
+                $errors['payload.player_in_id'][] = 'The incoming player must be inactive.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 }
