@@ -290,6 +290,35 @@ class LiveGameProjectionServiceTest extends TestCase
         ]);
     }
 
+    public function test_it_does_not_create_alerts_from_events_voided_before_projection(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $firstMake = $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $secondMake = $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $thirdMake = $this->event($game, 'shot_made', $player, ['points' => 3]);
+        $firstOpponentScore = $this->event($game, 'opponent_score', null, ['points' => 3], 'opponent');
+        $secondOpponentScore = $this->event($game, 'opponent_score', null, ['points' => 2], 'opponent');
+        $thirdOpponentScore = $this->event($game, 'opponent_score', null, ['points' => 3], 'opponent');
+
+        foreach ([$firstMake, $secondMake, $thirdMake, $firstOpponentScore, $secondOpponentScore, $thirdOpponentScore] as $event) {
+            $this->event($game, 'correction', null, [], 'game', $event->id);
+        }
+
+        $this->project($game);
+
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'hot_player',
+            'player_id' => $player->id,
+            'resolved_at' => null,
+        ]);
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'opponent_run',
+            'resolved_at' => null,
+        ]);
+    }
+
     public function test_it_retains_unchanged_active_alerts_across_projection_rebuilds(): void
     {
         [$game, $player] = $this->gameWithPlayer();
