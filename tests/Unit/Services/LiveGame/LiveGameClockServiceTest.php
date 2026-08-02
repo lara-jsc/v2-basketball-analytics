@@ -6,6 +6,7 @@ use App\Events\LiveGameStateUpdated;
 use App\Models\LiveGame;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameClockService;
+use App\Services\LiveGame\LiveGameStateBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
@@ -63,6 +64,37 @@ class LiveGameClockServiceTest extends TestCase
         ]);
         $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
         $this->assertFalse($snapshot['clock']['running']);
+    }
+
+    public function test_a_running_snapshot_uses_elapsed_server_time(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        $game = LiveGame::factory()->create();
+        $this->handle($game, ['action' => 'start']);
+
+        $this->travel(90)->seconds();
+        $snapshot = app(LiveGameStateBuilder::class)->build($game);
+
+        $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
+        $this->assertTrue($snapshot['clock']['running']);
+    }
+
+    public function test_start_is_idempotent_for_a_running_clock(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        $game = LiveGame::factory()->create();
+        $this->handle($game, ['action' => 'start']);
+        $game->refresh();
+        $startedAt = $game->clock_started_at;
+
+        $this->travel(90)->seconds();
+        $snapshot = $this->handle($game, ['action' => 'start']);
+
+        $game->refresh();
+        $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
+        $this->assertTrue($snapshot['clock']['running']);
+        $this->assertTrue($game->clock_started_at->equalTo($startedAt));
+        $this->assertSame(600, $game->clock_seconds_remaining);
     }
 
     public function test_an_expired_running_clock_is_persisted_as_stopped_at_zero(): void

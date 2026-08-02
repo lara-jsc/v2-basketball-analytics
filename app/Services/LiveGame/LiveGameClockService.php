@@ -50,6 +50,12 @@ class LiveGameClockService
 
     private function start(LiveGame $game): void
     {
+        if ($game->clock_running) {
+            $this->refreshElapsedClock($game);
+
+            return;
+        }
+
         $remaining = $this->refreshElapsedClock($game);
 
         if ($remaining === 0) {

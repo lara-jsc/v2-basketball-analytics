@@ -155,13 +155,19 @@ class LiveGameProjectionServiceTest extends TestCase
 
     public function test_it_derives_minutes_for_closed_and_active_stints_from_event_and_clock_positions(): void
     {
+        $this->travelTo('2026-08-02 12:00:00');
         [$game, $starter] = $this->gameWithPlayer();
         $bench = Player::factory()->for($game->homeTeam)->create();
-        $game->update(['clock_seconds_remaining' => 300]);
+        $game->update([
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
         $this->event($game, 'substitution', null, [
             'player_out_id' => $starter->id,
             'player_in_id' => $bench->id,
         ], 'game', null, 1, 420);
+
+        $this->travel(300)->seconds();
 
         $this->project($game);
 
