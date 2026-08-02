@@ -80,16 +80,104 @@ class LiveGameFinalizationTest extends TestCase
         Queue::assertPushed(RebuildPlayerStats::class, fn (RebuildPlayerStats $job): bool => $job->playerId === $player->id);
     }
 
-    private function recordThreePointShot(LiveGame $game, Player $player, int $clockSecondsRemaining = 600): void
+    public function test_finishing_a_game_finalizes_each_participating_player(): void
     {
-        LiveGameEvent::factory()->create([
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $starter = Player::factory()->for($game->homeTeam)->create();
+        $benchPlayer = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$starter->id],
+            'active_player_ids' => [$starter->id],
+        ]);
+        $this->recordThreePointShot($game, $starter);
+        $this->recordThreePointShot($game, $benchPlayer, 510, 2);
+
+        $this->actingAs($user)->post(route('live-games.finish', $game))
+            ->assertRedirect(route('live-games.index'));
+
+        $this->assertDatabaseCount('player_histories', 2);
+        $this->assertDatabaseHas('player_histories', ['player_id' => $starter->id, 'points' => 3]);
+        $this->assertDatabaseHas('player_histories', ['player_id' => $benchPlayer->id, 'points' => 2]);
+        Queue::assertPushed(RebuildPlayerStats::class, 2);
+    }
+
+    public function test_a_correction_after_finish_refinalizes_affected_player_history(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
+        $scoredEvent = $this->recordThreePointShot($game, $player);
+
+        $this->actingAs($user)->post(route('live-games.finish', $game))
+            ->assertRedirect(route('live-games.index'));
+
+        $this->actingAs($user)->postJson(route('live-games.correction', $game), [
+            'voids_event_id' => $scoredEvent->id,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('player_histories', [
+            'player_id' => $player->id,
+            'points' => 0,
+            'field_goals_made' => 0,
+            'field_goals_attempted' => 0,
+        ]);
+        Queue::assertPushed(RebuildPlayerStats::class, 2);
+    }
+
+    public function test_a_correction_after_finish_removes_a_voided_non_starter_history_and_rebuilds_them(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $starter = Player::factory()->for($game->homeTeam)->create();
+        $benchPlayer = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$starter->id],
+            'active_player_ids' => [$starter->id],
+        ]);
+        $scoredEvent = $this->recordThreePointShot($game, $benchPlayer);
+
+        $this->actingAs($user)->post(route('live-games.finish', $game))
+            ->assertRedirect(route('live-games.index'));
+
+        $this->actingAs($user)->postJson(route('live-games.correction', $game), [
+            'voids_event_id' => $scoredEvent->id,
+        ])->assertOk();
+
+        $this->assertDatabaseCount('player_histories', 1);
+        $this->assertDatabaseMissing('player_histories', ['player_id' => $benchPlayer->id]);
+        Queue::assertPushed(RebuildPlayerStats::class, 4);
+    }
+
+    private function recordThreePointShot(LiveGame $game, Player $player, int $clockSecondsRemaining = 600, int $points = 3): LiveGameEvent
+    {
+        return LiveGameEvent::factory()->create([
             'live_game_id' => $game->id,
-            'sequence' => 1,
+            'sequence' => (int) $game->events()->max('sequence') + 1,
             'type' => 'shot_made',
             'team_scope' => 'own',
             'player_id' => $player->id,
             'clock_seconds_remaining' => $clockSecondsRemaining,
-            'payload' => ['points' => 3],
+            'payload' => ['points' => $points],
         ]);
     }
 

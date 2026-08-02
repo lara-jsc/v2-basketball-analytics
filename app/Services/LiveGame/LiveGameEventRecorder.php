@@ -13,6 +13,7 @@ class LiveGameEventRecorder
 {
     public function __construct(
         private readonly LiveGameProjectionService $projectionService,
+        private readonly LiveGameFinalizer $finalizer,
         private readonly LiveGameStateBuilder $stateBuilder,
     ) {}
 
@@ -38,7 +39,11 @@ class LiveGameEventRecorder
                 'recorded_by_user_id' => $user->id,
             ]);
 
-            $this->projectionService->rebuild($game);
+            if ($game->status === LiveGame::STATUS_FINISHED && $input['type'] === 'correction') {
+                $this->finalizer->finalize($game);
+            } else {
+                $this->projectionService->rebuild($game);
+            }
 
             return $this->stateBuilder->build($game);
         });

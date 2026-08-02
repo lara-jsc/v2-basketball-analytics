@@ -14,8 +14,10 @@ use App\Services\LiveGame\LiveGameStateBuilder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -102,20 +104,32 @@ class LiveGameController extends Controller
 
     public function finish(Request $request, LiveGame $liveGame, LiveGameClockService $clock, LiveGameFinalizer $finalizer, LiveGameStateBuilder $stateBuilder): RedirectResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-        $clock->handle($liveGame, $user, ['action' => 'stop']);
+        $snapshot = DB::transaction(function () use ($liveGame, $clock, $finalizer, $stateBuilder): array {
+            $game = LiveGame::query()->lockForUpdate()->findOrFail($liveGame->id);
 
-        $finalizer->finalize($liveGame);
+            if ($game->status === LiveGame::STATUS_FINISHED) {
+                throw ValidationException::withMessages([
+                    'game' => 'The live game is already finished.',
+                ]);
+            }
 
-        $liveGame->forceFill([
-            'status' => LiveGame::STATUS_FINISHED,
-            'clock_running' => false,
-            'clock_started_at' => null,
-            'finished_at' => now(),
-        ])->save();
+            $game->forceFill([
+                'clock_seconds_remaining' => $clock->effectiveSecondsRemaining($game),
+                'clock_running' => false,
+                'clock_started_at' => null,
+            ])->save();
 
-        event(new LiveGameStateUpdated($liveGame->id, $stateBuilder->build($liveGame)));
+            $finalizer->finalize($game);
+
+            $game->forceFill([
+                'status' => LiveGame::STATUS_FINISHED,
+                'finished_at' => now(),
+            ])->save();
+
+            return $stateBuilder->build($game);
+        });
+
+        event(new LiveGameStateUpdated($liveGame->id, $snapshot));
 
         return redirect()->route('live-games.index')->with('success', 'Live game finished.');
     }

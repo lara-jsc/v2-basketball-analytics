@@ -6,6 +6,7 @@ use App\Actions\UpsertPlayerHistoryAction;
 use App\Jobs\RebuildPlayerStats;
 use App\Models\LiveGame;
 use App\Models\LiveGamePlayerStat;
+use App\Models\PlayerHistory;
 
 class LiveGameFinalizer
 {
@@ -19,12 +20,29 @@ class LiveGameFinalizer
         $this->projectionService->rebuild($game);
 
         $gameDate = $game->game_date?->toDateString() ?? now()->toDateString();
+        $notes = "Finalized from live game #{$game->id}";
 
-        LiveGamePlayerStat::query()
+        $previouslyFinalizedPlayerIds = PlayerHistory::query()
+            ->where('playing_team_id', $game->home_team_id)
+            ->where('opponent_team_id', $game->opponent_team_id)
+            ->whereDate('game_date', $gameDate)
+            ->where('notes', $notes)
+            ->pluck('player_id')
+            ->all();
+
+        PlayerHistory::query()
+            ->whereIn('player_id', $previouslyFinalizedPlayerIds)
+            ->where('playing_team_id', $game->home_team_id)
+            ->where('opponent_team_id', $game->opponent_team_id)
+            ->whereDate('game_date', $gameDate)
+            ->where('notes', $notes)
+            ->delete();
+
+        $participatingPlayerIds = LiveGamePlayerStat::query()
             ->where('live_game_id', $game->id)
             ->get()
             ->filter(fn (LiveGamePlayerStat $stat): bool => $this->participated($stat))
-            ->each(function (LiveGamePlayerStat $stat) use ($game, $gameDate): void {
+            ->each(function (LiveGamePlayerStat $stat) use ($game, $gameDate, $notes): void {
                 $this->upsertPlayerHistory->execute($stat->player_id, [
                     'playing_team_id' => $game->home_team_id,
                     'opponent_team_id' => $game->opponent_team_id,
@@ -51,11 +69,17 @@ class LiveGameFinalizer
                     'ejections' => 0,
                     'disqualifications' => 0,
                     'is_started' => $stat->is_starter,
-                    'notes' => "Finalized from live game #{$game->id}",
+                    'notes' => $notes,
                 ]);
 
                 RebuildPlayerStats::dispatch($stat->player_id);
-            });
+            })
+            ->pluck('player_id')
+            ->all();
+
+        foreach (array_diff($previouslyFinalizedPlayerIds, $participatingPlayerIds) as $playerId) {
+            RebuildPlayerStats::dispatch($playerId);
+        }
     }
 
     private function participated(LiveGamePlayerStat $stat): bool
