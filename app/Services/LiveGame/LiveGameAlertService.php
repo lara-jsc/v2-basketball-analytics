@@ -183,18 +183,61 @@ class LiveGameAlertService
         }
 
         $now = now();
-        LiveGameAlert::query()
+        $activeAlerts = LiveGameAlert::query()
             ->where('live_game_id', $game->id)
             ->whereNull('resolved_at')
-            ->update(['resolved_at' => $now, 'updated_at' => $now]);
+            ->orderBy('id')
+            ->get();
+        $activeAlertsByKey = [];
+        $duplicateAlertIds = [];
+        foreach ($activeAlerts as $activeAlert) {
+            $key = $this->alertKey($activeAlert->type, $activeAlert->player_id);
 
+            if (isset($activeAlertsByKey[$key])) {
+                $duplicateAlertIds[] = $activeAlert->id;
+
+                continue;
+            }
+
+            $activeAlertsByKey[$key] = $activeAlert;
+        }
+
+        if ($duplicateAlertIds !== []) {
+            LiveGameAlert::query()
+                ->whereKey($duplicateAlertIds)
+                ->update(['resolved_at' => $now, 'updated_at' => $now]);
+        }
+
+        $alertsByKey = [];
         foreach ($alerts as $alert) {
+            $alertsByKey[$this->alertKey($alert['type'], $alert['player_id'])] = $alert;
+        }
+
+        foreach ($alertsByKey as $key => $alert) {
+            $activeAlert = $activeAlertsByKey[$key] ?? null;
+            if ($activeAlert instanceof LiveGameAlert) {
+                $activeAlert->fill($alert);
+                if ($activeAlert->isDirty()) {
+                    $activeAlert->save();
+                }
+
+                unset($activeAlertsByKey[$key]);
+
+                continue;
+            }
+
             LiveGameAlert::query()->create([
                 'live_game_id' => $game->id,
                 ...$alert,
                 'triggered_at' => $now,
                 'resolved_at' => null,
             ]);
+        }
+
+        if ($activeAlertsByKey !== []) {
+            LiveGameAlert::query()
+                ->whereKey(array_map(fn (LiveGameAlert $alert): int => $alert->id, $activeAlertsByKey))
+                ->update(['resolved_at' => $now, 'updated_at' => $now]);
         }
     }
 
@@ -242,5 +285,10 @@ class LiveGameAlertService
     private function payloadInt(LiveGameEvent $event, string $key): int
     {
         return (int) ($event->payload[$key] ?? 0);
+    }
+
+    private function alertKey(string $type, ?int $playerId): string
+    {
+        return $type.':'.($playerId ?? 'game');
     }
 }

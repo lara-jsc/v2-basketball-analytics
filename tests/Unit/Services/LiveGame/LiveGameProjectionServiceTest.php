@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services\LiveGame;
 
 use App\Models\LiveGame;
+use App\Models\LiveGameAlert;
 use App\Models\LiveGameEvent;
 use App\Models\Player;
 use App\Services\LiveGame\LiveGameProjectionService;
@@ -256,6 +257,166 @@ class LiveGameProjectionServiceTest extends TestCase
             'points' => 0,
             'field_goals_made' => 0,
             'field_goals_attempted' => 0,
+        ]);
+    }
+
+    public function test_it_does_not_create_or_sustain_alerts_from_voided_events(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $firstMake = $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $secondMake = $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $thirdMake = $this->event($game, 'shot_made', $player, ['points' => 3]);
+
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'hot_player',
+            'player_id' => $player->id,
+            'resolved_at' => null,
+        ]);
+
+        $this->event($game, 'correction', null, [], 'game', $firstMake->id);
+        $this->event($game, 'correction', null, [], 'game', $secondMake->id);
+        $this->event($game, 'correction', null, [], 'game', $thirdMake->id);
+
+        $this->project($game);
+
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'hot_player',
+            'player_id' => $player->id,
+            'resolved_at' => null,
+        ]);
+    }
+
+    public function test_it_retains_unchanged_active_alerts_across_projection_rebuilds(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $this->event($game, 'shot_made', $player, ['points' => 3]);
+
+        $this->project($game);
+
+        $originalAlert = LiveGameAlert::query()
+            ->where('live_game_id', $game->id)
+            ->where('type', 'hot_player')
+            ->where('player_id', $player->id)
+            ->whereNull('resolved_at')
+            ->firstOrFail();
+
+        $this->project($game);
+
+        $this->assertDatabaseCount('live_game_alerts', 1);
+        $currentAlert = LiveGameAlert::query()
+            ->where('live_game_id', $game->id)
+            ->where('type', 'hot_player')
+            ->where('player_id', $player->id)
+            ->whereNull('resolved_at')
+            ->firstOrFail();
+        $this->assertSame($originalAlert->id, $currentAlert->id);
+        $this->assertTrue($originalAlert->triggered_at->equalTo($currentAlert->triggered_at));
+    }
+
+    public function test_it_resolves_an_opponent_run_alert_after_an_own_score(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $this->event($game, 'opponent_score', null, ['points' => 3], 'opponent');
+        $this->event($game, 'opponent_score', null, ['points' => 2], 'opponent');
+        $this->event($game, 'opponent_score', null, ['points' => 3], 'opponent');
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'opponent_run',
+            'resolved_at' => null,
+        ]);
+
+        $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $this->project($game);
+
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'opponent_run',
+            'resolved_at' => null,
+        ]);
+    }
+
+    public function test_it_resolves_a_team_drought_alert_after_an_own_score(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $this->event($game, 'shot_missed', $player, ['points' => 2]);
+        $this->event($game, 'turnover', $player);
+        $this->event($game, 'free_throw_missed', $player);
+        $this->event($game, 'shot_missed', $player, ['points' => 3]);
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'team_drought',
+            'resolved_at' => null,
+        ]);
+
+        $this->event($game, 'free_throw_made', $player);
+        $this->project($game);
+
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'team_drought',
+            'resolved_at' => null,
+        ]);
+    }
+
+    public function test_it_resolves_a_hot_player_alert_when_the_current_period_changes(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $this->event($game, 'shot_made', $player, ['points' => 2]);
+        $this->event($game, 'shot_made', $player, ['points' => 3]);
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'hot_player',
+            'player_id' => $player->id,
+            'resolved_at' => null,
+        ]);
+
+        $game->update(['current_period' => 2]);
+        $this->project($game);
+
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'hot_player',
+            'player_id' => $player->id,
+            'resolved_at' => null,
+        ]);
+    }
+
+    public function test_it_resolves_a_three_foul_alert_when_the_fourth_quarter_threshold_applies(): void
+    {
+        [$game, $player] = $this->gameWithPlayer(['current_period' => 3]);
+        $this->event($game, 'foul', $player);
+        $this->event($game, 'foul', $player);
+        $this->event($game, 'foul', $player);
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'foul_trouble',
+            'player_id' => $player->id,
+            'resolved_at' => null,
+        ]);
+
+        $game->update(['current_period' => 4]);
+        $this->project($game);
+
+        $this->assertDatabaseMissing('live_game_alerts', [
+            'live_game_id' => $game->id,
+            'type' => 'foul_trouble',
+            'player_id' => $player->id,
+            'resolved_at' => null,
         ]);
     }
 
