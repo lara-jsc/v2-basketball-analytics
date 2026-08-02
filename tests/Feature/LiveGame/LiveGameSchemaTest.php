@@ -11,6 +11,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 use Tests\TestCase;
 
 class LiveGameSchemaTest extends TestCase
@@ -144,6 +145,24 @@ class LiveGameSchemaTest extends TestCase
         $this->assertForeignKeyExists('live_game_lineup_stints', 'player_id', 'players');
         $this->assertForeignKeyExists('live_game_alerts', 'live_game_id', 'live_games');
         $this->assertForeignKeyExists('live_game_alerts', 'player_id', 'players');
+    }
+
+    public function test_live_game_status_must_be_a_valid_lifecycle_value(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid live game status [cancelled]. Allowed statuses: setup, live, finished.');
+
+        LiveGame::factory()->create(['status' => 'cancelled']);
+    }
+
+    public function test_live_game_can_be_created_in_each_valid_lifecycle_status(): void
+    {
+        foreach (LiveGame::STATUSES as $status) {
+            $game = LiveGame::factory()->create(['status' => $status]);
+
+            $this->assertSame($status, $game->status);
+            $this->assertDatabaseHas('live_games', ['id' => $game->id, 'status' => $status]);
+        }
     }
 
     /** @param list<string> $columns */

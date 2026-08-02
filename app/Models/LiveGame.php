@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use InvalidArgumentException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LiveGame extends Model
 {
     use HasFactory;
+
+    public const STATUS_SETUP = 'setup';
+
+    public const STATUS_LIVE = 'live';
+
+    public const STATUS_FINISHED = 'finished';
+
+    public const STATUSES = [
+        self::STATUS_SETUP,
+        self::STATUS_LIVE,
+        self::STATUS_FINISHED,
+    ];
 
     protected $fillable = [
         'home_team_id',
@@ -46,6 +59,19 @@ class LiveGame extends Model
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
+    }
+
+    public function setStatusAttribute(mixed $value): void
+    {
+        if (! is_string($value) || ! in_array($value, self::STATUSES, true)) {
+            $invalidStatus = is_scalar($value) ? (string) $value : get_debug_type($value);
+
+            throw new InvalidArgumentException(
+                "Invalid live game status [{$invalidStatus}]. Allowed statuses: ".implode(', ', self::STATUSES).'.'
+            );
+        }
+
+        $this->attributes['status'] = $value;
     }
 
     /** @return BelongsTo<Team, LiveGame> */
