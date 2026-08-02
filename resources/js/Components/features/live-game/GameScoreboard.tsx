@@ -9,10 +9,11 @@ interface GameScoreboardProps {
     opponentTeam?: Team;
     score: { home: number; opponent: number };
     processing: boolean;
+    canControlClock?: boolean;
     onClockAction: (action: 'start' | 'stop' | 'reset_period' | 'set_period', period?: number) => void;
 }
 
-export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, processing, onClockAction }: GameScoreboardProps) {
+export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, processing, canControlClock = true, onClockAction }: GameScoreboardProps) {
     const isFinished = status === 'finished';
 
     return (
@@ -26,7 +27,7 @@ export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, p
                 <div className="font-mono text-4xl font-black tabular-nums text-foreground sm:text-5xl">{clockLabel(clock.seconds_remaining)}</div>
                 <div className="flex items-center gap-2">
                     <span className="min-w-12 text-center text-xs font-bold uppercase tracking-[0.1em] text-muted-foreground">Q{clock.period}</span>
-                    {!isFinished && (
+                    {!isFinished && canControlClock && (
                         <>
                             <button type="button" onClick={() => onClockAction(clock.running ? 'stop' : 'start')} disabled={processing} aria-label={clock.running ? 'Stop clock' : 'Start clock'} title={clock.running ? 'Stop clock' : 'Start clock'} className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-400/35 bg-cyan-400/10 text-cyan-200 transition-colors hover:bg-cyan-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">
                                 {clock.running ? <Pause size={16} /> : <Play size={16} />}

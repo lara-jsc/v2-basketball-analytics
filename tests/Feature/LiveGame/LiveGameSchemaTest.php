@@ -23,7 +23,7 @@ class LiveGameSchemaTest extends TestCase
         $this->assertTableHasColumns('live_games', [
             'id', 'home_team_id', 'opponent_team_id', 'created_by_user_id', 'status', 'game_date',
             'period_length_seconds', 'current_period', 'clock_seconds_remaining', 'clock_running',
-            'clock_started_at', 'home_score', 'opponent_score', 'starting_player_ids', 'active_player_ids',
+            'clock_started_at', 'home_score', 'opponent_score',             'starting_player_ids', 'active_player_ids', 'opponent_starting_player_ids', 'opponent_active_player_ids',
             'started_at', 'finished_at', 'created_at', 'updated_at',
         ]);
 

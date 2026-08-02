@@ -6,6 +6,7 @@ use App\Models\LiveGame;
 use App\Models\LiveGameEvent;
 use App\Models\LiveGameLineupStint;
 use App\Models\LiveGamePlayerStat;
+use App\Models\Player;
 
 class LiveGameProjectionService
 {
@@ -27,32 +28,59 @@ class LiveGameProjectionService
             ->reject(fn (LiveGameEvent $event): bool => in_array($event->id, $voidedEventIds, true) || $event->type === 'correction')
             ->values();
 
-        $startingPlayerIds = $this->playerIds($game->starting_player_ids);
-        $activePlayerIds = $startingPlayerIds;
+        $homeStartingIds = $this->playerIds($game->starting_player_ids);
+        $opponentStartingIds = $this->playerIds($game->opponent_starting_player_ids);
+        $homeActiveIds = $homeStartingIds;
+        $opponentActiveIds = $opponentStartingIds;
+
         $game->playerStats()->delete();
         $game->lineupStints()->delete();
 
         /** @var array<int, LiveGameLineupStint> $activeStints */
         $activeStints = [];
-        foreach ($startingPlayerIds as $playerId) {
+        foreach ($homeStartingIds as $playerId) {
+            $this->statFor($game, $playerId, true, true);
+            $activeStints[$playerId] = $this->openStint($game, $playerId, 0, 0, $game->started_at ?? $game->created_at);
+        }
+        foreach ($opponentStartingIds as $playerId) {
             $this->statFor($game, $playerId, true, true);
             $activeStints[$playerId] = $this->openStint($game, $playerId, 0, 0, $game->started_at ?? $game->created_at);
         }
 
         $homeScore = 0;
         $opponentScore = 0;
+        $playerTeamIds = Player::query()
+            ->whereIn('id', array_merge($homeStartingIds, $opponentStartingIds))
+            ->pluck('team_id', 'id')
+            ->map(fn (mixed $teamId): int => (int) $teamId)
+            ->all();
 
         foreach ($effectiveEvents as $event) {
             if ($event->type === 'substitution') {
-                $activePlayerIds = $this->applySubstitution(
-                    $game,
-                    $event,
-                    $startingPlayerIds,
-                    $activePlayerIds,
-                    $activeStints,
-                    $homeScore,
-                    $opponentScore,
-                );
+                $side = $this->substitutionSide($game, $event, $homeActiveIds, $opponentActiveIds, $playerTeamIds);
+                if ($side === LiveGame::SIDE_HOME) {
+                    $homeActiveIds = $this->applySubstitution(
+                        $game,
+                        $event,
+                        $homeStartingIds,
+                        $homeActiveIds,
+                        $activeStints,
+                        $homeScore,
+                        $opponentScore,
+                        $playerTeamIds,
+                    );
+                } elseif ($side === LiveGame::SIDE_OPPONENT) {
+                    $opponentActiveIds = $this->applySubstitution(
+                        $game,
+                        $event,
+                        $opponentStartingIds,
+                        $opponentActiveIds,
+                        $activeStints,
+                        $homeScore,
+                        $opponentScore,
+                        $playerTeamIds,
+                    );
+                }
 
                 continue;
             }
@@ -60,7 +88,8 @@ class LiveGameProjectionService
             if ($event->type === 'opponent_score') {
                 $points = $this->payloadInt($event, 'points');
                 $opponentScore += $points;
-                $this->applyPlusMinus($game, $activePlayerIds, $activeStints, -$points);
+                $this->applyPlusMinus($game, $homeActiveIds, $activeStints, -$points);
+                $this->applyPlusMinus($game, $opponentActiveIds, $activeStints, $points);
 
                 continue;
             }
@@ -69,16 +98,31 @@ class LiveGameProjectionService
                 continue;
             }
 
+            $playerId = (int) $event->player_id;
+            $teamId = $playerTeamIds[$playerId] ?? (int) (Player::query()->whereKey($playerId)->value('team_id') ?? 0);
+            $playerTeamIds[$playerId] = $teamId;
+
+            $isHomePlayer = $teamId === (int) $game->home_team_id;
+            $startingIds = $isHomePlayer ? $homeStartingIds : $opponentStartingIds;
+            $activeIds = $isHomePlayer ? $homeActiveIds : $opponentActiveIds;
+
             $stat = $this->statFor(
                 $game,
-                $event->player_id,
-                in_array($event->player_id, $startingPlayerIds, true),
-                in_array($event->player_id, $activePlayerIds, true),
+                $playerId,
+                in_array($playerId, $startingIds, true),
+                in_array($playerId, $activeIds, true),
             );
 
             $points = $this->applyOwnPlayerEvent($stat, $event);
-            $homeScore += $points;
-            $this->applyPlusMinus($game, $activePlayerIds, $activeStints, $points);
+            if ($isHomePlayer) {
+                $homeScore += $points;
+                $this->applyPlusMinus($game, $homeActiveIds, $activeStints, $points);
+                $this->applyPlusMinus($game, $opponentActiveIds, $activeStints, -$points);
+            } else {
+                $opponentScore += $points;
+                $this->applyPlusMinus($game, $opponentActiveIds, $activeStints, $points);
+                $this->applyPlusMinus($game, $homeActiveIds, $activeStints, -$points);
+            }
         }
 
         $currentElapsedSeconds = $this->gameElapsedSeconds(
@@ -94,28 +138,77 @@ class LiveGameProjectionService
             ->where('live_game_id', $game->id)
             ->update(['is_active' => false]);
 
-        if ($activePlayerIds !== []) {
+        $allActive = array_values(array_unique(array_merge($homeActiveIds, $opponentActiveIds)));
+        if ($allActive !== []) {
             LiveGamePlayerStat::query()
                 ->where('live_game_id', $game->id)
-                ->whereIn('player_id', $activePlayerIds)
+                ->whereIn('player_id', $allActive)
                 ->update(['is_active' => true]);
         }
 
         $game->forceFill([
             'home_score' => $homeScore,
             'opponent_score' => $opponentScore,
-            'active_player_ids' => array_values($activePlayerIds),
+            'active_player_ids' => array_values($homeActiveIds),
+            'opponent_active_player_ids' => array_values($opponentActiveIds),
         ])->save();
 
         $this->alertService->sync($game, $effectiveEvents);
     }
 
-    /** @param list<int> $startingPlayerIds @param list<int> $activePlayerIds @param array<int, LiveGameLineupStint> $activeStints @return list<int> */
-    private function applySubstitution(LiveGame $game, LiveGameEvent $event, array $startingPlayerIds, array $activePlayerIds, array &$activeStints, int $homeScore, int $opponentScore): array
-    {
+    /**
+     * @param  list<int>  $homeActiveIds
+     * @param  list<int>  $opponentActiveIds
+     * @param  array<int, int>  $playerTeamIds
+     */
+    private function substitutionSide(
+        LiveGame $game,
+        LiveGameEvent $event,
+        array $homeActiveIds,
+        array $opponentActiveIds,
+        array &$playerTeamIds,
+    ): ?string {
+        $playerOutId = $this->payloadInt($event, 'player_out_id');
+        $teamId = $playerTeamIds[$playerOutId] ?? (int) (Player::query()->whereKey($playerOutId)->value('team_id') ?? 0);
+        $playerTeamIds[$playerOutId] = $teamId;
+
+        if ($teamId === (int) $game->home_team_id || in_array($playerOutId, $homeActiveIds, true)) {
+            return LiveGame::SIDE_HOME;
+        }
+
+        if ($teamId === (int) $game->opponent_team_id || in_array($playerOutId, $opponentActiveIds, true)) {
+            return LiveGame::SIDE_OPPONENT;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<int>  $startingPlayerIds
+     * @param  list<int>  $activePlayerIds
+     * @param  array<int, LiveGameLineupStint>  $activeStints
+     * @param  array<int, int>  $playerTeamIds
+     * @return list<int>
+     */
+    private function applySubstitution(
+        LiveGame $game,
+        LiveGameEvent $event,
+        array $startingPlayerIds,
+        array $activePlayerIds,
+        array &$activeStints,
+        int $homeScore,
+        int $opponentScore,
+        array &$playerTeamIds,
+    ): array {
         $playerOutId = $this->payloadInt($event, 'player_out_id');
         $playerInId = $this->payloadInt($event, 'player_in_id');
         $elapsedSeconds = $this->eventElapsedSeconds($game, $event);
+
+        foreach ([$playerOutId, $playerInId] as $playerId) {
+            if (! isset($playerTeamIds[$playerId])) {
+                $playerTeamIds[$playerId] = (int) (Player::query()->whereKey($playerId)->value('team_id') ?? 0);
+            }
+        }
 
         if (isset($activeStints[$playerOutId])) {
             $this->closeStint($game, $playerOutId, $activeStints[$playerOutId], $event, $elapsedSeconds, $homeScore, $opponentScore);
@@ -149,7 +242,7 @@ class LiveGameProjectionService
     /** @param list<int> $activePlayerIds @param array<int, LiveGameLineupStint> $activeStints */
     private function applyPlusMinus(LiveGame $game, array $activePlayerIds, array $activeStints, int $points): void
     {
-        if ($points === 0) {
+        if ($points === 0 || $activePlayerIds === []) {
             return;
         }
 

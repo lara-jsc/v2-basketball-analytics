@@ -38,6 +38,7 @@ class LiveGameClockServiceTest extends TestCase
         ]);
         $game->refresh();
         $this->assertTrue($game->started_at->equalTo(now()));
+        $this->assertSame('2026-08-02', $game->game_date->toDateString());
         $this->assertSame([
             'period' => 1,
             'period_length_seconds' => 600,
@@ -174,7 +175,12 @@ class LiveGameClockServiceTest extends TestCase
     /** @param array<string, mixed> $input @return array<string, mixed> */
     private function handle(LiveGame $game, array $input): array
     {
-        return app(LiveGameClockService::class)->handle($game, User::factory()->create(), $input);
+        $user = $game->creator ?? User::factory()->create();
+        if ($game->created_by_user_id === null) {
+            $game->forceFill(['created_by_user_id' => $user->id])->save();
+        }
+
+        return app(LiveGameClockService::class)->handle($game->fresh(), $user, $input);
     }
 
     /** @param callable(): array<string, mixed> $callback */

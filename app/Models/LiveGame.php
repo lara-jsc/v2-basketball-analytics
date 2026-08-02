@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use InvalidArgumentException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use InvalidArgumentException;
 
 class LiveGame extends Model
 {
@@ -17,6 +17,10 @@ class LiveGame extends Model
     public const STATUS_LIVE = 'live';
 
     public const STATUS_FINISHED = 'finished';
+
+    public const SIDE_HOME = 'home';
+
+    public const SIDE_OPPONENT = 'opponent';
 
     public const STATUSES = [
         self::STATUS_SETUP,
@@ -39,6 +43,8 @@ class LiveGame extends Model
         'opponent_score',
         'starting_player_ids',
         'active_player_ids',
+        'opponent_starting_player_ids',
+        'opponent_active_player_ids',
         'started_at',
         'finished_at',
     ];
@@ -56,6 +62,8 @@ class LiveGame extends Model
             'opponent_score' => 'integer',
             'starting_player_ids' => 'array',
             'active_player_ids' => 'array',
+            'opponent_starting_player_ids' => 'array',
+            'opponent_active_player_ids' => 'array',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
@@ -72,6 +80,68 @@ class LiveGame extends Model
         }
 
         $this->attributes['status'] = $value;
+    }
+
+    public function isCreator(User $user): bool
+    {
+        return $this->created_by_user_id !== null && (int) $this->created_by_user_id === (int) $user->id;
+    }
+
+    public function isParticipant(User $user): bool
+    {
+        if ($this->isCreator($user)) {
+            return true;
+        }
+
+        if ($user->team_id === null) {
+            return false;
+        }
+
+        return in_array((int) $user->team_id, [(int) $this->home_team_id, (int) $this->opponent_team_id], true);
+    }
+
+    /** @return self::SIDE_HOME|self::SIDE_OPPONENT|null */
+    public function sideFor(User $user): ?string
+    {
+        if ($user->team_id === null) {
+            return null;
+        }
+
+        if ((int) $user->team_id === (int) $this->home_team_id) {
+            return self::SIDE_HOME;
+        }
+
+        if ((int) $user->team_id === (int) $this->opponent_team_id) {
+            return self::SIDE_OPPONENT;
+        }
+
+        return null;
+    }
+
+    /** @return list<int> */
+    public function startingPlayerIdsForSide(string $side): array
+    {
+        $ids = $side === self::SIDE_OPPONENT
+            ? $this->opponent_starting_player_ids
+            : $this->starting_player_ids;
+
+        return array_values(array_map('intval', $ids ?? []));
+    }
+
+    /** @return list<int> */
+    public function activePlayerIdsForSide(string $side): array
+    {
+        if ($side === self::SIDE_OPPONENT) {
+            return array_values(array_map(
+                'intval',
+                $this->opponent_active_player_ids ?? $this->opponent_starting_player_ids ?? [],
+            ));
+        }
+
+        return array_values(array_map(
+            'intval',
+            $this->active_player_ids ?? $this->starting_player_ids ?? [],
+        ));
     }
 
     /** @return BelongsTo<Team, LiveGame> */

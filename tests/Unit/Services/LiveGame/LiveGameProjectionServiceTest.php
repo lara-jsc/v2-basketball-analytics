@@ -449,6 +449,33 @@ class LiveGameProjectionServiceTest extends TestCase
         ]);
     }
 
+    public function test_it_projects_opponent_player_made_shots_into_opponent_score(): void
+    {
+        $game = LiveGame::factory()->create();
+        $homePlayer = Player::factory()->for($game->homeTeam)->create();
+        $opponentPlayer = Player::factory()->for($game->opponentTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$homePlayer->id],
+            'active_player_ids' => [$homePlayer->id],
+            'opponent_starting_player_ids' => [$opponentPlayer->id],
+            'opponent_active_player_ids' => [$opponentPlayer->id],
+        ]);
+
+        $this->event($game, 'shot_made', $homePlayer, ['points' => 2]);
+        $this->event($game, 'shot_made', $opponentPlayer, ['points' => 3]);
+
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'home_score' => 2,
+            'opponent_score' => 3,
+        ]);
+        $game->refresh();
+        $this->assertSame([$homePlayer->id], $game->active_player_ids);
+        $this->assertSame([$opponentPlayer->id], $game->opponent_active_player_ids);
+    }
+
     private function project(LiveGame $game): void
     {
         app(LiveGameProjectionService::class)->rebuild($game);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LiveGame;
+use App\Models\Player;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameEventRecorder;
 use Illuminate\Http\JsonResponse;
@@ -14,16 +15,15 @@ class LiveGameEventController extends Controller
 {
     public function store(Request $request, LiveGame $liveGame, LiveGameEventRecorder $recorder): JsonResponse
     {
-        $validated = $this->validated($request, $liveGame);
-
         /** @var User $user */
         $user = $request->user();
+        $validated = $this->validated($request, $liveGame, $user);
 
         return response()->json($recorder->record($liveGame, $user, $validated));
     }
 
     /** @return array<string, mixed> */
-    private function validated(Request $request, LiveGame $game): array
+    private function validated(Request $request, LiveGame $game, User $user): array
     {
         $types = [
             'shot_made', 'shot_missed', 'free_throw_made', 'free_throw_missed', 'rebound', 'assist',
@@ -45,7 +45,7 @@ class LiveGameEventController extends Controller
             'voids_event_id' => ['nullable', 'integer'],
         ]);
 
-        $validator->after(function ($validator) use ($game): void {
+        $validator->after(function ($validator) use ($game, $user): void {
             $input = $validator->getData();
             $type = $input['type'] ?? null;
             $scope = $input['team_scope'] ?? null;
@@ -53,6 +53,13 @@ class LiveGameEventController extends Controller
             $ownPlayerTypes = [
                 'shot_made', 'shot_missed', 'free_throw_made', 'free_throw_missed', 'rebound', 'assist', 'foul', 'turnover',
             ];
+            $side = $game->sideFor($user);
+
+            if (in_array($type, $ownPlayerTypes, true) || $type === 'substitution') {
+                if ($side === null) {
+                    $validator->errors()->add('game', 'Only team coaches can record player events for this live game.');
+                }
+            }
 
             if (in_array($type, $ownPlayerTypes, true)) {
                 $this->requireScope($validator, $scope, 'own');
@@ -106,13 +113,28 @@ class LiveGameEventController extends Controller
                 }
             }
 
+            $allowedTeamId = $user->team_id;
             foreach (array_filter([
                 $input['player_id'] ?? null,
                 $payload['player_out_id'] ?? null,
                 $payload['player_in_id'] ?? null,
             ]) as $playerId) {
-                if (! $game->homeTeam->players()->whereKey($playerId)->exists()) {
-                    $validator->errors()->add('player_id', 'Players must belong to the home team.');
+                $player = Player::query()->find($playerId);
+                if ($player === null) {
+                    continue;
+                }
+
+                $onGameRoster = in_array((int) $player->team_id, [(int) $game->home_team_id, (int) $game->opponent_team_id], true);
+                if (! $onGameRoster) {
+                    $validator->errors()->add('player_id', 'Players must belong to a team in this live game.');
+
+                    continue;
+                }
+
+                if (in_array($type, $ownPlayerTypes, true) || $type === 'substitution') {
+                    if ($allowedTeamId === null || (int) $player->team_id !== (int) $allowedTeamId) {
+                        $validator->errors()->add('player_id', 'You can only record events for your own team.');
+                    }
                 }
             }
         });

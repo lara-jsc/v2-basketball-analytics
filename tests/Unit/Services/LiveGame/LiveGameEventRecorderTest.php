@@ -3,7 +3,6 @@
 namespace Tests\Unit\Services\LiveGame;
 
 use App\Models\LiveGame;
-use App\Models\LiveGameEvent;
 use App\Models\Player;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameEventRecorder;
@@ -65,7 +64,7 @@ class LiveGameEventRecorderTest extends TestCase
         [$game, $starter, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
         $otherStarter = Player::factory()->for($game->homeTeam)->create();
         $bench = Player::factory()->for($game->homeTeam)->create();
-        $game->update(['starting_player_ids' => [$starter->id, $otherStarter->id]]);
+        $game->update(['starting_player_ids' => [$starter->id, $otherStarter->id], 'active_player_ids' => [$starter->id, $otherStarter->id]]);
 
         $this->record($game, $user, $this->substitution($starter, $bench));
 
@@ -127,8 +126,11 @@ class LiveGameEventRecorderTest extends TestCase
     {
         $game = LiveGame::factory()->create(['status' => $status]);
         $player = Player::factory()->for($game->homeTeam)->create();
-        $user = User::factory()->create();
-        $game->update(['starting_player_ids' => [$player->id]]);
+        $user = User::factory()->forTeam($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
 
         return [$game, $player, $user];
     }

@@ -36,6 +36,7 @@ class LiveGameStateBuilder
                 'server_now' => now()->toISOString(),
             ],
             'active_player_ids' => $game->active_player_ids ?? [],
+            'opponent_active_player_ids' => $game->opponent_active_player_ids ?? [],
             'stats' => LiveGamePlayerStat::query()
                 ->where('live_game_id', $game->id)
                 ->orderBy('player_id')

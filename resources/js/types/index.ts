@@ -202,6 +202,8 @@ export interface LiveGame {
   opponent_score: number;
   starting_player_ids: number[] | null;
   active_player_ids: number[] | null;
+  opponent_starting_player_ids: number[] | null;
+  opponent_active_player_ids: number[] | null;
   started_at: string | null;
   finished_at: string | null;
   home_team?: Team;
@@ -273,6 +275,7 @@ export interface LiveGameSnapshot {
   score: { home: number; opponent: number };
   clock: LiveGameClock;
   active_player_ids: number[];
+  opponent_active_player_ids: number[];
   stats: LiveGamePlayerStat[];
   events: LiveGameEvent[];
   alerts: LiveGameAlert[];

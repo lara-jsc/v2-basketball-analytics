@@ -28,6 +28,7 @@ class LiveGameFinalizationTest extends TestCase
 
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_LIVE,
             'game_date' => '2026-08-02',
             'clock_running' => true,
@@ -86,6 +87,7 @@ class LiveGameFinalizationTest extends TestCase
         Queue::fake();
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_LIVE,
             'game_date' => '2026-08-02',
         ]);
@@ -113,6 +115,7 @@ class LiveGameFinalizationTest extends TestCase
         Queue::fake();
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_LIVE,
             'game_date' => '2026-08-02',
         ]);
@@ -145,6 +148,7 @@ class LiveGameFinalizationTest extends TestCase
         Queue::fake();
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_LIVE,
             'game_date' => '2026-08-02',
         ]);
@@ -176,6 +180,7 @@ class LiveGameFinalizationTest extends TestCase
 
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_LIVE,
             'game_date' => null,
         ]);
@@ -201,12 +206,35 @@ class LiveGameFinalizationTest extends TestCase
         $this->assertSame('2026-08-02', $game->fresh()->game_date->toDateString());
     }
 
+    public function test_finalization_uses_the_first_start_date_when_setup_was_created_earlier(): void
+    {
+        Queue::fake();
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-01',
+            'started_at' => '2026-08-02 18:00:00',
+        ]);
+        $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
+        $this->recordThreePointShot($game, $player);
+
+        app(LiveGameFinalizer::class)->finalize($game);
+
+        $history = PlayerHistory::query()->where('player_id', $player->id)->sole();
+        $this->assertSame('2026-08-02', $history->game_date->toDateString());
+        $this->assertSame('2026-08-02', $game->fresh()->game_date->toDateString());
+    }
+
     public function test_finalization_rejects_a_manual_history_row_instead_of_overwriting_it(): void
     {
         Event::fake([LiveGameStateUpdated::class]);
         Queue::fake();
         $user = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_LIVE,
             'game_date' => '2026-08-02',
         ]);
@@ -235,6 +263,45 @@ class LiveGameFinalizationTest extends TestCase
             'notes' => null,
         ]);
         $this->assertDatabaseHas('live_games', ['id' => $game->id, 'status' => LiveGame::STATUS_LIVE]);
+    }
+
+    public function test_finishing_finalizes_histories_for_both_teams(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $homePlayer = Player::factory()->for($game->homeTeam)->create();
+        $opponentPlayer = Player::factory()->for($game->opponentTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$homePlayer->id],
+            'active_player_ids' => [$homePlayer->id],
+            'opponent_starting_player_ids' => [$opponentPlayer->id],
+            'opponent_active_player_ids' => [$opponentPlayer->id],
+        ]);
+        $this->recordThreePointShot($game, $homePlayer);
+        $this->recordThreePointShot($game, $opponentPlayer, 600, 2);
+
+        $this->actingAs($user)->post(route('live-games.finish', $game))
+            ->assertRedirect(route('live-games.index'));
+
+        $this->assertDatabaseHas('player_histories', [
+            'player_id' => $homePlayer->id,
+            'playing_team_id' => $game->home_team_id,
+            'opponent_team_id' => $game->opponent_team_id,
+            'points' => 3,
+        ]);
+        $this->assertDatabaseHas('player_histories', [
+            'player_id' => $opponentPlayer->id,
+            'playing_team_id' => $game->opponent_team_id,
+            'opponent_team_id' => $game->home_team_id,
+            'points' => 2,
+        ]);
     }
 
     private function recordThreePointShot(LiveGame $game, Player $player, int $clockSecondsRemaining = 600, int $points = 3): LiveGameEvent

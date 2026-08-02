@@ -17,9 +17,14 @@ class LiveGameControllerTest extends TestCase
 
     public function test_a_verified_user_can_view_live_game_pages(): void
     {
-        $user = User::factory()->create(['email_verified_at' => now()]);
-        $game = LiveGame::factory()->create();
+        $home = Team::factory()->create();
+        $user = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'home_team_id' => $home->id,
+            'created_by_user_id' => $user->id,
+        ]);
         Player::factory()->for($game->homeTeam)->create(['is_active' => true]);
+        Player::factory()->for($game->opponentTeam)->create(['is_active' => true]);
 
         $this->actingAs($user)->get(route('live-games.index'))
             ->assertOk()
@@ -35,7 +40,13 @@ class LiveGameControllerTest extends TestCase
                 ->component('LiveGames/Show')
                 ->has('liveGame')
                 ->has('snapshot.clock')
-                ->has('players')
+                ->has('snapshot.opponent_active_player_ids')
+                ->has('homePlayers')
+                ->has('opponentPlayers')
+                ->has('viewerSide')
+                ->has('isCreator')
+                ->where('isCreator', true)
+                ->where('viewerSide', 'home')
             );
     }
 
@@ -54,12 +65,14 @@ class LiveGameControllerTest extends TestCase
         $home = Team::factory()->create();
         $opponent = Team::factory()->create();
         $players = Player::factory()->count(5)->for($home)->create(['is_active' => true]);
+        $opponentPlayers = Player::factory()->count(5)->for($opponent)->create(['is_active' => true]);
 
         $response = $this->actingAs($user)->post(route('live-games.store'), [
             'home_team_id' => $home->id,
             'opponent_team_id' => $opponent->id,
             'period_length_seconds' => 480,
             'starting_player_ids' => $players->modelKeys(),
+            'opponent_starting_player_ids' => $opponentPlayers->modelKeys(),
         ]);
 
         $game = LiveGame::query()->firstOrFail();
@@ -76,13 +89,15 @@ class LiveGameControllerTest extends TestCase
         $this->assertSame('2026-08-02', $game->fresh()->game_date->toDateString());
         $this->assertSame($players->modelKeys(), $game->starting_player_ids);
         $this->assertSame($players->modelKeys(), $game->active_player_ids);
+        $this->assertSame($opponentPlayers->modelKeys(), $game->opponent_starting_player_ids);
+        $this->assertSame($opponentPlayers->modelKeys(), $game->opponent_active_player_ids);
     }
 
     public function test_starting_and_finishing_a_game_updates_its_lifecycle(): void
     {
         Event::fake([LiveGameStateUpdated::class]);
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->create(['created_by_user_id' => $user->id]);
 
         $this->actingAs($user)->post(route('live-games.start', $game))
             ->assertRedirect(route('live-games.show', $game));

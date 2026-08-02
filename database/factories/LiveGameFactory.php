@@ -31,6 +31,8 @@ class LiveGameFactory extends Factory
             'opponent_score' => 0,
             'starting_player_ids' => null,
             'active_player_ids' => null,
+            'opponent_starting_player_ids' => null,
+            'opponent_active_player_ids' => null,
             'started_at' => null,
             'finished_at' => null,
         ];

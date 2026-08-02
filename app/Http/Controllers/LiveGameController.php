@@ -48,6 +48,8 @@ class LiveGameController extends Controller
             'period_length_seconds' => ['required', 'integer', 'between:60,1200'],
             'starting_player_ids' => ['required', 'array', 'size:5'],
             'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+            'opponent_starting_player_ids' => ['required', 'array', 'size:5'],
+            'opponent_starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
         ])->validate();
 
         $homePlayerCount = Player::query()
@@ -58,6 +60,16 @@ class LiveGameController extends Controller
 
         if ($homePlayerCount !== 5) {
             return back()->withErrors(['starting_player_ids' => 'Select five active players from the home team.'])->withInput();
+        }
+
+        $opponentPlayerCount = Player::query()
+            ->where('team_id', $validated['opponent_team_id'])
+            ->where('is_active', true)
+            ->whereIn('id', $validated['opponent_starting_player_ids'])
+            ->count();
+
+        if ($opponentPlayerCount !== 5) {
+            return back()->withErrors(['opponent_starting_player_ids' => 'Select five active players from the opponent team.'])->withInput();
         }
 
         /** @var User $user */
@@ -73,24 +85,41 @@ class LiveGameController extends Controller
             'clock_seconds_remaining' => $validated['period_length_seconds'],
             'starting_player_ids' => array_values($validated['starting_player_ids']),
             'active_player_ids' => array_values($validated['starting_player_ids']),
+            'opponent_starting_player_ids' => array_values($validated['opponent_starting_player_ids']),
+            'opponent_active_player_ids' => array_values($validated['opponent_starting_player_ids']),
         ]);
 
         return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created.');
     }
 
-    public function show(LiveGame $liveGame, LiveGameStateBuilder $stateBuilder): Response
+    public function show(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder): Response
     {
         $liveGame->load(['homeTeam:id,name,code,logo_path', 'opponentTeam:id,name,code,logo_path']);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $homePlayers = $liveGame->homeTeam
+            ->players()
+            ->where('is_active', true)
+            ->orderBy('jersey_number')
+            ->get();
+
+        $opponentPlayers = $liveGame->opponentTeam
+            ->players()
+            ->where('is_active', true)
+            ->orderBy('jersey_number')
+            ->get();
 
         return Inertia::render('LiveGames/Show', [
             'liveGame' => $liveGame,
             'snapshot' => $stateBuilder->build($liveGame),
             'teams' => [$liveGame->homeTeam, $liveGame->opponentTeam],
-            'players' => $liveGame->homeTeam
-                ->players()
-                ->where('is_active', true)
-                ->orderBy('jersey_number')
-                ->get(),
+            'homePlayers' => $homePlayers,
+            'opponentPlayers' => $opponentPlayers,
+            'players' => $homePlayers,
+            'viewerSide' => $liveGame->sideFor($user),
+            'isCreator' => $liveGame->isCreator($user),
         ]);
     }
 
@@ -105,6 +134,15 @@ class LiveGameController extends Controller
 
     public function finish(Request $request, LiveGame $liveGame, LiveGameClockService $clock, LiveGameFinalizer $finalizer, LiveGameStateBuilder $stateBuilder): RedirectResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+
+        if (! $liveGame->isCreator($user)) {
+            throw ValidationException::withMessages([
+                'game' => 'Only the game creator can finish the live game.',
+            ]);
+        }
+
         $snapshot = DB::transaction(function () use ($liveGame, $clock, $finalizer, $stateBuilder): array {
             $game = LiveGame::query()->lockForUpdate()->findOrFail($liveGame->id);
 

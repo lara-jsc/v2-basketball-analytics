@@ -6,6 +6,7 @@ use App\Actions\UpsertPlayerHistoryAction;
 use App\Jobs\RebuildPlayerStats;
 use App\Models\LiveGame;
 use App\Models\LiveGamePlayerStat;
+use App\Models\Player;
 use App\Models\PlayerHistory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,53 +24,67 @@ class LiveGameFinalizer
             $this->projectionService->rebuild($game);
             $game->refresh();
 
-            if ($game->game_date === null) {
-                $game->forceFill(['game_date' => $game->started_at ?? $game->created_at])->save();
+            $gameDateSource = $game->started_at ?? $game->game_date ?? $game->created_at;
+            if ($game->game_date === null || $game->game_date->toDateString() !== $gameDateSource->toDateString()) {
+                $game->forceFill(['game_date' => $gameDateSource->toDateString()])->save();
             }
 
             $gameDate = $game->game_date->toDateString();
             $notes = "Finalized from live game #{$game->id}";
             $participatingStats = LiveGamePlayerStat::query()
                 ->where('live_game_id', $game->id)
+                ->with('player:id,team_id')
                 ->get()
                 ->filter(fn (LiveGamePlayerStat $stat): bool => $this->participated($stat));
-            $participatingPlayerIds = $participatingStats->pluck('player_id')->all();
 
-            $conflictingHistory = PlayerHistory::query()
-                ->whereIn('player_id', $participatingPlayerIds)
-                ->where('playing_team_id', $game->home_team_id)
-                ->where('opponent_team_id', $game->opponent_team_id)
-                ->whereDate('game_date', $gameDate)
-                ->where(fn ($query) => $query->whereNull('notes')->orWhere('notes', '!=', $notes))
-                ->exists();
+            $playerIds = $participatingStats->pluck('player_id')->all();
+            $playerTeamIds = collect(
+                Player::query()
+                    ->whereIn('id', $playerIds)
+                    ->pluck('team_id', 'id')
+                    ->all()
+            )->map(fn (mixed $teamId): int => (int) $teamId)->all();
 
-            if ($conflictingHistory) {
-                throw ValidationException::withMessages([
-                    'game' => 'Finalization would overwrite an existing manual player history entry.',
-                ]);
-            }
+            foreach ([[$game->home_team_id, $game->opponent_team_id], [$game->opponent_team_id, $game->home_team_id]] as [$playingTeamId, $opponentTeamId]) {
+                $teamStats = $participatingStats->filter(
+                    fn (LiveGamePlayerStat $stat): bool => ($playerTeamIds[$stat->player_id] ?? null) === (int) $playingTeamId,
+                );
+                $participatingPlayerIds = $teamStats->pluck('player_id')->all();
 
-            $previouslyFinalizedPlayerIds = PlayerHistory::query()
-                ->where('playing_team_id', $game->home_team_id)
-                ->where('opponent_team_id', $game->opponent_team_id)
-                ->whereDate('game_date', $gameDate)
-                ->where('notes', $notes)
-                ->pluck('player_id')
-                ->all();
+                $conflictingHistory = PlayerHistory::query()
+                    ->whereIn('player_id', $participatingPlayerIds)
+                    ->where('playing_team_id', $playingTeamId)
+                    ->where('opponent_team_id', $opponentTeamId)
+                    ->whereDate('game_date', $gameDate)
+                    ->where(fn ($query) => $query->whereNull('notes')->orWhere('notes', '!=', $notes))
+                    ->exists();
 
-            PlayerHistory::query()
-                ->whereIn('player_id', $previouslyFinalizedPlayerIds)
-                ->where('playing_team_id', $game->home_team_id)
-                ->where('opponent_team_id', $game->opponent_team_id)
-                ->whereDate('game_date', $gameDate)
-                ->where('notes', $notes)
-                ->delete();
+                if ($conflictingHistory) {
+                    throw ValidationException::withMessages([
+                        'game' => 'Finalization would overwrite an existing manual player history entry.',
+                    ]);
+                }
 
-            $participatingStats
-                ->each(function (LiveGamePlayerStat $stat) use ($game, $gameDate, $notes): void {
+                $previouslyFinalizedPlayerIds = PlayerHistory::query()
+                    ->where('playing_team_id', $playingTeamId)
+                    ->where('opponent_team_id', $opponentTeamId)
+                    ->whereDate('game_date', $gameDate)
+                    ->where('notes', $notes)
+                    ->pluck('player_id')
+                    ->all();
+
+                PlayerHistory::query()
+                    ->whereIn('player_id', $previouslyFinalizedPlayerIds)
+                    ->where('playing_team_id', $playingTeamId)
+                    ->where('opponent_team_id', $opponentTeamId)
+                    ->whereDate('game_date', $gameDate)
+                    ->where('notes', $notes)
+                    ->delete();
+
+                $teamStats->each(function (LiveGamePlayerStat $stat) use ($playingTeamId, $opponentTeamId, $gameDate, $notes): void {
                     $this->upsertPlayerHistory->execute($stat->player_id, [
-                        'playing_team_id' => $game->home_team_id,
-                        'opponent_team_id' => $game->opponent_team_id,
+                        'playing_team_id' => $playingTeamId,
+                        'opponent_team_id' => $opponentTeamId,
                         'game_date' => $gameDate,
                         'position_played' => null,
                         'minutes_played' => round($stat->minutes_seconds / 60, 2),
@@ -99,8 +114,9 @@ class LiveGameFinalizer
                     RebuildPlayerStats::dispatch($stat->player_id)->afterCommit();
                 });
 
-            foreach (array_diff($previouslyFinalizedPlayerIds, $participatingPlayerIds) as $playerId) {
-                RebuildPlayerStats::dispatch($playerId)->afterCommit();
+                foreach (array_diff($previouslyFinalizedPlayerIds, $participatingPlayerIds) as $playerId) {
+                    RebuildPlayerStats::dispatch($playerId)->afterCommit();
+                }
             }
         });
     }

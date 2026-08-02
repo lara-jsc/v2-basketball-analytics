@@ -24,7 +24,7 @@ class LiveGameEventRecorder
         $snapshot = DB::transaction(function () use ($game, $user, $input): array {
             $game = LiveGame::query()->lockForUpdate()->findOrFail($game->id);
 
-            $this->validateRecording($game, $input);
+            $this->validateRecording($game, $user, $input);
 
             LiveGameEvent::query()->create([
                 'live_game_id' => $game->id,
@@ -55,10 +55,11 @@ class LiveGameEventRecorder
     }
 
     /** @param array<string, mixed> $input */
-    private function validateRecording(LiveGame $game, array $input): void
+    private function validateRecording(LiveGame $game, User $user, array $input): void
     {
         $errors = [];
         $type = $input['type'] ?? null;
+        $side = $game->sideFor($user);
 
         if ($game->status === LiveGame::STATUS_SETUP) {
             $errors['game'][] = 'Events cannot be recorded until the game is live.';
@@ -73,6 +74,10 @@ class LiveGameEventRecorder
             $playerOutId = $payload['player_out_id'] ?? null;
             $playerInId = $payload['player_in_id'] ?? null;
 
+            if ($side === null) {
+                $errors['game'][] = 'Only team coaches can record substitutions for this live game.';
+            }
+
             if (! $playerOutId) {
                 $errors['payload.player_out_id'][] = 'The outgoing player is required.';
             }
@@ -85,7 +90,7 @@ class LiveGameEventRecorder
                 $errors['payload.player_in_id'][] = 'The incoming player must differ from the outgoing player.';
             }
 
-            $activePlayerIds = array_map('intval', $game->active_player_ids ?? $game->starting_player_ids ?? []);
+            $activePlayerIds = $side !== null ? $game->activePlayerIdsForSide($side) : [];
 
             if ($playerOutId && ! in_array((int) $playerOutId, $activePlayerIds, true)) {
                 $errors['payload.player_out_id'][] = 'The outgoing player must be active.';
@@ -100,10 +105,14 @@ class LiveGameEventRecorder
             'shot_made', 'shot_missed', 'free_throw_made', 'free_throw_missed', 'rebound', 'assist', 'foul', 'turnover',
         ];
         if (($input['team_scope'] ?? null) === 'own' && in_array($type, $ownPlayerEventTypes, true)) {
-            $activePlayerIds = array_map('intval', $game->active_player_ids ?? $game->starting_player_ids ?? []);
+            if ($side === null) {
+                $errors['game'][] = 'Only team coaches can record player events for this live game.';
+            } else {
+                $activePlayerIds = $game->activePlayerIdsForSide($side);
 
-            if (! in_array((int) ($input['player_id'] ?? 0), $activePlayerIds, true)) {
-                $errors['player_id'][] = 'The player must be active to record this event.';
+                if (! in_array((int) ($input['player_id'] ?? 0), $activePlayerIds, true)) {
+                    $errors['player_id'][] = 'The player must be active to record this event.';
+                }
             }
         }
 

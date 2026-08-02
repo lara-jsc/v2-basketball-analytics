@@ -18,6 +18,12 @@ class LiveGameClockService
     /** @param array<string, mixed> $input @return array<string, mixed> */
     public function handle(LiveGame $game, User $user, array $input): array
     {
+        if (! $game->isCreator($user)) {
+            throw ValidationException::withMessages([
+                'game' => 'Only the game creator can control the clock.',
+            ]);
+        }
+
         $snapshot = DB::transaction(function () use ($game, $input): array {
             $game = LiveGame::query()->lockForUpdate()->findOrFail($game->id);
 
@@ -73,6 +79,7 @@ class LiveGameClockService
             'clock_started_at' => now(),
             'status' => $game->status === LiveGame::STATUS_SETUP ? LiveGame::STATUS_LIVE : $game->status,
             'started_at' => $game->started_at ?? now(),
+            'game_date' => $game->started_at === null ? now()->toDateString() : $game->game_date,
         ])->save();
     }
 

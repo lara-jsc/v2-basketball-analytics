@@ -9,5 +9,11 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 });
 
 Broadcast::channel('live-game.{liveGameId}', function (User $user, int $liveGameId): bool {
-    return $user->hasVerifiedEmail() && LiveGame::query()->whereKey($liveGameId)->exists();
+    if (! $user->hasVerifiedEmail()) {
+        return false;
+    }
+
+    $liveGame = LiveGame::query()->find($liveGameId);
+
+    return $liveGame !== null && $liveGame->isParticipant($user);
 });

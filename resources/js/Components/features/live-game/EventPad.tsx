@@ -31,16 +31,28 @@ const eventButtons: Array<{ label: string; icon: typeof Target; event: Omit<Reco
 export function EventPad({ selectedPlayer, disabled, onRecord }: EventPadProps) {
     return (
         <section className="rounded-lg border border-border bg-card p-4" aria-labelledby="event-pad-heading">
-            <div className="mb-3 flex items-center justify-between gap-3">
-                <div><h2 id="event-pad-heading" className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Event pad</h2><p className="mt-1 truncate text-xs text-muted-foreground">{selectedPlayer ? `${selectedPlayer.first_name} ${selectedPlayer.last_name} selected` : 'Select an active player'}</p></div>
-                <div className="grid shrink-0 grid-cols-3 gap-1">
-                    {[1, 2, 3].map((points) => <button key={points} type="button" disabled={disabled} onClick={() => onRecord({ type: 'opponent_score', team_scope: 'opponent', payload: { points } })} className="h-9 rounded-md border border-red-400/40 bg-red-400/10 px-2 text-xs font-bold uppercase tracking-wide text-red-200 transition-colors hover:bg-red-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50">+{points}</button>)}
-                </div>
+            <div className="mb-3">
+                <h2 id="event-pad-heading" className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Event pad</h2>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {selectedPlayer ? `${selectedPlayer.first_name} ${selectedPlayer.last_name} selected` : 'Select an active player'}
+                </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-2">
                 {eventButtons.map(({ label, icon: Icon, event, tone }) => {
                     const requiresPlayer = event.team_scope === 'own';
-                    return <button key={label} type="button" title={label} disabled={disabled || (requiresPlayer && !selectedPlayer)} onClick={() => onRecord({ ...event, ...(requiresPlayer && selectedPlayer ? { player_id: selectedPlayer.id } : {}) })} className={`flex h-14 flex-col items-center justify-center gap-1 rounded-md border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${tone === 'amber' ? 'border-amber-300/35 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20' : 'border-border bg-muted/30 text-foreground hover:bg-muted/70'}`}><Icon size={16} /><span>{label}</span></button>;
+                    return (
+                        <button
+                            key={label}
+                            type="button"
+                            title={label}
+                            disabled={disabled || (requiresPlayer && !selectedPlayer)}
+                            onClick={() => onRecord({ ...event, ...(requiresPlayer && selectedPlayer ? { player_id: selectedPlayer.id } : {}) })}
+                            className={`flex h-14 flex-col items-center justify-center gap-1 rounded-md border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${tone === 'amber' ? 'border-amber-300/35 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20' : 'border-border bg-muted/30 text-foreground hover:bg-muted/70'}`}
+                        >
+                            <Icon size={16} />
+                            <span>{label}</span>
+                        </button>
+                    );
                 })}
             </div>
         </section>
