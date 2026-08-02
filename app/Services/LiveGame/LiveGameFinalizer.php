@@ -11,10 +11,13 @@ class LiveGameFinalizer
 {
     public function __construct(
         private readonly UpsertPlayerHistoryAction $upsertPlayerHistory,
+        private readonly LiveGameProjectionService $projectionService,
     ) {}
 
     public function finalize(LiveGame $game): void
     {
+        $this->projectionService->rebuild($game);
+
         $gameDate = $game->game_date?->toDateString() ?? now()->toDateString();
 
         LiveGamePlayerStat::query()
