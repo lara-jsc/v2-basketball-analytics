@@ -1,0 +1,132 @@
+<?php
+
+namespace Tests\Unit\Services\LiveGame;
+
+use App\Events\LiveGameStateUpdated;
+use App\Models\LiveGame;
+use App\Models\User;
+use App\Services\LiveGame\LiveGameClockService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Tests\TestCase;
+
+class LiveGameClockServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Event::fake([LiveGameStateUpdated::class]);
+    }
+
+    public function test_start_makes_a_setup_game_live_and_returns_a_server_clock_snapshot(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        $game = LiveGame::factory()->create();
+
+        $snapshot = $this->handle($game, ['action' => 'start']);
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_seconds_remaining' => 600,
+        ]);
+        $game->refresh();
+        $this->assertTrue($game->started_at->equalTo(now()));
+        $this->assertSame([
+            'period' => 1,
+            'period_length_seconds' => 600,
+            'seconds_remaining' => 600,
+            'running' => true,
+            'server_now' => now()->toISOString(),
+        ], $snapshot['clock']);
+        Event::assertDispatched(LiveGameStateUpdated::class);
+    }
+
+    public function test_stop_persists_elapsed_server_time_and_stops_the_clock(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        $game = LiveGame::factory()->create();
+        $this->handle($game, ['action' => 'start']);
+
+        $this->travel(90)->seconds();
+        $snapshot = $this->handle($game, ['action' => 'stop']);
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'clock_seconds_remaining' => 510,
+            'clock_running' => false,
+            'clock_started_at' => null,
+        ]);
+        $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
+        $this->assertFalse($snapshot['clock']['running']);
+    }
+
+    public function test_an_expired_running_clock_is_persisted_as_stopped_at_zero(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        $game = LiveGame::factory()->create(['clock_seconds_remaining' => 5]);
+        $this->handle($game, ['action' => 'start']);
+
+        $this->travel(5)->seconds();
+        $snapshot = $this->handle($game, ['action' => 'stop']);
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'clock_seconds_remaining' => 0,
+            'clock_running' => false,
+            'clock_started_at' => null,
+        ]);
+        $this->assertSame(0, $snapshot['clock']['seconds_remaining']);
+    }
+
+    public function test_set_period_stops_the_clock_and_uses_the_supplied_remaining_seconds(): void
+    {
+        $game = LiveGame::factory()->create(['clock_running' => true, 'clock_started_at' => now()]);
+
+        $snapshot = $this->handle($game, [
+            'action' => 'set_period',
+            'period' => 2,
+            'clock_seconds_remaining' => 300,
+        ]);
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'current_period' => 2,
+            'clock_seconds_remaining' => 300,
+            'clock_running' => false,
+            'clock_started_at' => null,
+        ]);
+        $this->assertSame(2, $snapshot['clock']['period']);
+        $this->assertSame(300, $snapshot['clock']['seconds_remaining']);
+    }
+
+    public function test_reset_period_stops_the_clock_and_restores_the_configured_period_length(): void
+    {
+        $game = LiveGame::factory()->create([
+            'period_length_seconds' => 480,
+            'clock_seconds_remaining' => 123,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
+
+        $snapshot = $this->handle($game, ['action' => 'reset_period']);
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'clock_seconds_remaining' => 480,
+            'clock_running' => false,
+            'clock_started_at' => null,
+        ]);
+        $this->assertSame(480, $snapshot['clock']['seconds_remaining']);
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> */
+    private function handle(LiveGame $game, array $input): array
+    {
+        return app(LiveGameClockService::class)->handle($game, User::factory()->create(), $input);
+    }
+}

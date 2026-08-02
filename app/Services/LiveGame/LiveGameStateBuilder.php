@@ -31,9 +31,8 @@ class LiveGameStateBuilder
             'clock' => [
                 'period' => $game->current_period,
                 'period_length_seconds' => $game->period_length_seconds,
-                'seconds_remaining' => $game->clock_seconds_remaining,
+                'seconds_remaining' => $this->effectiveSecondsRemaining($game),
                 'running' => $game->clock_running,
-                'started_at' => $game->clock_started_at?->toISOString(),
                 'server_now' => now()->toISOString(),
             ],
             'active_player_ids' => $game->active_player_ids ?? [],
@@ -85,6 +84,15 @@ class LiveGameStateBuilder
             'flagrant_fouls' => $stat->flagrant_fouls,
             'technical_fouls' => $stat->technical_fouls,
         ];
+    }
+
+    private function effectiveSecondsRemaining(LiveGame $game): int
+    {
+        if (! $game->clock_running || $game->clock_started_at === null) {
+            return $game->clock_seconds_remaining;
+        }
+
+        return max(0, $game->clock_seconds_remaining - $game->clock_started_at->diffInSeconds(now()));
     }
 
     /** @return array<string, mixed> */

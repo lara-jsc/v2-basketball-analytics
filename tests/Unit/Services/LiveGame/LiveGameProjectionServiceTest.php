@@ -122,6 +122,103 @@ class LiveGameProjectionServiceTest extends TestCase
         ]);
     }
 
+    public function test_it_closes_and_opens_lineup_stints_at_the_substitution_position(): void
+    {
+        [$game, $starter] = $this->gameWithPlayer();
+        $bench = Player::factory()->for($game->homeTeam)->create();
+
+        $this->event($game, 'substitution', null, [
+            'player_out_id' => $starter->id,
+            'player_in_id' => $bench->id,
+        ], 'game', null, 1, 420);
+
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_lineup_stints', [
+            'live_game_id' => $game->id,
+            'player_id' => $starter->id,
+            'start_period' => 1,
+            'start_clock_seconds_remaining' => 600,
+            'end_period' => 1,
+            'end_clock_seconds_remaining' => 420,
+            'duration_seconds' => 180,
+        ]);
+        $this->assertDatabaseHas('live_game_lineup_stints', [
+            'live_game_id' => $game->id,
+            'player_id' => $bench->id,
+            'start_period' => 1,
+            'start_clock_seconds_remaining' => 420,
+            'end_period' => null,
+            'end_clock_seconds_remaining' => null,
+        ]);
+    }
+
+    public function test_it_derives_minutes_for_closed_and_active_stints_from_event_and_clock_positions(): void
+    {
+        [$game, $starter] = $this->gameWithPlayer();
+        $bench = Player::factory()->for($game->homeTeam)->create();
+        $game->update(['clock_seconds_remaining' => 300]);
+        $this->event($game, 'substitution', null, [
+            'player_out_id' => $starter->id,
+            'player_in_id' => $bench->id,
+        ], 'game', null, 1, 420);
+
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $starter->id,
+            'minutes_seconds' => 180,
+        ]);
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $bench->id,
+            'minutes_seconds' => 120,
+        ]);
+        $this->assertDatabaseHas('live_game_lineup_stints', [
+            'live_game_id' => $game->id,
+            'player_id' => $bench->id,
+            'duration_seconds' => 120,
+            'end_period' => null,
+        ]);
+    }
+
+    public function test_it_attributes_plus_minus_only_to_players_active_for_each_score(): void
+    {
+        [$game, $starter] = $this->gameWithPlayer();
+        $bench = Player::factory()->for($game->homeTeam)->create();
+        $this->event($game, 'shot_made', $starter, ['points' => 2], 'own', null, 1, 560);
+        $this->event($game, 'substitution', null, [
+            'player_out_id' => $starter->id,
+            'player_in_id' => $bench->id,
+        ], 'game', null, 1, 540);
+        $this->event($game, 'opponent_score', null, ['points' => 3], 'opponent', null, 1, 500);
+        $this->event($game, 'shot_made', $bench, ['points' => 3], 'own', null, 1, 480);
+
+        $this->project($game);
+
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $starter->id,
+            'plus_minus' => 2,
+        ]);
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $bench->id,
+            'plus_minus' => 0,
+        ]);
+        $this->assertDatabaseHas('live_game_lineup_stints', [
+            'live_game_id' => $game->id,
+            'player_id' => $starter->id,
+            'plus_minus' => 2,
+        ]);
+        $this->assertDatabaseHas('live_game_lineup_stints', [
+            'live_game_id' => $game->id,
+            'player_id' => $bench->id,
+            'plus_minus' => 0,
+        ]);
+    }
+
     public function test_timeout_has_no_projection_effect(): void
     {
         [$game, $player] = $this->gameWithPlayer();
@@ -172,7 +269,7 @@ class LiveGameProjectionServiceTest extends TestCase
     }
 
     /** @param array<string, mixed> $payload */
-    private function event(LiveGame $game, string $type, ?Player $player = null, array $payload = [], string $teamScope = 'own', ?int $voidsEventId = null): LiveGameEvent
+    private function event(LiveGame $game, string $type, ?Player $player = null, array $payload = [], string $teamScope = 'own', ?int $voidsEventId = null, int $period = 1, int $clockSecondsRemaining = 600): LiveGameEvent
     {
         return LiveGameEvent::query()->create([
             'live_game_id' => $game->id,
@@ -180,8 +277,8 @@ class LiveGameProjectionServiceTest extends TestCase
             'type' => $type,
             'team_scope' => $teamScope,
             'player_id' => $player?->id,
-            'period' => 1,
-            'clock_seconds_remaining' => 600,
+            'period' => $period,
+            'clock_seconds_remaining' => $clockSecondsRemaining,
             'occurred_at' => now(),
             'payload' => $payload,
             'voids_event_id' => $voidsEventId,

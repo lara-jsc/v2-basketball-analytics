@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
+use App\Http\Controllers\LiveGameClockController;
 use App\Http\Controllers\LiveGameEventController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
@@ -24,6 +25,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
         ->name('live-games.events.store');
+
+    Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
+        ->name('live-games.clock.store');
 
     // ── Profile ───────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
