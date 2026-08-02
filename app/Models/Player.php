@@ -48,4 +48,28 @@ class Player extends Model
     {
         return $this->hasMany(PlayerHistory::class);
     }
+
+    /** @return HasMany<LiveGameEvent, Player> */
+    public function liveGameEvents(): HasMany
+    {
+        return $this->hasMany(LiveGameEvent::class);
+    }
+
+    /** @return HasMany<LiveGamePlayerStat, Player> */
+    public function liveGameStats(): HasMany
+    {
+        return $this->hasMany(LiveGamePlayerStat::class);
+    }
+
+    /** @return HasMany<LiveGameLineupStint, Player> */
+    public function liveGameLineupStints(): HasMany
+    {
+        return $this->hasMany(LiveGameLineupStint::class);
+    }
+
+    /** @return HasMany<LiveGameAlert, Player> */
+    public function liveGameAlerts(): HasMany
+    {
+        return $this->hasMany(LiveGameAlert::class);
+    }
 }
