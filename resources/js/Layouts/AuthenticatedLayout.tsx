@@ -3,6 +3,7 @@ import { useAppearance } from '@/hooks/useAppearance';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    Radio,
     ChevronLeft,
     ChevronRight,
     LayoutDashboard,
@@ -94,6 +95,7 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                     <NavItem href={route('teams.index')}      icon={<Users2 size={20} />}          label="Teams & Players" isCollapsed={isCollapsed} />
                     <NavItem href={route('comparison.index')} icon={<Swords size={20} />}          label="Team Comparison" isCollapsed={isCollapsed} />
                     <NavItem href={route('comparison.index')} icon={<BarChart3 size={20} />}        label="Player Matchup"  isCollapsed={isCollapsed} />
+                    <NavItem href={route('live-games.index')}  icon={<Radio size={20} />}            label="Live Games"      isCollapsed={isCollapsed} />
                 </nav>
 
                 {/* ── Bottom ── */}

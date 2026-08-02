@@ -184,3 +184,107 @@ export interface PageProps {
   /** Required by Inertia's PageProps constraint. */
   [key: string]: unknown;
 }
+
+export type LiveGameStatus = 'setup' | 'live' | 'finished';
+
+export interface LiveGame {
+  id: number;
+  home_team_id: number;
+  opponent_team_id: number;
+  created_by_user_id: number | null;
+  status: LiveGameStatus;
+  game_date: string | null;
+  period_length_seconds: number;
+  current_period: number;
+  clock_seconds_remaining: number;
+  clock_running: boolean;
+  home_score: number;
+  opponent_score: number;
+  starting_player_ids: number[] | null;
+  active_player_ids: number[] | null;
+  started_at: string | null;
+  finished_at: string | null;
+  home_team?: Team;
+  opponent_team?: Team;
+}
+
+export interface LiveGameClock {
+  period: number;
+  period_length_seconds: number;
+  seconds_remaining: number;
+  running: boolean;
+  server_now: string;
+}
+
+export interface LiveGamePlayerStat {
+  player_id: number;
+  is_starter: boolean;
+  is_active: boolean;
+  minutes_seconds: number;
+  plus_minus: number;
+  points: number;
+  field_goals_made: number;
+  field_goals_attempted: number;
+  three_pointers_made: number;
+  three_pointers_attempted: number;
+  free_throws_made: number;
+  free_throws_attempted: number;
+  offensive_rebounds: number;
+  defensive_rebounds: number;
+  rebounds: number;
+  assists: number;
+  steals: number;
+  blocks: number;
+  turnovers: number;
+  personal_fouls: number;
+  flagrant_fouls: number;
+  technical_fouls: number;
+}
+
+export interface LiveGameEvent {
+  id: number;
+  sequence: number;
+  type: string;
+  team_scope: 'own' | 'opponent' | 'game';
+  player_id: number | null;
+  period: number;
+  clock_seconds_remaining: number;
+  occurred_at: string;
+  payload: Record<string, unknown>;
+  voids_event_id: number | null;
+  recorded_by_user_id: number | null;
+}
+
+export interface LiveGameAlert {
+  id: number;
+  player_id: number | null;
+  type: string;
+  severity: string;
+  period: number;
+  clock_seconds_remaining: number;
+  message: string;
+  context: Record<string, unknown>;
+  triggered_at: string | null;
+  resolved_at: string | null;
+}
+
+export interface LiveGameSnapshot {
+  liveGame: Pick<LiveGame, 'id' | 'home_team_id' | 'opponent_team_id' | 'status' | 'game_date' | 'period_length_seconds' | 'current_period'>;
+  score: { home: number; opponent: number };
+  clock: LiveGameClock;
+  active_player_ids: number[];
+  stats: LiveGamePlayerStat[];
+  events: LiveGameEvent[];
+  alerts: LiveGameAlert[];
+}
+
+declare global {
+  interface Window {
+    Echo?: {
+      private(channel: string): {
+        listen(event: string, callback: (snapshot: LiveGameSnapshot) => void): unknown;
+      };
+      leave(channel: string): void;
+    };
+  }
+}

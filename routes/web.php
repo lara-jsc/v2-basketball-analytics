@@ -3,6 +3,7 @@
 use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
 use App\Http\Controllers\LiveGameClockController;
+use App\Http\Controllers\LiveGameController;
 use App\Http\Controllers\LiveGameEventController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
@@ -23,11 +24,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    Route::get('/live-games', [LiveGameController::class, 'index'])->name('live-games.index');
+    Route::get('/live-games/create', [LiveGameController::class, 'create'])->name('live-games.create');
+    Route::post('/live-games', [LiveGameController::class, 'store'])->name('live-games.store');
+    Route::get('/live-games/{liveGame}', [LiveGameController::class, 'show'])->name('live-games.show');
+    Route::post('/live-games/{liveGame}/start', [LiveGameController::class, 'start'])->name('live-games.start');
+    Route::post('/live-games/{liveGame}/finish', [LiveGameController::class, 'finish'])->name('live-games.finish');
     Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
         ->name('live-games.events.store');
 
     Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
         ->name('live-games.clock.store');
+
+    Route::post('/live-games/{liveGame}/correction', [LiveGameController::class, 'correction'])
+        ->name('live-games.correction');
 
     // ── Profile ───────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
