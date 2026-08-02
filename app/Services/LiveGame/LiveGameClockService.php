@@ -62,6 +62,12 @@ class LiveGameClockService
 
     private function start(LiveGame $game): void
     {
+        if ($game->status === LiveGame::STATUS_SETUP && ! $game->bothLineupsReady()) {
+            throw ValidationException::withMessages([
+                'game' => 'Both starting fives must be submitted before the game can start.',
+            ]);
+        }
+
         if ($game->clock_running) {
             $this->refreshElapsedClock($game);
 

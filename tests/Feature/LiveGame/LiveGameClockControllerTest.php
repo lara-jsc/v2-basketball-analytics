@@ -17,7 +17,7 @@ class LiveGameClockControllerTest extends TestCase
     {
         Event::fake([LiveGameStateUpdated::class]);
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $game = LiveGame::factory()->create(['created_by_user_id' => $user->id]);
+        $game = LiveGame::factory()->withBothLineups()->create(['created_by_user_id' => $user->id]);
 
         $this->actingAs($user)
             ->postJson("/live-games/{$game->id}/clock", ['action' => 'start'])

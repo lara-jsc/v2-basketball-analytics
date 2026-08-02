@@ -1,5 +1,6 @@
 import { type LineupRecommendation, type PlayerWithStats } from '@/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
+import { router } from '@inertiajs/react';
 import { Loader2, X } from 'lucide-react';
 
 interface LineupModalProps {
@@ -8,6 +9,7 @@ interface LineupModalProps {
     lineup: LineupRecommendation | null;
     teamName: string;
     players: PlayerWithStats[];
+    opponentTeamId?: number | null;
 }
 
 function computeOvr(player: PlayerWithStats | undefined): number | null {
@@ -23,10 +25,26 @@ function computeOvr(player: PlayerWithStats | undefined): number | null {
     return Math.min(99, Math.max(60, Math.round(raw)));
 }
 
-export function LineupModal({ open, onClose, lineup, teamName, players }: LineupModalProps) {
+export function LineupModal({ open, onClose, lineup, teamName, players, opponentTeamId }: LineupModalProps) {
     const netPlusMinus = lineup
         ? lineup.recommended_lineup.reduce((sum, p) => sum + p.plus_minus_score, 0)
         : null;
+
+    function confirmLineup(): void {
+        if (!lineup) {
+            onClose();
+            return;
+        }
+
+        const playerIds = lineup.recommended_lineup.map((entry) => entry.player_id).join(',');
+        const params: Record<string, string> = { player_ids: playerIds };
+        if (opponentTeamId != null) {
+            params.opponent_team_id = String(opponentTeamId);
+        }
+
+        onClose();
+        router.visit(route('live-games.create', params));
+    }
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -140,7 +158,7 @@ export function LineupModal({ open, onClose, lineup, teamName, players }: Lineup
                             <div className="mt-auto" />
 
                             <button
-                                onClick={onClose}
+                                onClick={confirmLineup}
                                 className="w-full rounded-xl py-3 text-sm font-bold uppercase tracking-widest transition-all hover:-translate-y-0.5"
                                 style={{
                                     fontFamily: 'Rajdhani, sans-serif',

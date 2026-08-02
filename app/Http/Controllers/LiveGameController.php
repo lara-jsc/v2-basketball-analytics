@@ -11,7 +11,6 @@ use App\Services\LiveGame\LiveGameClockService;
 use App\Services\LiveGame\LiveGameEventRecorder;
 use App\Services\LiveGame\LiveGameFinalizer;
 use App\Services\LiveGame\LiveGameStateBuilder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,50 +32,81 @@ class LiveGameController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        /** @var User $user */
+        $user = $request->user();
+
+        $homeTeam = null;
+        if ($user->team_id !== null) {
+            $homeTeam = Team::query()
+                ->where('id', $user->team_id)
+                ->where('is_active', true)
+                ->with(['players' => fn ($query) => $query->where('is_active', true)->orderBy('jersey_number')])
+                ->first();
+        }
+
+        $opponentTeams = Team::query()
+            ->where('is_active', true)
+            ->when($user->team_id !== null, fn ($query) => $query->where('id', '!=', $user->team_id))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'logo_path']);
+
+        $preselectedPlayerIds = $this->parsePreselectedPlayerIds(
+            (string) $request->query('player_ids', ''),
+            $homeTeam?->id,
+        );
+
+        $preselectedOpponentTeamId = $this->parsePreselectedOpponentTeamId(
+            $request->query('opponent_team_id'),
+            $opponentTeams->pluck('id')->all(),
+        );
+
         return Inertia::render('LiveGames/Create', [
-            'teams' => $this->activeTeamsWithPlayers(),
+            'homeTeam' => $homeTeam,
+            'opponentTeams' => $opponentTeams,
+            'preselectedPlayerIds' => $preselectedPlayerIds,
+            'preselectedOpponentTeamId' => $preselectedOpponentTeamId,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->team_id === null) {
+            throw ValidationException::withMessages([
+                'home_team_id' => 'You must be assigned to a team to create a live game.',
+            ]);
+        }
+
+        $homeTeamId = (int) $user->team_id;
+
         $validated = Validator::make($request->all(), [
-            'home_team_id' => ['required', 'integer', Rule::exists('teams', 'id')->where('is_active', true)],
-            'opponent_team_id' => ['required', 'integer', 'different:home_team_id', Rule::exists('teams', 'id')->where('is_active', true)],
+            'opponent_team_id' => [
+                'required',
+                'integer',
+                Rule::notIn([$homeTeamId]),
+                Rule::exists('teams', 'id')->where('is_active', true),
+            ],
             'period_length_seconds' => ['required', 'integer', 'between:60,1200'],
             'starting_player_ids' => ['required', 'array', 'size:5'],
             'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
-            'opponent_starting_player_ids' => ['required', 'array', 'size:5'],
-            'opponent_starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
         ])->validate();
 
         $homePlayerCount = Player::query()
-            ->where('team_id', $validated['home_team_id'])
+            ->where('team_id', $homeTeamId)
             ->where('is_active', true)
             ->whereIn('id', $validated['starting_player_ids'])
             ->count();
 
         if ($homePlayerCount !== 5) {
-            return back()->withErrors(['starting_player_ids' => 'Select five active players from the home team.'])->withInput();
+            return back()->withErrors(['starting_player_ids' => 'Select five active players from your team.'])->withInput();
         }
-
-        $opponentPlayerCount = Player::query()
-            ->where('team_id', $validated['opponent_team_id'])
-            ->where('is_active', true)
-            ->whereIn('id', $validated['opponent_starting_player_ids'])
-            ->count();
-
-        if ($opponentPlayerCount !== 5) {
-            return back()->withErrors(['opponent_starting_player_ids' => 'Select five active players from the opponent team.'])->withInput();
-        }
-
-        /** @var User $user */
-        $user = $request->user();
 
         $game = LiveGame::query()->create([
-            'home_team_id' => $validated['home_team_id'],
+            'home_team_id' => $homeTeamId,
             'opponent_team_id' => $validated['opponent_team_id'],
             'created_by_user_id' => $user->id,
             'status' => LiveGame::STATUS_SETUP,
@@ -85,11 +115,11 @@ class LiveGameController extends Controller
             'clock_seconds_remaining' => $validated['period_length_seconds'],
             'starting_player_ids' => array_values($validated['starting_player_ids']),
             'active_player_ids' => array_values($validated['starting_player_ids']),
-            'opponent_starting_player_ids' => array_values($validated['opponent_starting_player_ids']),
-            'opponent_active_player_ids' => array_values($validated['opponent_starting_player_ids']),
+            'opponent_starting_player_ids' => null,
+            'opponent_active_player_ids' => null,
         ]);
 
-        return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created.');
+        return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created. Share the link so the opponent coach can submit their lineup.');
     }
 
     public function show(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder): Response
@@ -121,6 +151,60 @@ class LiveGameController extends Controller
             'viewerSide' => $liveGame->sideFor($user),
             'isCreator' => $liveGame->isCreator($user),
         ]);
+    }
+
+    public function submitLineup(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $side = $liveGame->sideFor($user);
+
+        if ($side === null) {
+            abort(403);
+        }
+
+        if ($liveGame->status !== LiveGame::STATUS_SETUP) {
+            throw ValidationException::withMessages([
+                'game' => 'Lineups can only be submitted while the game is in setup.',
+            ]);
+        }
+
+        $validated = Validator::make($request->all(), [
+            'starting_player_ids' => ['required', 'array', 'size:5'],
+            'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+        ])->validate();
+
+        $teamId = $side === LiveGame::SIDE_OPPONENT
+            ? (int) $liveGame->opponent_team_id
+            : (int) $liveGame->home_team_id;
+
+        $playerCount = Player::query()
+            ->where('team_id', $teamId)
+            ->where('is_active', true)
+            ->whereIn('id', $validated['starting_player_ids'])
+            ->count();
+
+        if ($playerCount !== 5) {
+            return back()->withErrors(['starting_player_ids' => 'Select five active players from your team.'])->withInput();
+        }
+
+        $ids = array_values($validated['starting_player_ids']);
+
+        if ($side === LiveGame::SIDE_OPPONENT) {
+            $liveGame->forceFill([
+                'opponent_starting_player_ids' => $ids,
+                'opponent_active_player_ids' => $ids,
+            ])->save();
+        } else {
+            $liveGame->forceFill([
+                'starting_player_ids' => $ids,
+                'active_player_ids' => $ids,
+            ])->save();
+        }
+
+        event(new LiveGameStateUpdated($liveGame->id, $stateBuilder->build($liveGame->fresh())));
+
+        return redirect()->route('live-games.show', $liveGame)->with('success', 'Starting five submitted.');
     }
 
     public function start(Request $request, LiveGame $liveGame, LiveGameClockService $clock): RedirectResponse
@@ -180,13 +264,50 @@ class LiveGameController extends Controller
         return $events->store($request, $liveGame, app(LiveGameEventRecorder::class));
     }
 
-    /** @return Collection<int, Team> */
-    private function activeTeamsWithPlayers()
+    /** @return list<int> */
+    private function parsePreselectedPlayerIds(string $raw, ?int $homeTeamId): array
     {
-        return Team::query()
+        if ($homeTeamId === null || $raw === '') {
+            return [];
+        }
+
+        $ids = collect(explode(',', $raw))
+            ->map(fn (string $id): int => (int) trim($id))
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $validIds = Player::query()
+            ->where('team_id', $homeTeamId)
             ->where('is_active', true)
-            ->with(['players' => fn ($query) => $query->where('is_active', true)->orderBy('jersey_number')])
-            ->orderBy('name')
-            ->get();
+            ->whereIn('id', $ids)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $validLookup = array_flip($validIds);
+
+        return array_values(array_slice(
+            array_values(array_filter($ids, fn (int $id): bool => isset($validLookup[$id]))),
+            0,
+            5,
+        ));
+    }
+
+    /** @param  list<int>  $allowedOpponentIds */
+    private function parsePreselectedOpponentTeamId(mixed $raw, array $allowedOpponentIds): ?int
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        $id = (int) $raw;
+
+        return in_array($id, array_map('intval', $allowedOpponentIds), true) ? $id : null;
     }
 }

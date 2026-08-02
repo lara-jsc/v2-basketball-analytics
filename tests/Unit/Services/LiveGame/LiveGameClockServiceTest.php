@@ -26,7 +26,7 @@ class LiveGameClockServiceTest extends TestCase
     public function test_start_makes_a_setup_game_live_and_returns_a_server_clock_snapshot(): void
     {
         $this->travelTo('2026-08-02 12:00:00');
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->withBothLineups()->create();
 
         $snapshot = $this->handle($game, ['action' => 'start']);
 
@@ -52,7 +52,7 @@ class LiveGameClockServiceTest extends TestCase
     public function test_stop_persists_elapsed_server_time_and_stops_the_clock(): void
     {
         $this->travelTo('2026-08-02 12:00:00');
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->withBothLineups()->create();
         $this->handle($game, ['action' => 'start']);
 
         $this->travel(90)->seconds();
@@ -71,7 +71,7 @@ class LiveGameClockServiceTest extends TestCase
     public function test_a_running_snapshot_uses_elapsed_server_time(): void
     {
         $this->travelTo('2026-08-02 12:00:00');
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->withBothLineups()->create();
         $this->handle($game, ['action' => 'start']);
 
         $this->travel(90)->seconds();
@@ -84,7 +84,7 @@ class LiveGameClockServiceTest extends TestCase
     public function test_start_is_idempotent_for_a_running_clock(): void
     {
         $this->travelTo('2026-08-02 12:00:00');
-        $game = LiveGame::factory()->create();
+        $game = LiveGame::factory()->withBothLineups()->create();
         $this->handle($game, ['action' => 'start']);
         $game->refresh();
         $startedAt = $game->clock_started_at;
@@ -102,7 +102,7 @@ class LiveGameClockServiceTest extends TestCase
     public function test_an_expired_running_clock_is_persisted_as_stopped_at_zero(): void
     {
         $this->travelTo('2026-08-02 12:00:00');
-        $game = LiveGame::factory()->create(['clock_seconds_remaining' => 5]);
+        $game = LiveGame::factory()->withBothLineups()->create(['clock_seconds_remaining' => 5]);
         $this->handle($game, ['action' => 'start']);
 
         $this->travel(5)->seconds();

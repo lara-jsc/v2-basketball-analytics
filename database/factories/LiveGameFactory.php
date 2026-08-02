@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\LiveGame;
+use App\Models\Player;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -36,5 +37,20 @@ class LiveGameFactory extends Factory
             'started_at' => null,
             'finished_at' => null,
         ];
+    }
+
+    public function withBothLineups(): static
+    {
+        return $this->afterCreating(function (LiveGame $game): void {
+            $homePlayers = Player::factory()->count(5)->for($game->homeTeam)->create(['is_active' => true]);
+            $opponentPlayers = Player::factory()->count(5)->for($game->opponentTeam)->create(['is_active' => true]);
+
+            $game->forceFill([
+                'starting_player_ids' => $homePlayers->modelKeys(),
+                'active_player_ids' => $homePlayers->modelKeys(),
+                'opponent_starting_player_ids' => $opponentPlayers->modelKeys(),
+                'opponent_active_player_ids' => $opponentPlayers->modelKeys(),
+            ])->save();
+        });
     }
 }

@@ -321,6 +321,7 @@ export default function ComparisonShow({
         lineup={lineup}
         teamName={teamA.name}
         players={playersA}
+        opponentTeamId={teamB.id}
       />
     </AuthenticatedLayout>
   );

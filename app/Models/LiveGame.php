@@ -144,6 +144,21 @@ class LiveGame extends Model
         ));
     }
 
+    public function homeLineupReady(): bool
+    {
+        return count($this->startingPlayerIdsForSide(self::SIDE_HOME)) === 5;
+    }
+
+    public function opponentLineupReady(): bool
+    {
+        return count($this->startingPlayerIdsForSide(self::SIDE_OPPONENT)) === 5;
+    }
+
+    public function bothLineupsReady(): bool
+    {
+        return $this->homeLineupReady() && $this->opponentLineupReady();
+    }
+
     /** @return BelongsTo<Team, LiveGame> */
     public function homeTeam(): BelongsTo
     {

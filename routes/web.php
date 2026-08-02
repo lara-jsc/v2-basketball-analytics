@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/live-games/create', [LiveGameController::class, 'create'])->name('live-games.create');
     Route::post('/live-games', [LiveGameController::class, 'store'])->name('live-games.store');
     Route::get('/live-games/{liveGame}', [LiveGameController::class, 'show'])->name('live-games.show');
+    Route::post('/live-games/{liveGame}/lineup', [LiveGameController::class, 'submitLineup'])->name('live-games.lineup');
     Route::post('/live-games/{liveGame}/start', [LiveGameController::class, 'start'])->name('live-games.start');
     Route::post('/live-games/{liveGame}/finish', [LiveGameController::class, 'finish'])->name('live-games.finish');
     Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
@@ -66,14 +67,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/csv/upload', [CsvController::class, 'upload'])->name('csv.upload');
 
     // ── Player Histories ──────────────────────────────────────────────────
-    Route::get('/player-histories/template/download',      [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
+    Route::get('/player-histories/template/download', [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
     Route::post('/players/{player}/histories/import', [PlayerHistoryController::class, 'import'])->name('player-histories.import');
-    Route::get('/players/{player}/histories',         [PlayerHistoryController::class, 'index'])->name('player-histories.index');
-    Route::get('/players/{player}/histories/create',  [PlayerHistoryController::class, 'create'])->name('player-histories.create');
-    Route::post('/players/{player}/histories',        [PlayerHistoryController::class, 'store'])->name('player-histories.store');
-    Route::get('/player-histories/{history}/edit',    [PlayerHistoryController::class, 'edit'])->name('player-histories.edit');
-    Route::put('/player-histories/{history}',         [PlayerHistoryController::class, 'update'])->name('player-histories.update');
-    Route::delete('/player-histories/{history}',      [PlayerHistoryController::class, 'destroy'])->name('player-histories.destroy');
+    Route::get('/players/{player}/histories', [PlayerHistoryController::class, 'index'])->name('player-histories.index');
+    Route::get('/players/{player}/histories/create', [PlayerHistoryController::class, 'create'])->name('player-histories.create');
+    Route::post('/players/{player}/histories', [PlayerHistoryController::class, 'store'])->name('player-histories.store');
+    Route::get('/player-histories/{history}/edit', [PlayerHistoryController::class, 'edit'])->name('player-histories.edit');
+    Route::put('/player-histories/{history}', [PlayerHistoryController::class, 'update'])->name('player-histories.update');
+    Route::delete('/player-histories/{history}', [PlayerHistoryController::class, 'destroy'])->name('player-histories.destroy');
 
     // ── Team Comparison (Phase 3) ─────────────────────────────────────────
     Route::get('/comparison', [ComparisonController::class, 'index'])->name('comparison.index');

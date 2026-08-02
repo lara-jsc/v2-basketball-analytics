@@ -276,6 +276,9 @@ export interface LiveGameSnapshot {
   clock: LiveGameClock;
   active_player_ids: number[];
   opponent_active_player_ids: number[];
+  home_lineup_ready: boolean;
+  opponent_lineup_ready: boolean;
+  both_lineups_ready: boolean;
   stats: LiveGamePlayerStat[];
   events: LiveGameEvent[];
   alerts: LiveGameAlert[];

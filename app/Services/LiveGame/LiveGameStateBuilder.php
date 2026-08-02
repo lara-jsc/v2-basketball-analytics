@@ -37,6 +37,9 @@ class LiveGameStateBuilder
             ],
             'active_player_ids' => $game->active_player_ids ?? [],
             'opponent_active_player_ids' => $game->opponent_active_player_ids ?? [],
+            'home_lineup_ready' => $game->homeLineupReady(),
+            'opponent_lineup_ready' => $game->opponentLineupReady(),
+            'both_lineups_ready' => $game->bothLineupsReady(),
             'stats' => LiveGamePlayerStat::query()
                 ->where('live_game_id', $game->id)
                 ->orderBy('player_id')
