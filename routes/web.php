@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
+use App\Http\Controllers\LiveGameEventController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
@@ -20,6 +21,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
+
+    Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
+        ->name('live-games.events.store');
 
     // ── Profile ───────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

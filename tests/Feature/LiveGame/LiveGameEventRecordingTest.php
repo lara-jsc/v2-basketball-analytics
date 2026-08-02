@@ -1,0 +1,94 @@
+<?php
+
+namespace Tests\Feature\LiveGame;
+
+use App\Events\LiveGameStateUpdated;
+use App\Models\LiveGame;
+use App\Models\Player;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Tests\TestCase;
+
+class LiveGameEventRecordingTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_it_records_an_event_updates_the_projection_returns_a_snapshot_and_broadcasts_it(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create();
+        $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update(['starting_player_ids' => [$player->id]]);
+
+        $response = $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'shot_made',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'payload' => ['points' => 3],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('score.home', 3)
+            ->assertJsonPath('score.opponent', 0)
+            ->assertJsonPath('active_player_ids.0', $player->id)
+            ->assertJsonPath('stats.0.player_id', $player->id)
+            ->assertJsonPath('stats.0.points', 3)
+            ->assertJsonPath('events.0.sequence', 1)
+            ->assertJsonStructure(['liveGame', 'score', 'clock', 'active_player_ids', 'stats', 'events', 'alerts']);
+
+        $this->assertDatabaseHas('live_game_events', [
+            'live_game_id' => $game->id,
+            'sequence' => 1,
+            'type' => 'shot_made',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'recorded_by_user_id' => $user->id,
+        ]);
+        $this->assertDatabaseHas('live_games', ['id' => $game->id, 'home_score' => 3]);
+
+        Event::assertDispatched(LiveGameStateUpdated::class, function (LiveGameStateUpdated $event) use ($game): bool {
+            return $event->liveGameId === $game->id
+                && $event->snapshot['score'] === ['home' => 3, 'opponent' => 0];
+        });
+    }
+
+    public function test_it_assigns_the_next_sequence_for_each_game(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create();
+        $player = Player::factory()->for($game->homeTeam)->create();
+
+        $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'assist',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+        ])->assertOk();
+
+        $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'turnover',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('live_game_events', ['live_game_id' => $game->id, 'sequence' => 1, 'type' => 'assist']);
+        $this->assertDatabaseHas('live_game_events', ['live_game_id' => $game->id, 'sequence' => 2, 'type' => 'turnover']);
+    }
+
+    public function test_it_rejects_an_invalid_event_payload(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create();
+
+        $this->actingAs($user)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'shot_made',
+            'team_scope' => 'own',
+            'payload' => ['points' => 1],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['player_id', 'payload.points']);
+    }
+}
