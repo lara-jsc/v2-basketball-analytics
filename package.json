@@ -5,11 +5,13 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "playwright:test": "playwright test",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
         "@headlessui/react": "^2.0.0",
         "@inertiajs/react": "^2.0.0",
+        "@playwright/test": "^1.62.1",
         "@radix-ui/react-slot": "^1.2.4",
         "@tailwindcss/forms": "^0.5.3",
         "@tailwindcss/vite": "^4.0.0",
