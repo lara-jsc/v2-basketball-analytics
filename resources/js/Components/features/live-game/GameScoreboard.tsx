@@ -10,15 +10,16 @@ interface GameScoreboardProps {
     score: { home: number; opponent: number };
     processing: boolean;
     canControlClock?: boolean;
+    viewerSide?: 'home' | 'opponent' | null;
     onClockAction: (action: 'start' | 'stop' | 'reset_period' | 'set_period', period?: number) => void;
 }
 
-export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, processing, canControlClock = true, onClockAction }: GameScoreboardProps) {
+export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, processing, canControlClock = true, viewerSide = null, onClockAction }: GameScoreboardProps) {
     const isFinished = status === 'finished';
 
     return (
         <section className="grid gap-3 border-b border-border bg-background/90 px-3 py-3 backdrop-blur-sm sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:px-5" aria-label="Game scoreboard">
-            <TeamScore align="left" team={homeTeam} score={score.home} />
+            <TeamScore align="left" team={homeTeam} score={score.home} highlighted={viewerSide === 'home'} sideLabel="Your team" />
             <div className="order-first flex min-w-[250px] flex-col items-center gap-1 sm:order-none">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-300">
                     <span className={`h-2 w-2 rounded-full ${clock.running ? 'bg-cyan-400 animate-pulse' : 'bg-slate-500'}`} />
@@ -42,16 +43,24 @@ export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, p
                     )}
                 </div>
             </div>
-            <TeamScore align="right" team={opponentTeam} score={score.opponent} />
+            <TeamScore align="right" team={opponentTeam} score={score.opponent} highlighted={viewerSide === 'opponent'} sideLabel="Your team" />
         </section>
     );
 }
 
-function TeamScore({ team, score, align }: { team?: Team; score: number; align: 'left' | 'right' }) {
+function TeamScore({ team, score, align, highlighted, sideLabel }: { team?: Team; score: number; align: 'left' | 'right'; highlighted: boolean; sideLabel: string }) {
     return (
-        <div className={`flex min-w-0 items-center gap-3 ${align === 'right' ? 'justify-self-end text-right' : ''}`}>
+        <div
+            className={`flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors ${align === 'right' ? 'justify-self-end text-right' : ''} ${
+                highlighted ? 'border border-amber-300/50 bg-amber-300/10 ring-1 ring-amber-300/30' : 'border border-transparent'
+            }`}
+            aria-current={highlighted ? 'true' : undefined}
+        >
             {team?.logo_path && <img src={team.logo_path} alt="" className="h-9 w-9 shrink-0 object-contain" />}
             <div className="min-w-0">
+                {highlighted && (
+                    <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200">{sideLabel}</p>
+                )}
                 <p className="truncate text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{team?.code ?? 'Team'}</p>
                 <p className="truncate text-base font-bold text-foreground">{team?.name ?? 'Opponent'}</p>
             </div>

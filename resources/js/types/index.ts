@@ -175,14 +175,29 @@ export interface PageProps {
       id: number;
       name: string;
       email: string;
-    };
+      team_id: number | null;
+      team: { id: number; name: string } | null;
+    } | null;
   };
   flash?: {
     success?: string;
     error?: string;
   };
+  liveGameInvite?: LiveGameInviteBanner | null;
   /** Required by Inertia's PageProps constraint. */
   [key: string]: unknown;
+}
+
+export type LiveGameInviteKind = 'opponent_setup' | 'home_assigned' | 'home_team';
+
+export interface LiveGameInviteBanner {
+  id: string;
+  live_game_id: number;
+  kind: LiveGameInviteKind;
+  title: string;
+  body: string;
+  home_team_name: string;
+  opponent_team_name: string;
 }
 
 export type LiveGameStatus = 'setup' | 'live' | 'finished';
@@ -288,7 +303,10 @@ declare global {
   interface Window {
     Echo?: {
       private(channel: string): {
-        listen(event: string, callback: (snapshot: LiveGameSnapshot) => void): unknown;
+        // Echo payloads vary by event; callers narrow.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        listen(event: string, callback: (payload: any) => void): unknown;
+        notification(callback: (notification: Record<string, unknown>) => void): unknown;
       };
       leave(channel: string): void;
     };

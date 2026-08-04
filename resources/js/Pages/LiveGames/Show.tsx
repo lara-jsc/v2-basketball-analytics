@@ -1,6 +1,7 @@
 import { ActiveLineup } from '@/Components/features/live-game/ActiveLineup';
 import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
 import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
+import { LineupConfirmModal } from '@/Components/features/live-game/LineupConfirmModal';
 import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitution';
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
 import { GameScoreboard } from '@/Components/features/live-game/GameScoreboard';
@@ -56,6 +57,9 @@ export default function LiveGamesShow({
     const [error, setError] = useState<string | null>(null);
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
     const [clockTick, setClockTick] = useState(() => Date.now());
+    const [confirmLineupOpen, setConfirmLineupOpen] = useState(false);
+    const [assignPanelVisible, setAssignPanelVisible] = useState(false);
+    const [assignExpanded, setAssignExpanded] = useState(false);
     const homeTeam = teams.find((team) => team.id === liveGame.home_team_id) ?? liveGame.home_team;
     const opponentTeam = teams.find((team) => team.id === liveGame.opponent_team_id) ?? liveGame.opponent_team;
     const selectedPlayer = controlledRosterPlayers.find((player) => player.id === selectedPlayerId);
@@ -77,9 +81,15 @@ export default function LiveGamesShow({
         delegated_player_ids: [] as number[],
     });
 
+    const viewerTeamName = viewerSide === 'opponent'
+        ? (opponentTeam?.name ?? 'Opponent')
+        : viewerSide === 'home'
+            ? (homeTeam?.name ?? 'Home')
+            : null;
+
     const assistantCoachOptions = useMemo(
-        () => team_coaches.filter((coach) => coach.id !== auth.user.id),
-        [team_coaches, auth.user.id],
+        () => team_coaches.filter((coach) => coach.id !== auth.user?.id),
+        [team_coaches, auth.user?.id],
     );
 
     useEffect(() => {
@@ -173,10 +183,34 @@ export default function LiveGamesShow({
         );
     }
 
-    function submitLineup(event: FormEvent<HTMLFormElement>): void {
-        event.preventDefault();
+    function postLineup(clearAssistant = false): void {
+        setConfirmLineupOpen(false);
+        if (clearAssistant) {
+            lineupForm.setData({
+                starting_player_ids: lineupForm.data.starting_player_ids,
+                assistant_coach_user_id: null,
+                delegated_player_ids: [],
+            });
+        }
         lineupForm.post(route('live-games.lineup', { liveGame: liveGame.id }));
     }
+
+    function submitLineup(event: FormEvent<HTMLFormElement>): void {
+        event.preventDefault();
+        if (!lineupReady) {
+            return;
+        }
+        if (assistantCoachOptions.length === 0) {
+            postLineup();
+            return;
+        }
+        setConfirmLineupOpen(true);
+    }
+
+    const selectedAssistantName =
+        assistantCoachOptions.find((coach) => coach.id === lineupForm.data.assistant_coach_user_id)?.name ?? null;
+    const hasAssistantAssignment =
+        selectedAssistantName !== null && lineupForm.data.delegated_player_ids.length > 0;
 
     const eventsDisabled = processing || snapshot.liveGame.status !== 'live' || !canRecord;
     const allPlayers = [...homePlayers, ...opponentPlayers];
@@ -194,6 +228,7 @@ export default function LiveGamesShow({
                     score={snapshot.score}
                     processing={processing}
                     canControlClock={isCreator && snapshot.both_lineups_ready}
+                    viewerSide={viewerSide}
                     onClockAction={clockAction}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/75 px-4 py-2 sm:px-5">
@@ -227,7 +262,7 @@ export default function LiveGamesShow({
                         )}
                         <span className={`flex h-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide ${snapshot.liveGame.status === 'live' ? 'bg-cyan-300/10 text-cyan-100' : 'bg-muted/50 text-muted-foreground'}`}>
                             <Radio size={14} /> {snapshot.liveGame.status}
-                            {viewerSide ? ` · ${viewerSide}` : ''}
+                            {viewerTeamName ? ` · ${viewerTeamName}` : ''}
                         </span>
                     </div>
                 </div>
@@ -288,7 +323,9 @@ export default function LiveGamesShow({
                         <AssignAssistantPanel
                             coaches={assistantCoachOptions}
                             players={ownPlayers}
-                            visible={lineupReady}
+                            visible={assignPanelVisible && lineupReady}
+                            expanded={assignExpanded}
+                            onExpandedChange={setAssignExpanded}
                             value={{
                                 assistantCoachUserId: lineupForm.data.assistant_coach_user_id,
                                 delegatedPlayerIds: lineupForm.data.delegated_player_ids,
@@ -307,6 +344,20 @@ export default function LiveGamesShow({
                         />
                     </form>
                 )}
+
+                <LineupConfirmModal
+                    open={confirmLineupOpen}
+                    onOpenChange={setConfirmLineupOpen}
+                    assistantName={selectedAssistantName}
+                    hasAssignment={hasAssistantAssignment}
+                    onConfirmLineup={() => postLineup(true)}
+                    onConfirmWithAssistant={() => postLineup(false)}
+                    onAssignAssistant={() => {
+                        setConfirmLineupOpen(false);
+                        setAssignPanelVisible(true);
+                        setAssignExpanded(true);
+                    }}
+                />
 
                 {waitingForOther && (
                     <div className="mx-4 mt-4 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-10 text-center sm:mx-5">

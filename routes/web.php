@@ -5,6 +5,7 @@ use App\Http\Controllers\CsvController;
 use App\Http\Controllers\LiveGameClockController;
 use App\Http\Controllers\LiveGameController;
 use App\Http\Controllers\LiveGameEventController;
+use App\Http\Controllers\LiveGameInviteController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
@@ -39,6 +40,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/live-games/{liveGame}/correction', [LiveGameController::class, 'correction'])
         ->name('live-games.correction');
+
+    Route::post('/live-game-invites/{notification}/dismiss', [LiveGameInviteController::class, 'dismiss'])
+        ->name('live-game-invites.dismiss');
 
     // ── Profile ───────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

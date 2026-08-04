@@ -16,6 +16,8 @@ type AssignAssistantPanelProps = {
     value: AssignAssistantValue;
     onChange: (value: AssignAssistantValue) => void;
     visible: boolean;
+    expanded?: boolean;
+    onExpandedChange?: (expanded: boolean) => void;
     errors?: {
         assistant_coach_user_id?: string;
         delegated_player_ids?: string;
@@ -28,9 +30,20 @@ export function AssignAssistantPanel({
     value,
     onChange,
     visible,
+    expanded: expandedProp,
+    onExpandedChange,
     errors,
 }: AssignAssistantPanelProps) {
-    const [expanded, setExpanded] = useState(false);
+    const [internalExpanded, setInternalExpanded] = useState(false);
+    const isControlled = expandedProp !== undefined;
+    const expanded = isControlled ? expandedProp : internalExpanded;
+
+    function setExpanded(next: boolean): void {
+        onExpandedChange?.(next);
+        if (!isControlled) {
+            setInternalExpanded(next);
+        }
+    }
 
     if (!visible || coaches.length === 0) {
         return null;
@@ -70,7 +83,7 @@ export function AssignAssistantPanel({
             <button
                 type="button"
                 aria-expanded={expanded}
-                onClick={() => setExpanded((open) => !open)}
+                onClick={() => setExpanded(!expanded)}
                 className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
             >
                 <span className="flex items-center gap-2 text-sm font-semibold text-foreground">

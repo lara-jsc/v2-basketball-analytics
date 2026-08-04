@@ -12,6 +12,8 @@ use App\Services\LiveGame\LiveGameClockService;
 use App\Services\LiveGame\LiveGameDelegationWriter;
 use App\Services\LiveGame\LiveGameEventRecorder;
 use App\Services\LiveGame\LiveGameFinalizer;
+use App\Services\LiveGame\LiveGameInviteNotifier;
+use App\Services\LiveGame\LiveGameInviteReader;
 use App\Services\LiveGame\LiveGameStateBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,7 +86,7 @@ class LiveGameController extends Controller
         ]);
     }
 
-    public function store(Request $request, LiveGameDelegationWriter $delegationWriter): RedirectResponse
+    public function store(Request $request, LiveGameDelegationWriter $delegationWriter, LiveGameInviteNotifier $inviteNotifier): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -156,16 +158,19 @@ class LiveGameController extends Controller
             );
         }
 
+        $inviteNotifier->notifyCreated($game, $user);
+
         return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created. Share the link so the opponent coach can submit their lineup.');
     }
 
-    public function show(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder): Response
+    public function show(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder, LiveGameInviteReader $inviteReader): Response
     {
         $liveGame->load(['homeTeam:id,name,code,logo_path', 'opponentTeam:id,name,code,logo_path']);
 
         /** @var User $user */
         $user = $request->user();
 
+        $inviteReader->markReadForLiveGame($user, $liveGame);
         $homePlayers = $liveGame->homeTeam
             ->players()
             ->where('is_active', true)
