@@ -89,6 +89,17 @@ class LiveGame extends Model
         return $this->created_by_user_id !== null && (int) $this->created_by_user_id === (int) $user->id;
     }
 
+    public function isMainCoach(User $user): bool
+    {
+        foreach ([$this->home_main_coach_user_id, $this->opponent_main_coach_user_id] as $mainCoachUserId) {
+            if ($mainCoachUserId !== null && (int) $mainCoachUserId === (int) $user->id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isParticipant(User $user): bool
     {
         if ($this->isCreator($user)) {

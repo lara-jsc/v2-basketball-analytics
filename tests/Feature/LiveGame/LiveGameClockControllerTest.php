@@ -35,8 +35,10 @@ class LiveGameClockControllerTest extends TestCase
     {
         Event::fake([LiveGameStateUpdated::class]);
         $creator = User::factory()->create(['email_verified_at' => now()]);
-        $other = User::factory()->create(['email_verified_at' => now()]);
         $game = LiveGame::factory()->create(['created_by_user_id' => $creator->id]);
+        // A participating coach who is not the creator: allowed past the route policy,
+        // then refused by the service because starting the clock is creator-only.
+        $other = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
 
         $this->actingAs($other)
             ->postJson("/live-games/{$game->id}/clock", ['action' => 'start'])

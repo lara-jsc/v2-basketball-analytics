@@ -6,13 +6,15 @@ import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitu
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
 import { GameScoreboard } from '@/Components/features/live-game/GameScoreboard';
 import { Timeline } from '@/Components/features/live-game/Timeline';
-import { playerName } from '@/Components/features/live-game/live-game-utils';
+import { VoidEventConfirmModal } from '@/Components/features/live-game/VoidEventConfirmModal';
+import { clockBlockReason, type ClockState } from '@/Components/features/live-game/event-catalog';
+import { eventLabel, playerName } from '@/Components/features/live-game/live-game-utils';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import type { LiveGame, LiveGameSnapshot, PageProps, Player, Team } from '@/types';
+import type { LiveGame, LiveGameEvent, LiveGameSnapshot, PageProps, Player, Team } from '@/types';
 import axios from 'axios';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, Check, ChevronLeft, CircleStop, Copy, Link2, Play, Radio, UsersRound } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 interface LiveGameShowProps extends PageProps {
     liveGame: LiveGame;
@@ -23,6 +25,7 @@ interface LiveGameShowProps extends PageProps {
     players: Player[];
     viewerSide: 'home' | 'opponent' | null;
     isCreator: boolean;
+    can_stop_clock: boolean;
     controlled_player_ids: number[];
     is_main_coach: boolean;
     team_coaches: Array<{ id: number; name: string }>;
@@ -38,6 +41,7 @@ export default function LiveGamesShow({
     players,
     viewerSide,
     isCreator,
+    can_stop_clock,
     controlled_player_ids,
     team_coaches,
     auth,
@@ -45,6 +49,7 @@ export default function LiveGamesShow({
 }: LiveGameShowProps) {
     const ownPlayers = viewerSide === 'opponent' ? opponentPlayers : viewerSide === 'home' ? homePlayers : players;
     const [snapshot, setSnapshot] = useState(initialSnapshot);
+    const [snapshotReceivedAt, setSnapshotReceivedAt] = useState(() => Date.now());
 
     const controlledPlayerIdsSet = useMemo(() => new Set(controlled_player_ids), [controlled_player_ids]);
     const ownActiveIds = viewerSide === 'opponent'
@@ -62,9 +67,23 @@ export default function LiveGamesShow({
     const [confirmLineupOpen, setConfirmLineupOpen] = useState(false);
     const [assignPanelVisible, setAssignPanelVisible] = useState(false);
     const [assignExpanded, setAssignExpanded] = useState(false);
+    const [pendingVoidEvent, setPendingVoidEvent] = useState<LiveGameEvent | null>(null);
+
+    const applySnapshot = useCallback((next: LiveGameSnapshot): void => {
+        setSnapshot(next);
+        setSnapshotReceivedAt(Date.now());
+        setClockTick(Date.now());
+    }, []);
     const homeTeam = teams.find((team) => team.id === liveGame.home_team_id) ?? liveGame.home_team;
     const opponentTeam = teams.find((team) => team.id === liveGame.opponent_team_id) ?? liveGame.opponent_team;
-    const selectedPlayer = controlledRosterPlayers.find((player) => player.id === selectedPlayerId);
+    // Resolved from active ∩ controlled, not the roster — a benched player must never
+    // leave the pad enabled for an action the server would reject.
+    const selectedPlayer = controlledRosterPlayers.find(
+        (player) => player.id === selectedPlayerId && controlledActiveIds.includes(player.id),
+    );
+    const selectedPlayerPersonalFouls = selectedPlayer
+        ? (snapshot.stats.find((stat) => stat.player_id === selectedPlayer.id)?.personal_fouls ?? 0)
+        : 0;
     const canRecord = viewerSide !== null;
     const isSetup = snapshot.liveGame.status === 'setup';
     const ownLineupReady = viewerSide === 'opponent'
@@ -95,28 +114,28 @@ export default function LiveGamesShow({
     );
 
     useEffect(() => {
-        setSnapshot(initialSnapshot);
-        const nextActive = viewerSide === 'opponent'
-            ? (initialSnapshot.opponent_active_player_ids ?? [])
-            : (initialSnapshot.active_player_ids ?? []);
-        const nextControlledActive = nextActive.filter((id) => controlledPlayerIdsSet.has(id));
-        setSelectedPlayerId(nextControlledActive[0] ?? null);
-    }, [initialSnapshot, viewerSide, controlled_player_ids]);
+        applySnapshot(initialSnapshot);
+    }, [initialSnapshot, applySnapshot]);
 
     useEffect(() => {
         const channel = `live-game.${liveGame.id}`;
-        window.Echo?.private(channel).listen('LiveGameStateUpdated', (nextSnapshot: LiveGameSnapshot) => {
-            setSnapshot(nextSnapshot);
-            const nextActive = viewerSide === 'opponent'
-                ? (nextSnapshot.opponent_active_player_ids ?? [])
-                : (nextSnapshot.active_player_ids ?? []);
-            const nextControlledActive = nextActive.filter((id) => controlledPlayerIdsSet.has(id));
-            setSelectedPlayerId((current) => nextControlledActive.includes(current ?? -1) ? current : nextControlledActive[0] ?? null);
-            setClockTick(Date.now());
-        });
+        window.Echo?.private(channel).listen('LiveGameStateUpdated', applySnapshot);
 
         return () => window.Echo?.leave(channel);
-    }, [liveGame.id, viewerSide, controlled_player_ids]);
+    }, [liveGame.id, applySnapshot]);
+
+    // One place clamps the selection to a player who is both controlled and on court —
+    // every snapshot source (initial, Echo, own request) flows through this.
+    const controlledActiveKey = controlledActiveIds.join(',');
+
+    useEffect(() => {
+        setSelectedPlayerId((current) =>
+            current !== null && controlledActiveIds.includes(current)
+                ? current
+                : controlledActiveIds[0] ?? null,
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [controlledActiveKey]);
 
     useEffect(() => {
         if (!snapshot.clock.running) return;
@@ -126,17 +145,27 @@ export default function LiveGamesShow({
 
     const displayedClock = useMemo(() => {
         if (!snapshot.clock.running) return snapshot.clock;
-        const elapsed = Math.floor((clockTick - Date.parse(snapshot.clock.server_now)) / 1000);
-        return { ...snapshot.clock, seconds_remaining: Math.max(0, snapshot.clock.seconds_remaining - Math.max(0, elapsed)) };
-    }, [clockTick, snapshot.clock]);
+
+        // seconds_remaining already accounts for server-side elapsed time, so measure from
+        // when this snapshot arrived. Never compare Date.now() to server_now — a device with
+        // a skewed wall clock would show a wildly wrong clock.
+        const elapsed = Math.max(0, Math.floor((clockTick - snapshotReceivedAt) / 1000));
+
+        return { ...snapshot.clock, seconds_remaining: Math.max(0, snapshot.clock.seconds_remaining - elapsed) };
+    }, [clockTick, snapshot.clock, snapshotReceivedAt]);
+
+    const clockState: ClockState = displayedClock.seconds_remaining === 0
+        ? 'expired'
+        : displayedClock.running
+            ? 'running'
+            : 'stopped';
 
     async function postSnapshot(url: string, data: object = {}): Promise<void> {
         setProcessing(true);
         setError(null);
         try {
             const response = await axios.post<LiveGameSnapshot>(url, data);
-            setSnapshot(response.data);
-            setClockTick(Date.now());
+            applySnapshot(response.data);
         } catch (requestError) {
             if (axios.isAxiosError(requestError) && requestError.response?.data?.message) setError(requestError.response.data.message as string);
             else setError('The game state could not be updated. Check the connection and try again.');
@@ -154,8 +183,13 @@ export default function LiveGamesShow({
     function substitute(playerOutId: number, playerInId: number): void {
         record({ type: 'substitution', team_scope: 'game', payload: { player_out_id: playerOutId, player_in_id: playerInId } });
     }
-    function voidEvent(eventId: number): void {
-        void postSnapshot(route('live-games.correction', { liveGame: liveGame.id }), { voids_event_id: eventId });
+    function confirmVoid(): void {
+        const target = pendingVoidEvent;
+        setPendingVoidEvent(null);
+
+        if (target !== null) {
+            void postSnapshot(route('live-games.correction', { liveGame: liveGame.id }), { voids_event_id: target.id });
+        }
     }
     function startGame(): void { router.post(route('live-games.start', { liveGame: liveGame.id })); }
     function finishGame(): void {
@@ -214,7 +248,22 @@ export default function LiveGamesShow({
     const hasAssistantAssignment =
         selectedAssistantName !== null && lineupForm.data.delegated_player_ids.length > 0;
 
-    const eventsDisabled = processing || snapshot.liveGame.status !== 'live' || !canRecord;
+    // One reason string covers every non-clock block; the pad adds per-button clock reasons.
+    const recordingBlockedReason = !canRecord
+        ? 'You are viewing this game. Only coaches tied to the home or opponent team can record events.'
+        : snapshot.liveGame.status === 'setup'
+            ? (snapshot.both_lineups_ready
+                ? 'Start the game to enable event recording and substitutions.'
+                : 'Both coaches must submit a starting five before the game can start.')
+            : snapshot.liveGame.status === 'finished'
+                ? 'This game is finished. Existing events can still be voided from the timeline.'
+                : controlledActiveIds.length === 0
+                    ? 'None of the players assigned to you are on court.'
+                    : processing
+                        ? 'Recording…'
+                        : null;
+
+    const padUnavailableReason = recordingBlockedReason ?? clockBlockReason('running', clockState);
     const allPlayers = [...homePlayers, ...opponentPlayers];
     const lineupReady = lineupForm.data.starting_player_ids.length === 5;
 
@@ -230,6 +279,7 @@ export default function LiveGamesShow({
                     score={snapshot.score}
                     processing={processing}
                     canControlClock={isCreator && snapshot.both_lineups_ready}
+                    canStopClock={can_stop_clock && snapshot.both_lineups_ready}
                     viewerSide={viewerSide}
                     onClockAction={clockAction}
                 />
@@ -396,25 +446,37 @@ export default function LiveGamesShow({
                         <BenchSubstitution
                             players={controlledRosterPlayers}
                             activePlayerIds={controlledActiveIds}
-                            disabled={eventsDisabled || controlledActiveIds.length === 0}
+                            disabled={recordingBlockedReason !== null || clockState !== 'stopped'}
                             onSubstitute={substitute}
                         />
                     </div>
                     <div className="flex min-w-0 flex-col gap-4">
-                        <EventPad selectedPlayer={selectedPlayer} disabled={eventsDisabled} onRecord={record} />
-                        {snapshot.liveGame.status !== 'live' && (
+                        <EventPad
+                            selectedPlayer={selectedPlayer}
+                            clockState={clockState}
+                            selectedPlayerPersonalFouls={selectedPlayerPersonalFouls}
+                            blockedReason={recordingBlockedReason}
+                            onRecord={record}
+                        />
+                        {padUnavailableReason && (
                             <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                                {snapshot.both_lineups_ready
-                                    ? 'Start the game to enable event recording and substitutions.'
-                                    : 'Both coaches must submit a starting five before the game can start.'}
+                                {padUnavailableReason}
                             </div>
                         )}
-                        {snapshot.liveGame.status === 'live' && !canRecord && (
-                            <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                                You are viewing this game. Only coaches tied to the home or opponent team can record events.
-                            </div>
-                        )}
-                        <Timeline events={snapshot.events} players={allPlayers} disabled={processing} onVoid={voidEvent} />
+                        <Timeline
+                            events={snapshot.events}
+                            players={allPlayers}
+                            teams={teams}
+                            disabled={processing}
+                            onRequestVoid={setPendingVoidEvent}
+                        />
+                        <VoidEventConfirmModal
+                            open={pendingVoidEvent !== null}
+                            onOpenChange={(open) => !open && setPendingVoidEvent(null)}
+                            label={pendingVoidEvent ? eventLabel(pendingVoidEvent, allPlayers, teams) : null}
+                            isSubstitution={pendingVoidEvent?.type === 'substitution'}
+                            onConfirm={confirmVoid}
+                        />
                     </div>
                     <aside className="min-w-0">
                         <AlertsPanel alerts={snapshot.alerts} players={allPlayers} />

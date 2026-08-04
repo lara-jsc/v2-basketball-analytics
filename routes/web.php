@@ -29,16 +29,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/live-games/create', [LiveGameController::class, 'create'])->name('live-games.create');
     Route::post('/live-games', [LiveGameController::class, 'store'])->name('live-games.store');
     Route::get('/live-games/{liveGame}', [LiveGameController::class, 'show'])->name('live-games.show');
-    Route::post('/live-games/{liveGame}/lineup', [LiveGameController::class, 'submitLineup'])->name('live-games.lineup');
-    Route::post('/live-games/{liveGame}/start', [LiveGameController::class, 'start'])->name('live-games.start');
-    Route::post('/live-games/{liveGame}/finish', [LiveGameController::class, 'finish'])->name('live-games.finish');
+    Route::post('/live-games/{liveGame}/lineup', [LiveGameController::class, 'submitLineup'])
+        ->can('record', 'liveGame')
+        ->name('live-games.lineup');
+    Route::post('/live-games/{liveGame}/start', [LiveGameController::class, 'start'])
+        ->can('record', 'liveGame')
+        ->name('live-games.start');
+    Route::post('/live-games/{liveGame}/finish', [LiveGameController::class, 'finish'])
+        ->can('record', 'liveGame')
+        ->name('live-games.finish');
     Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
+        ->can('record', 'liveGame')
         ->name('live-games.events.store');
 
     Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
+        ->can('record', 'liveGame')
         ->name('live-games.clock.store');
 
     Route::post('/live-games/{liveGame}/correction', [LiveGameController::class, 'correction'])
+        ->can('record', 'liveGame')
         ->name('live-games.correction');
 
     Route::post('/live-game-invites/{notification}/dismiss', [LiveGameInviteController::class, 'dismiss'])

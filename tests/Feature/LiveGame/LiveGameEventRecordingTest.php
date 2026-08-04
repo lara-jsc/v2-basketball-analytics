@@ -18,7 +18,11 @@ class LiveGameEventRecordingTest extends TestCase
     {
         Event::fake([LiveGameStateUpdated::class]);
 
-        $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
         $user = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
         $player = Player::factory()->for($game->homeTeam)->create();
         $opponentPlayer = Player::factory()->for($game->opponentTeam)->create();
@@ -65,7 +69,11 @@ class LiveGameEventRecordingTest extends TestCase
     {
         Event::fake([LiveGameStateUpdated::class]);
 
-        $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
         $user = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
         $player = Player::factory()->for($game->homeTeam)->create();
         $game->update([
@@ -89,11 +97,84 @@ class LiveGameEventRecordingTest extends TestCase
         $this->assertDatabaseHas('live_game_events', ['live_game_id' => $game->id, 'sequence' => 2, 'type' => 'turnover']);
     }
 
+    public function test_a_timeout_is_attributed_to_the_recording_coachs_team(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+
+        $game = LiveGame::factory()->withBothLineups()->create(['status' => LiveGame::STATUS_LIVE]);
+        $opponentCoach = User::factory()->forTeam($game->opponentTeam)->create(['email_verified_at' => now()]);
+        $game->forceFill(['opponent_main_coach_user_id' => $opponentCoach->id])->save();
+
+        $this->actingAs($opponentCoach)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'timeout',
+            'team_scope' => 'own',
+        ])->assertOk();
+
+        $timeout = $game->events()->where('type', 'timeout')->firstOrFail();
+        $this->assertSame('own', $timeout->team_scope);
+        $this->assertSame((int) $game->opponent_team_id, (int) $timeout->payload['team_id']);
+        $this->assertSame(0, $game->fresh()->home_score);
+    }
+
+    public function test_a_user_on_neither_team_cannot_call_a_timeout(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+
+        $game = LiveGame::factory()->withBothLineups()->create(['status' => LiveGame::STATUS_LIVE]);
+        // The creator is a participant by definition, but has no team side to attribute to.
+        $creator = User::query()->findOrFail($game->created_by_user_id);
+
+        $this->actingAs($creator)
+            ->postJson("/live-games/{$game->id}/events", ['type' => 'timeout', 'team_scope' => 'own'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('game');
+    }
+
+    public function test_an_offensive_rebound_and_a_technical_foul_reach_their_own_columns(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+
+        $game = LiveGame::factory()->withBothLineups()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
+        $coach = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
+        $player = Player::query()->findOrFail($game->starting_player_ids[0]);
+
+        $this->actingAs($coach)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'rebound',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'payload' => ['kind' => 'offensive'],
+        ])->assertOk();
+
+        $this->actingAs($coach)->postJson("/live-games/{$game->id}/events", [
+            'type' => 'foul',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'payload' => ['kind' => 'technical'],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $player->id,
+            'offensive_rebounds' => 1,
+            'defensive_rebounds' => 0,
+            'technical_fouls' => 1,
+            'personal_fouls' => 0,
+        ]);
+    }
+
     public function test_a_coach_cannot_record_events_for_the_other_team(): void
     {
         Event::fake([LiveGameStateUpdated::class]);
 
-        $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
         $homeCoach = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
         $homePlayer = Player::factory()->for($game->homeTeam)->create();
         $opponentPlayer = Player::factory()->for($game->opponentTeam)->create();
@@ -117,7 +198,11 @@ class LiveGameEventRecordingTest extends TestCase
     {
         Event::fake([LiveGameStateUpdated::class]);
 
-        $game = LiveGame::factory()->create(['status' => LiveGame::STATUS_LIVE]);
+        $game = LiveGame::factory()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
         $opponentCoach = User::factory()->forTeam($game->opponentTeam)->create(['email_verified_at' => now()]);
         $homePlayer = Player::factory()->for($game->homeTeam)->create();
         $opponentPlayer = Player::factory()->for($game->opponentTeam)->create();

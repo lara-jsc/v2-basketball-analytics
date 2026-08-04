@@ -6,6 +6,7 @@ use App\Models\LiveGame;
 use App\Models\Player;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameEventRecorder;
+use App\Services\LiveGame\LiveGameEventRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -25,13 +26,8 @@ class LiveGameEventController extends Controller
     /** @return array<string, mixed> */
     private function validated(Request $request, LiveGame $game, User $user): array
     {
-        $types = [
-            'shot_made', 'shot_missed', 'free_throw_made', 'free_throw_missed', 'rebound', 'assist',
-            'foul', 'turnover', 'opponent_score', 'substitution', 'timeout', 'correction',
-        ];
-
         $validator = Validator::make($request->all(), [
-            'type' => ['required', 'string', Rule::in($types)],
+            'type' => ['required', 'string', Rule::in(LiveGameEventRules::types())],
             'team_scope' => ['required', 'string', Rule::in(['own', 'opponent', 'game'])],
             'player_id' => ['nullable', 'integer', Rule::exists('players', 'id')],
             'period' => ['nullable', 'integer', 'between:1,4'],
@@ -100,7 +96,19 @@ class LiveGameEventController extends Controller
                 }
             }
 
-            if (in_array($type, ['timeout', 'correction'], true)) {
+            if ($type === 'timeout') {
+                $this->requireScope($validator, $scope, 'own');
+
+                if (isset($input['player_id'])) {
+                    $validator->errors()->add('player_id', 'Timeout events cannot have a player.');
+                }
+
+                if ($side === null) {
+                    $validator->errors()->add('game', 'Only team coaches can call a timeout.');
+                }
+            }
+
+            if ($type === 'correction') {
                 $this->requireScope($validator, $scope, 'game');
             }
 

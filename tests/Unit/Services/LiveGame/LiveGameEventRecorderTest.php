@@ -6,7 +6,9 @@ use App\Models\LiveGame;
 use App\Models\LiveGamePlayerDelegation;
 use App\Models\Player;
 use App\Models\User;
+use App\Services\LiveGame\LiveGameClockService;
 use App\Services\LiveGame\LiveGameEventRecorder;
+use App\Services\LiveGame\LiveGameEventRules;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
@@ -82,12 +84,12 @@ class LiveGameEventRecorderTest extends TestCase
         $this->travelTo('2026-08-02 12:00:00');
         [$game, $starter, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
         $bench = Player::factory()->for($game->homeTeam)->create();
-        $game->update([
-            'clock_running' => true,
-            'clock_started_at' => now(),
-        ]);
+        $this->runClock($game);
 
+        // Substitutions happen during a stoppage, so the clock is stopped after 90 seconds
+        // of play and the substitution is stamped with the elapsed clock.
         $this->travel(90)->seconds();
+        $this->stopClock($game);
         $this->record($game, $user, $this->substitution($starter, $bench));
 
         $this->assertDatabaseHas('live_game_events', [
@@ -106,13 +108,16 @@ class LiveGameEventRecorderTest extends TestCase
     {
         [$game, $starter, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
         $bench = Player::factory()->for($game->homeTeam)->create();
+        $this->runClock($game);
 
         $this->assertValidationException(
             fn (): array => $this->record($game, $user, $this->ownEvent($bench)),
             'player_id',
         );
 
+        $this->stopClock($game);
         $this->record($game, $user, $this->substitution($starter, $bench));
+        $this->runClock($game);
         $this->record($game, $user, $this->ownEvent($bench));
 
         $this->assertDatabaseHas('live_game_events', [
@@ -133,6 +138,7 @@ class LiveGameEventRecorderTest extends TestCase
             'active_player_ids' => [$starterA->id, $starterB->id],
             'home_main_coach_user_id' => $mainCoach->id,
         ])->save();
+        $this->runClock($game);
 
         LiveGamePlayerDelegation::query()->create([
             'live_game_id' => $game->id,
@@ -201,6 +207,208 @@ class LiveGameEventRecorderTest extends TestCase
             fn (): array => $this->record($game, $assistant, $this->substitution($starterA, $benchNotDelegated)),
             'payload.player_in_id',
         );
+    }
+
+    public function test_it_rejects_a_field_goal_while_the_clock_is_stopped(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $user, $this->ownEvent($player)),
+            'game',
+        );
+
+        $this->assertDatabaseCount('live_game_events', 0);
+    }
+
+    public function test_it_rejects_a_free_throw_while_the_clock_is_running(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $this->runClock($game);
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $user, [
+                'type' => 'free_throw_made',
+                'team_scope' => 'own',
+                'player_id' => $player->id,
+            ]),
+            'game',
+        );
+
+        $this->assertDatabaseCount('live_game_events', 0);
+    }
+
+    public function test_it_records_a_free_throw_while_the_clock_is_stopped(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+
+        $this->record($game, $user, [
+            'type' => 'free_throw_made',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+        ]);
+
+        $this->assertDatabaseCount('live_game_events', 1);
+    }
+
+    public function test_recording_a_foul_stops_a_running_clock(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $this->runClock($game);
+
+        $this->travel(90)->seconds();
+        $snapshot = $this->record($game, $user, [
+            'type' => 'foul',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'payload' => ['kind' => 'personal'],
+        ]);
+
+        $this->assertFalse($snapshot['clock']['running']);
+        $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
+        $this->assertDatabaseHas('live_games', [
+            'id' => $game->id,
+            'clock_running' => false,
+            'clock_started_at' => null,
+        ]);
+    }
+
+    public function test_it_rejects_every_event_but_a_correction_once_the_period_has_expired(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $game->forceFill(['clock_seconds_remaining' => 0, 'clock_running' => false])->save();
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $user, [
+                'type' => 'free_throw_made',
+                'team_scope' => 'own',
+                'player_id' => $player->id,
+            ]),
+            'game',
+        );
+
+        $this->assertDatabaseCount('live_game_events', 0);
+    }
+
+    public function test_it_allows_a_correction_once_the_period_has_expired(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $this->runClock($game);
+        $this->record($game, $user, $this->ownEvent($player));
+        $recorded = $game->events()->firstOrFail();
+
+        $game->forceFill(['clock_seconds_remaining' => 0, 'clock_running' => false])->save();
+
+        $this->record($game, $user, [
+            'type' => 'correction',
+            'team_scope' => 'game',
+            'voids_event_id' => $recorded->id,
+        ]);
+
+        $this->assertDatabaseCount('live_game_events', 2);
+    }
+
+    public function test_it_rejects_a_personal_foul_for_a_disqualified_player(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+
+        for ($i = 0; $i < LiveGameEventRules::MAX_PERSONAL_FOULS; $i++) {
+            $this->record($game, $user, [
+                'type' => 'foul',
+                'team_scope' => 'own',
+                'player_id' => $player->id,
+                'payload' => ['kind' => 'personal'],
+            ]);
+        }
+
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $player->id,
+            'personal_fouls' => LiveGameEventRules::MAX_PERSONAL_FOULS,
+        ]);
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $user, [
+                'type' => 'foul',
+                'team_scope' => 'own',
+                'player_id' => $player->id,
+                'payload' => ['kind' => 'personal'],
+            ]),
+            'player_id',
+        );
+
+        $this->assertSame(
+            LiveGameEventRules::MAX_PERSONAL_FOULS,
+            $game->events()->where('type', 'foul')->count(),
+        );
+    }
+
+    public function test_a_technical_foul_is_not_capped_by_the_personal_foul_limit(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+
+        for ($i = 0; $i < LiveGameEventRules::MAX_PERSONAL_FOULS; $i++) {
+            $this->record($game, $user, [
+                'type' => 'foul',
+                'team_scope' => 'own',
+                'player_id' => $player->id,
+                'payload' => ['kind' => 'personal'],
+            ]);
+        }
+
+        $this->record($game, $user, [
+            'type' => 'foul',
+            'team_scope' => 'own',
+            'player_id' => $player->id,
+            'payload' => ['kind' => 'technical'],
+        ]);
+
+        $this->assertDatabaseHas('live_game_player_stats', [
+            'live_game_id' => $game->id,
+            'player_id' => $player->id,
+            'technical_fouls' => 1,
+        ]);
+    }
+
+    public function test_it_rejects_a_second_correction_against_an_already_voided_event(): void
+    {
+        [$game, $player, $user] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $this->runClock($game);
+        $this->record($game, $user, $this->ownEvent($player));
+        $recorded = $game->events()->firstOrFail();
+
+        $this->record($game, $user, [
+            'type' => 'correction',
+            'team_scope' => 'game',
+            'voids_event_id' => $recorded->id,
+        ]);
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $user, [
+                'type' => 'correction',
+                'team_scope' => 'game',
+                'voids_event_id' => $recorded->id,
+            ]),
+            'voids_event_id',
+        );
+
+        $this->assertSame(1, $game->events()->where('type', 'correction')->count());
+    }
+
+    /** Put the game on a running clock so live-ball events are recordable. */
+    private function runClock(LiveGame $game, int $elapsedSeconds = 0): void
+    {
+        $game->forceFill([
+            'clock_running' => true,
+            'clock_started_at' => now()->subSeconds($elapsedSeconds),
+        ])->save();
+    }
+
+    /** Stop the clock so dead-ball events (free throws, timeouts, substitutions) are recordable. */
+    private function stopClock(LiveGame $game): void
+    {
+        app(LiveGameClockService::class)->stopFor($game);
     }
 
     /** @return array{LiveGame, Player, User} */

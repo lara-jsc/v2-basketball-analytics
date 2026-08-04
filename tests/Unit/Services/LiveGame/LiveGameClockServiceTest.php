@@ -117,6 +117,65 @@ class LiveGameClockServiceTest extends TestCase
         $this->assertSame(0, $snapshot['clock']['seconds_remaining']);
     }
 
+    public function test_an_opponent_main_coach_may_stop_the_clock(): void
+    {
+        $this->travelTo('2026-08-02 12:00:00');
+        $game = LiveGame::factory()->withBothLineups()->create(['status' => LiveGame::STATUS_LIVE]);
+        $this->handle($game, ['action' => 'start']);
+
+        $opponentCoach = User::factory()->forTeam($game->opponentTeam)->create();
+        $game->forceFill(['opponent_main_coach_user_id' => $opponentCoach->id])->save();
+
+        $this->travel(90)->seconds();
+        $snapshot = app(LiveGameClockService::class)->handle($game->fresh(), $opponentCoach, ['action' => 'stop']);
+
+        $this->assertFalse($snapshot['clock']['running']);
+        $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
+    }
+
+    public function test_an_opponent_main_coach_may_not_start_the_clock(): void
+    {
+        $game = LiveGame::factory()->withBothLineups()->create(['status' => LiveGame::STATUS_LIVE]);
+        $opponentCoach = User::factory()->forTeam($game->opponentTeam)->create();
+        $game->forceFill(['opponent_main_coach_user_id' => $opponentCoach->id])->save();
+
+        $this->expectException(ValidationException::class);
+
+        app(LiveGameClockService::class)->handle($game->fresh(), $opponentCoach, ['action' => 'start']);
+    }
+
+    public function test_a_coach_who_is_not_a_main_coach_may_not_stop_the_clock(): void
+    {
+        $game = LiveGame::factory()->withBothLineups()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_running' => true,
+            'clock_started_at' => now(),
+        ]);
+        $stranger = User::factory()->create();
+
+        $this->expectException(ValidationException::class);
+
+        app(LiveGameClockService::class)->handle($game->fresh(), $stranger, ['action' => 'stop']);
+    }
+
+    public function test_starting_an_expired_clock_reports_that_the_period_has_ended(): void
+    {
+        $game = LiveGame::factory()->withBothLineups()->create([
+            'status' => LiveGame::STATUS_LIVE,
+            'clock_seconds_remaining' => 0,
+            'clock_running' => false,
+        ]);
+
+        try {
+            $this->handle($game, ['action' => 'start']);
+            $this->fail('Expected a ValidationException for starting an expired clock.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('has ended', $exception->errors()['game'][0]);
+        }
+
+        $this->assertFalse($game->fresh()->clock_running);
+    }
+
     public function test_set_period_stops_the_clock_and_uses_the_supplied_remaining_seconds(): void
     {
         $game = LiveGame::factory()->create(['clock_running' => true, 'clock_started_at' => now()]);

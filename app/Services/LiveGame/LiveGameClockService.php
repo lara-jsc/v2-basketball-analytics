@@ -18,9 +18,13 @@ class LiveGameClockService
     /** @param array<string, mixed> $input @return array<string, mixed> */
     public function handle(LiveGame $game, User $user, array $input): array
     {
-        if (! $game->isCreator($user)) {
+        $action = is_string($input['action'] ?? null) ? $input['action'] : '';
+
+        if (! $this->canPerform($game, $user, $action)) {
             throw ValidationException::withMessages([
-                'game' => 'Only the game creator can control the clock.',
+                'game' => $action === 'stop'
+                    ? 'Only the game creator or a main coach can stop the clock.'
+                    : 'Only the game creator can start the clock or change the period.',
             ]);
         }
 
@@ -35,7 +39,7 @@ class LiveGameClockService
 
             match ($input['action'] ?? null) {
                 'start' => $this->start($game),
-                'stop' => $this->stop($game),
+                'stop' => $this->stopFor($game),
                 'set_period' => $this->setPeriod($game, $input),
                 'reset_period' => $this->resetPeriod($game),
                 default => throw ValidationException::withMessages(['action' => 'The clock action is invalid.']),
@@ -49,6 +53,32 @@ class LiveGameClockService
         event(new LiveGameStateUpdated($game->id, $snapshot));
 
         return $snapshot;
+    }
+
+    private function canPerform(LiveGame $game, User $user, string $action): bool
+    {
+        if ($game->isCreator($user)) {
+            return true;
+        }
+
+        // Either bench can whistle, so either main coach may stop the clock. Starting,
+        // advancing and resetting stay with the creator so there is one authoritative clock.
+        return $action === 'stop' && $game->isMainCoach($user);
+    }
+
+    /**
+     * Stop the clock without authorization. Callers must have authorized already —
+     * LiveGameEventRecorder calls this when a foul is recorded.
+     */
+    public function stopFor(LiveGame $game): void
+    {
+        $remaining = $this->refreshElapsedClock($game);
+
+        $game->forceFill([
+            'clock_seconds_remaining' => $remaining,
+            'clock_running' => false,
+            'clock_started_at' => null,
+        ])->save();
     }
 
     public function effectiveSecondsRemaining(LiveGame $game): int
@@ -77,7 +107,9 @@ class LiveGameClockService
         $remaining = $this->refreshElapsedClock($game);
 
         if ($remaining === 0) {
-            return;
+            throw ValidationException::withMessages([
+                'game' => "Q{$game->current_period} has ended. Advance the period or reset the clock.",
+            ]);
         }
 
         $game->forceFill([
@@ -86,17 +118,6 @@ class LiveGameClockService
             'status' => $game->status === LiveGame::STATUS_SETUP ? LiveGame::STATUS_LIVE : $game->status,
             'started_at' => $game->started_at ?? now(),
             'game_date' => $game->started_at === null ? now()->toDateString() : $game->game_date,
-        ])->save();
-    }
-
-    private function stop(LiveGame $game): void
-    {
-        $remaining = $this->refreshElapsedClock($game);
-
-        $game->forceFill([
-            'clock_seconds_remaining' => $remaining,
-            'clock_running' => false,
-            'clock_started_at' => null,
         ])->save();
     }
 

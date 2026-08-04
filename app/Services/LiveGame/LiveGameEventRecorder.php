@@ -4,8 +4,9 @@ namespace App\Services\LiveGame;
 
 use App\Events\LiveGameStateUpdated;
 use App\Models\LiveGame;
-use App\Models\LiveGamePlayerDelegation;
 use App\Models\LiveGameEvent;
+use App\Models\LiveGamePlayerDelegation;
+use App\Models\LiveGamePlayerStat;
 use App\Models\Player;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,16 @@ class LiveGameEventRecorder
 
             $this->validateRecording($game, $user, $input);
 
+            $payload = is_array($input['payload'] ?? null) ? $input['payload'] : [];
+
+            // team_scope 'own' is relative to whoever recorded it, and a timeout carries no
+            // player_id, so the client cannot resolve which team called it. Stamp it here.
+            if ($input['type'] === 'timeout') {
+                $payload['team_id'] = $game->sideFor($user) === LiveGame::SIDE_OPPONENT
+                    ? (int) $game->opponent_team_id
+                    : (int) $game->home_team_id;
+            }
+
             LiveGameEvent::query()->create([
                 'live_game_id' => $game->id,
                 'sequence' => (int) $game->events()->max('sequence') + 1,
@@ -37,10 +48,14 @@ class LiveGameEventRecorder
                 'period' => $input['period'] ?? $game->current_period,
                 'clock_seconds_remaining' => $input['clock_seconds_remaining'] ?? $this->clockService->effectiveSecondsRemaining($game),
                 'occurred_at' => $input['occurred_at'] ?? now(),
-                'payload' => $input['payload'] ?? [],
+                'payload' => $payload,
                 'voids_event_id' => $input['voids_event_id'] ?? null,
                 'recorded_by_user_id' => $user->id,
             ]);
+
+            if (LiveGameEventRules::stopsClock($input['type']) && $game->clock_running) {
+                $this->clockService->stopFor($game);
+            }
 
             if ($game->status === LiveGame::STATUS_FINISHED && $input['type'] === 'correction') {
                 $this->finalizer->finalize($game);
@@ -114,6 +129,51 @@ class LiveGameEventRecorder
 
         if ($game->status === LiveGame::STATUS_FINISHED && $type !== 'correction') {
             $errors['game'][] = 'Only correction events can be recorded after the game is finished.';
+        }
+
+        if ($game->status === LiveGame::STATUS_LIVE && is_string($type)) {
+            $periodExpired = $this->clockService->effectiveSecondsRemaining($game) === 0;
+
+            if ($periodExpired && ! LiveGameEventRules::isAllowedAtPeriodEnd($type)) {
+                $errors['game'][] = "Q{$game->current_period} has ended. Advance the period before recording.";
+            } elseif ($game->clock_running && ! LiveGameEventRules::isAllowedWhileClockRunning($type)) {
+                $errors['game'][] = 'This is recorded with the clock stopped. Stop the clock first.';
+            } elseif (! $game->clock_running && ! LiveGameEventRules::isAllowedWhileClockStopped($type)) {
+                $errors['game'][] = 'This is recorded with the clock running. Start the clock first.';
+            }
+        }
+
+        if ($type === 'foul' && $side !== null) {
+            $foulPayload = is_array($input['payload'] ?? null) ? $input['payload'] : [];
+            $foulKind = $foulPayload['kind'] ?? 'personal';
+            $fouledPlayerId = (int) ($input['player_id'] ?? 0);
+
+            if ($foulKind === 'personal' && $fouledPlayerId > 0) {
+                $personalFouls = (int) LiveGamePlayerStat::query()
+                    ->where('live_game_id', $game->id)
+                    ->where('player_id', $fouledPlayerId)
+                    ->value('personal_fouls');
+
+                if ($personalFouls >= LiveGameEventRules::MAX_PERSONAL_FOULS) {
+                    $errors['player_id'][] = sprintf(
+                        'This player already has %d personal fouls and is disqualified.',
+                        LiveGameEventRules::MAX_PERSONAL_FOULS,
+                    );
+                }
+            }
+        }
+
+        if ($type === 'correction') {
+            $voidsEventId = $input['voids_event_id'] ?? null;
+
+            $alreadyVoided = $voidsEventId !== null && $game->events()
+                ->where('type', 'correction')
+                ->where('voids_event_id', $voidsEventId)
+                ->exists();
+
+            if ($alreadyVoided) {
+                $errors['voids_event_id'][] = 'That event has already been voided.';
+            }
         }
 
         if ($type === 'substitution') {

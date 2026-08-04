@@ -247,6 +247,7 @@ class LiveGameController extends Controller
             'players' => $homePlayers,
             'viewerSide' => $viewerSide,
             'isCreator' => $liveGame->isCreator($user),
+            'can_stop_clock' => $liveGame->isCreator($user) || $liveGame->isMainCoach($user),
             'controlled_player_ids' => $controlledPlayerIds,
             'is_main_coach' => $isMainCoach,
             'team_coaches' => $teamCoaches,
