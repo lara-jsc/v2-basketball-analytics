@@ -23,7 +23,7 @@ class LiveGameSchemaTest extends TestCase
         $this->assertTableHasColumns('live_games', [
             'id', 'home_team_id', 'opponent_team_id', 'created_by_user_id', 'status', 'game_date',
             'period_length_seconds', 'current_period', 'clock_seconds_remaining', 'clock_running',
-            'clock_started_at', 'home_score', 'opponent_score',             'starting_player_ids', 'active_player_ids', 'opponent_starting_player_ids', 'opponent_active_player_ids',
+            'clock_started_at', 'home_score', 'opponent_score', 'home_main_coach_user_id', 'opponent_main_coach_user_id',             'starting_player_ids', 'active_player_ids', 'opponent_starting_player_ids', 'opponent_active_player_ids',
             'started_at', 'finished_at', 'created_at', 'updated_at',
         ]);
 
@@ -51,6 +51,10 @@ class LiveGameSchemaTest extends TestCase
         $this->assertTableHasColumns('live_game_alerts', [
             'id', 'live_game_id', 'player_id', 'type', 'severity', 'period', 'clock_seconds_remaining',
             'message', 'context', 'triggered_at', 'resolved_at', 'created_at', 'updated_at',
+        ]);
+
+        $this->assertTableHasColumns('live_game_player_delegations', [
+            'id', 'live_game_id', 'coach_user_id', 'player_id', 'created_at', 'updated_at',
         ]);
     }
 
@@ -128,6 +132,9 @@ class LiveGameSchemaTest extends TestCase
         $this->assertIndexExists('live_game_alerts', ['type']);
         $this->assertIndexExists('live_game_alerts', ['player_id']);
         $this->assertIndexExists('live_game_alerts', ['resolved_at']);
+
+        $this->assertIndexExists('live_game_player_delegations', ['live_game_id', 'player_id']);
+        $this->assertIndexExists('live_game_player_delegations', ['live_game_id', 'coach_user_id', 'player_id']);
     }
 
     public function test_required_foreign_keys_are_declared(): void
@@ -145,6 +152,10 @@ class LiveGameSchemaTest extends TestCase
         $this->assertForeignKeyExists('live_game_lineup_stints', 'player_id', 'players');
         $this->assertForeignKeyExists('live_game_alerts', 'live_game_id', 'live_games');
         $this->assertForeignKeyExists('live_game_alerts', 'player_id', 'players');
+
+        $this->assertForeignKeyExists('live_game_player_delegations', 'live_game_id', 'live_games');
+        $this->assertForeignKeyExists('live_game_player_delegations', 'coach_user_id', 'users');
+        $this->assertForeignKeyExists('live_game_player_delegations', 'player_id', 'players');
     }
 
     public function test_live_game_status_must_be_a_valid_lifecycle_value(): void

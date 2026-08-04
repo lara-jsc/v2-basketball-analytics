@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\LiveGameStateUpdated;
 use App\Models\LiveGame;
+use App\Models\LiveGamePlayerDelegation;
 use App\Models\Player;
 use App\Models\Team;
 use App\Models\User;
@@ -109,6 +110,7 @@ class LiveGameController extends Controller
             'home_team_id' => $homeTeamId,
             'opponent_team_id' => $validated['opponent_team_id'],
             'created_by_user_id' => $user->id,
+            'home_main_coach_user_id' => $user->id,
             'status' => LiveGame::STATUS_SETUP,
             'game_date' => now()->toDateString(),
             'period_length_seconds' => $validated['period_length_seconds'],
@@ -117,6 +119,7 @@ class LiveGameController extends Controller
             'active_player_ids' => array_values($validated['starting_player_ids']),
             'opponent_starting_player_ids' => null,
             'opponent_active_player_ids' => null,
+            'opponent_main_coach_user_id' => null,
         ]);
 
         return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created. Share the link so the opponent coach can submit their lineup.');
@@ -141,6 +144,61 @@ class LiveGameController extends Controller
             ->orderBy('jersey_number')
             ->get();
 
+        $viewerSide = $liveGame->sideFor($user);
+        $controlledPlayerIds = [];
+        $isMainCoach = false;
+        $delegationsByCoachUserId = [];
+        $teamCoaches = [];
+
+        if ($viewerSide !== null) {
+            $teamId = $viewerSide === LiveGame::SIDE_OPPONENT
+                ? (int) $liveGame->opponent_team_id
+                : (int) $liveGame->home_team_id;
+
+            $mainCoachUserId = $viewerSide === LiveGame::SIDE_OPPONENT
+                ? $liveGame->opponent_main_coach_user_id
+                : $liveGame->home_main_coach_user_id;
+
+            $rosterPlayers = $viewerSide === LiveGame::SIDE_OPPONENT ? $opponentPlayers : $homePlayers;
+            $rosterPlayerIds = $rosterPlayers->pluck('id')->map(fn (mixed $id): int => (int) $id)->values();
+
+            $delegations = LiveGamePlayerDelegation::query()
+                ->where('live_game_id', $liveGame->id)
+                ->whereIn('player_id', $rosterPlayerIds->all())
+                ->get(['coach_user_id', 'player_id']);
+
+            $delegationsByCoachUserId = $delegations
+                ->groupBy(fn ($row) => (int) $row->coach_user_id)
+                ->map(fn ($rows) => $rows->pluck('player_id')->map(fn (mixed $id): int => (int) $id)->values()->all())
+                ->all();
+
+            $isMainCoach = $mainCoachUserId !== null && (int) $mainCoachUserId === (int) $user->id;
+
+            if ($mainCoachUserId === null) {
+                // Defensive default: if we haven't determined main-coach yet, don't block UI/recording.
+                $controlledPlayerIds = $rosterPlayerIds->all();
+            } elseif ($isMainCoach) {
+                $delegatedAwayIds = $delegations
+                    ->reject(fn ($row) => (int) $row->coach_user_id === (int) $mainCoachUserId)
+                    ->pluck('player_id')
+                    ->map(fn (mixed $id): int => (int) $id)
+                    ->unique()
+                    ->values();
+
+                $controlledPlayerIds = $rosterPlayerIds
+                    ->diff($delegatedAwayIds)
+                    ->values()
+                    ->all();
+            } else {
+                $controlledPlayerIds = $delegationsByCoachUserId[(int) $user->id] ?? [];
+            }
+
+            $teamCoaches = User::query()
+                ->where('team_id', $teamId)
+                ->whereNotNull('email_verified_at')
+                ->get(['id', 'name']);
+        }
+
         return Inertia::render('LiveGames/Show', [
             'liveGame' => $liveGame,
             'snapshot' => $stateBuilder->build($liveGame),
@@ -148,8 +206,12 @@ class LiveGameController extends Controller
             'homePlayers' => $homePlayers,
             'opponentPlayers' => $opponentPlayers,
             'players' => $homePlayers,
-            'viewerSide' => $liveGame->sideFor($user),
+            'viewerSide' => $viewerSide,
             'isCreator' => $liveGame->isCreator($user),
+            'controlled_player_ids' => $controlledPlayerIds,
+            'is_main_coach' => $isMainCoach,
+            'delegations_by_coach_user_id' => $delegationsByCoachUserId,
+            'team_coaches' => $teamCoaches,
         ]);
     }
 
@@ -191,10 +253,16 @@ class LiveGameController extends Controller
         $ids = array_values($validated['starting_player_ids']);
 
         if ($side === LiveGame::SIDE_OPPONENT) {
-            $liveGame->forceFill([
+            $updates = [
                 'opponent_starting_player_ids' => $ids,
                 'opponent_active_player_ids' => $ids,
-            ])->save();
+            ];
+
+            if ($liveGame->opponent_main_coach_user_id === null) {
+                $updates['opponent_main_coach_user_id'] = $user->id;
+            }
+
+            $liveGame->forceFill($updates)->save();
         } else {
             $liveGame->forceFill([
                 'starting_player_ids' => $ids,

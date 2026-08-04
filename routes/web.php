@@ -5,6 +5,7 @@ use App\Http\Controllers\CsvController;
 use App\Http\Controllers\LiveGameClockController;
 use App\Http\Controllers\LiveGameController;
 use App\Http\Controllers\LiveGameEventController;
+use App\Http\Controllers\LiveGameDelegationController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
@@ -36,6 +37,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
         ->name('live-games.clock.store');
+
+    Route::post('/live-games/{liveGame}/delegations', [LiveGameDelegationController::class, 'store'])
+        ->name('live-games.delegations.store');
 
     Route::post('/live-games/{liveGame}/correction', [LiveGameController::class, 'correction'])
         ->name('live-games.correction');

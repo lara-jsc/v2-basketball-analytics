@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services\LiveGame;
 
 use App\Models\LiveGame;
+use App\Models\LiveGamePlayerDelegation;
 use App\Models\Player;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameEventRecorder;
@@ -119,6 +120,87 @@ class LiveGameEventRecorderTest extends TestCase
             'type' => 'shot_made',
             'player_id' => $bench->id,
         ]);
+    }
+
+    public function test_it_rejects_recording_own_events_for_players_delegated_to_an_assistant(): void
+    {
+        [$game, $starterA, $mainCoach] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $starterB = Player::factory()->for($game->homeTeam)->create();
+        $assistant = User::factory()->forTeam($game->homeTeam)->create();
+
+        $game->forceFill([
+            'starting_player_ids' => [$starterA->id, $starterB->id],
+            'active_player_ids' => [$starterA->id, $starterB->id],
+            'home_main_coach_user_id' => $mainCoach->id,
+        ])->save();
+
+        LiveGamePlayerDelegation::query()->create([
+            'live_game_id' => $game->id,
+            'coach_user_id' => $assistant->id,
+            'player_id' => $starterA->id,
+        ]);
+
+        // Main coach cannot record for delegated-away players.
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $mainCoach, $this->ownEvent($starterA)),
+            'player_id',
+        );
+
+        // Assistant can record only for their delegated players.
+        $this->record($game, $assistant, $this->ownEvent($starterA));
+        $this->assertDatabaseHas('live_game_events', [
+            'live_game_id' => $game->id,
+            'type' => 'shot_made',
+            'player_id' => $starterA->id,
+            'recorded_by_user_id' => $assistant->id,
+        ]);
+
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $assistant, $this->ownEvent($starterB)),
+            'player_id',
+        );
+    }
+
+    public function test_it_rejects_substitutions_when_involved_players_are_not_delegated_to_the_recording_coach(): void
+    {
+        [$game, $starterA, $mainCoach] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
+        $assistant = User::factory()->forTeam($game->homeTeam)->create();
+
+        $benchDelegated = Player::factory()->for($game->homeTeam)->create();
+        $benchNotDelegated = Player::factory()->for($game->homeTeam)->create();
+
+        $game->forceFill([
+            'starting_player_ids' => [$starterA->id],
+            'active_player_ids' => [$starterA->id],
+            'home_main_coach_user_id' => $mainCoach->id,
+        ])->save();
+
+        LiveGamePlayerDelegation::query()->insert([
+            [
+                'live_game_id' => $game->id,
+                'coach_user_id' => $assistant->id,
+                'player_id' => $starterA->id,
+            ],
+            [
+                'live_game_id' => $game->id,
+                'coach_user_id' => $assistant->id,
+                'player_id' => $benchDelegated->id,
+            ],
+        ]);
+
+        // Allowed: both out and in are delegated to the assistant.
+        $this->record($game, $assistant, $this->substitution($starterA, $benchDelegated));
+        $this->assertDatabaseHas('live_game_events', [
+            'live_game_id' => $game->id,
+            'type' => 'substitution',
+            'recorded_by_user_id' => $assistant->id,
+        ]);
+
+        // Rejected: incoming player is not delegated to this coach.
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $assistant, $this->substitution($starterA, $benchNotDelegated)),
+            'payload.player_in_id',
+        );
     }
 
     /** @return array{LiveGame, Player, User} */

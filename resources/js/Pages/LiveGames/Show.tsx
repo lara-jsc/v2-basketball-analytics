@@ -21,6 +21,10 @@ interface LiveGameShowProps extends PageProps {
     players: Player[];
     viewerSide: 'home' | 'opponent' | null;
     isCreator: boolean;
+    controlled_player_ids: number[];
+    is_main_coach: boolean;
+    delegations_by_coach_user_id: Record<string, number[]>;
+    team_coaches: Array<{ id: number; name: string }>;
 }
 
 export default function LiveGamesShow({
@@ -32,20 +36,31 @@ export default function LiveGamesShow({
     players,
     viewerSide,
     isCreator,
+    controlled_player_ids,
+    is_main_coach,
+    delegations_by_coach_user_id,
+    team_coaches,
+    auth,
 }: LiveGameShowProps) {
     const ownPlayers = viewerSide === 'opponent' ? opponentPlayers : viewerSide === 'home' ? homePlayers : players;
     const [snapshot, setSnapshot] = useState(initialSnapshot);
+
+    const controlledPlayerIdsSet = useMemo(() => new Set(controlled_player_ids), [controlled_player_ids]);
     const ownActiveIds = viewerSide === 'opponent'
         ? (snapshot.opponent_active_player_ids ?? [])
         : (snapshot.active_player_ids ?? []);
-    const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(ownActiveIds[0] ?? null);
+
+    const controlledActiveIds = ownActiveIds.filter((id) => controlledPlayerIdsSet.has(id));
+    const controlledRosterPlayers = ownPlayers.filter((player) => controlledPlayerIdsSet.has(player.id));
+
+    const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(controlledActiveIds[0] ?? null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
     const [clockTick, setClockTick] = useState(() => Date.now());
     const homeTeam = teams.find((team) => team.id === liveGame.home_team_id) ?? liveGame.home_team;
     const opponentTeam = teams.find((team) => team.id === liveGame.opponent_team_id) ?? liveGame.opponent_team;
-    const selectedPlayer = ownPlayers.find((player) => player.id === selectedPlayerId);
+    const selectedPlayer = controlledRosterPlayers.find((player) => player.id === selectedPlayerId);
     const canRecord = viewerSide !== null;
     const isSetup = snapshot.liveGame.status === 'setup';
     const ownLineupReady = viewerSide === 'opponent'
@@ -62,13 +77,67 @@ export default function LiveGamesShow({
         starting_player_ids: ownPlayers.slice(0, 5).map((player) => player.id),
     });
 
+    const assistantCoachOptions = useMemo(
+        () => team_coaches.filter((coach) => coach.id !== auth.user.id),
+        [team_coaches, auth.user.id],
+    );
+
+    const [selectedAssistantCoachId, setSelectedAssistantCoachId] = useState<number | null>(assistantCoachOptions[0]?.id ?? null);
+    const [delegationProcessing, setDelegationProcessing] = useState(false);
+    const [delegationError, setDelegationError] = useState<string | null>(null);
+
+    const delegatedPlayerIdsForSelectedAssistant = selectedAssistantCoachId !== null
+        ? (delegations_by_coach_user_id[String(selectedAssistantCoachId)] ?? [])
+        : [];
+
+    const [delegatedPlayerSelection, setDelegatedPlayerSelection] = useState<number[]>(delegatedPlayerIdsForSelectedAssistant);
+
+    useEffect(() => {
+        const stillValid = selectedAssistantCoachId !== null && assistantCoachOptions.some((c) => c.id === selectedAssistantCoachId);
+        if (!stillValid) setSelectedAssistantCoachId(assistantCoachOptions[0]?.id ?? null);
+    }, [assistantCoachOptions, selectedAssistantCoachId]);
+
+    useEffect(() => {
+        setDelegatedPlayerSelection(delegatedPlayerIdsForSelectedAssistant);
+    }, [selectedAssistantCoachId, delegations_by_coach_user_id]);
+
+    function toggleDelegatedPlayer(playerId: number): void {
+        setDelegatedPlayerSelection((selected) => (
+            selected.includes(playerId) ? selected.filter((id) => id !== playerId) : [...selected, playerId]
+        ));
+    }
+
+    async function saveDelegations(): Promise<void> {
+        if (selectedAssistantCoachId === null) return;
+        setDelegationProcessing(true);
+        setDelegationError(null);
+
+        try {
+            await axios.post(route('live-games.delegations.store', { liveGame: liveGame.id }), {
+                assistant_coach_user_id: selectedAssistantCoachId,
+                player_ids: delegatedPlayerSelection,
+            });
+
+            router.get(route('live-games.show', { liveGame: liveGame.id }));
+        } catch (requestError) {
+            if (axios.isAxiosError(requestError) && requestError.response?.data?.message) {
+                setDelegationError(requestError.response.data.message as string);
+            } else {
+                setDelegationError('Delegations could not be saved. Check the connection and try again.');
+            }
+        } finally {
+            setDelegationProcessing(false);
+        }
+    }
+
     useEffect(() => {
         setSnapshot(initialSnapshot);
         const nextActive = viewerSide === 'opponent'
             ? (initialSnapshot.opponent_active_player_ids ?? [])
             : (initialSnapshot.active_player_ids ?? []);
-        setSelectedPlayerId(nextActive[0] ?? null);
-    }, [initialSnapshot, viewerSide]);
+        const nextControlledActive = nextActive.filter((id) => controlledPlayerIdsSet.has(id));
+        setSelectedPlayerId(nextControlledActive[0] ?? null);
+    }, [initialSnapshot, viewerSide, controlled_player_ids]);
 
     useEffect(() => {
         const channel = `live-game.${liveGame.id}`;
@@ -77,12 +146,13 @@ export default function LiveGamesShow({
             const nextActive = viewerSide === 'opponent'
                 ? (nextSnapshot.opponent_active_player_ids ?? [])
                 : (nextSnapshot.active_player_ids ?? []);
-            setSelectedPlayerId((current) => nextActive.includes(current ?? -1) ? current : nextActive[0] ?? null);
+            const nextControlledActive = nextActive.filter((id) => controlledPlayerIdsSet.has(id));
+            setSelectedPlayerId((current) => nextControlledActive.includes(current ?? -1) ? current : nextControlledActive[0] ?? null);
             setClockTick(Date.now());
         });
 
         return () => window.Echo?.leave(channel);
-    }, [liveGame.id, viewerSide]);
+    }, [liveGame.id, viewerSide, controlled_player_ids]);
 
     useEffect(() => {
         if (!snapshot.clock.running) return;
@@ -285,19 +355,106 @@ export default function LiveGamesShow({
                     </div>
                 )}
 
+                {isSetup && is_main_coach && viewerSide && assistantCoachOptions.length > 0 && (
+                    <div className="mx-4 mt-4 rounded-lg border border-border bg-card p-5 sm:mx-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Delegate controls</h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Your assistant can record events and substitutions only for the players you assign.
+                                </p>
+                            </div>
+                            <span className="rounded px-2 py-1 text-xs font-bold uppercase tracking-wide bg-cyan-300/10 text-cyan-100">
+                                {delegatedPlayerSelection.length} assigned
+                            </span>
+                        </div>
+
+                        {delegationError && (
+                            <div role="alert" className="mt-4 rounded-md border border-red-300/40 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+                                <AlertTriangle size={16} className="mr-2 inline" /> {delegationError}
+                            </div>
+                        )}
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground" htmlFor="assistant-coach">
+                                    Assistant coach
+                                </label>
+                                <select
+                                    id="assistant-coach"
+                                    value={selectedAssistantCoachId ?? ''}
+                                    onChange={(event) => setSelectedAssistantCoachId(Number(event.target.value))}
+                                    className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                                >
+                                    {assistantCoachOptions.map((coach) => (
+                                        <option key={coach.id} value={coach.id}>
+                                            {coach.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Assign players</p>
+                                    <span className="text-xs text-muted-foreground">{delegatedPlayerSelection.length} selected</span>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {ownPlayers.map((player) => {
+                                        const checked = delegatedPlayerSelection.includes(player.id);
+                                        return (
+                                            <label
+                                                key={player.id}
+                                                className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${
+                                                    checked
+                                                        ? 'border-cyan-300/60 bg-cyan-300/10'
+                                                        : 'border-border hover:bg-muted/40'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleDelegatedPlayer(player.id)}
+                                                    className="h-4 w-4 accent-cyan-400"
+                                                />
+                                                <span className="font-mono text-amber-200">{player.jersey_number}</span>
+                                                <span className="min-w-0">
+                                                    <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
+                                                    <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={() => void saveDelegations()}
+                                disabled={delegationProcessing || selectedAssistantCoachId === null}
+                                className="flex h-11 items-center gap-2 rounded-md bg-amber-400 px-4 text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Save delegation
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid flex-1 gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(250px,0.72fr)_minmax(440px,1.35fr)_minmax(280px,0.85fr)]">
                     <div className="flex flex-col gap-4">
                         <ActiveLineup
-                            players={ownPlayers}
-                            activePlayerIds={ownActiveIds}
+                            players={controlledRosterPlayers}
+                            activePlayerIds={controlledActiveIds}
                             stats={snapshot.stats}
                             selectedPlayerId={selectedPlayerId}
                             onSelectPlayer={setSelectedPlayerId}
                         />
                         <BenchSubstitution
-                            players={ownPlayers}
-                            activePlayerIds={ownActiveIds}
-                            disabled={eventsDisabled}
+                            players={controlledRosterPlayers}
+                            activePlayerIds={controlledActiveIds}
+                            disabled={eventsDisabled || controlledActiveIds.length === 0}
                             onSubstitute={substitute}
                         />
                     </div>

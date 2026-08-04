@@ -17,7 +17,7 @@ export function ActiveLineup({ players, activePlayerIds, stats, selectedPlayerId
         <section className="min-h-[250px] rounded-lg border border-border bg-card p-4" aria-labelledby="active-lineup-heading">
             <div className="mb-3 flex items-center justify-between">
                 <h2 id="active-lineup-heading" className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"><UsersRound size={16} className="text-amber-300" /> Active lineup</h2>
-                <span className="text-xs font-semibold text-muted-foreground">{activePlayers.length}/5 on court</span>
+                <span className="text-xs font-semibold text-muted-foreground">{activePlayers.length} on controlled court</span>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
                 {activePlayers.map((player) => {
@@ -31,7 +31,7 @@ export function ActiveLineup({ players, activePlayerIds, stats, selectedPlayerId
                         </button>
                     );
                 })}
-                {activePlayers.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">Start the game with a five-player lineup.</p>}
+                {activePlayers.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No controlled players on court.</p>}
             </div>
         </section>
     );

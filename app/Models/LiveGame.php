@@ -32,6 +32,8 @@ class LiveGame extends Model
         'home_team_id',
         'opponent_team_id',
         'created_by_user_id',
+        'home_main_coach_user_id',
+        'opponent_main_coach_user_id',
         'status',
         'game_date',
         'period_length_seconds',

@@ -4,7 +4,9 @@ namespace App\Services\LiveGame;
 
 use App\Events\LiveGameStateUpdated;
 use App\Models\LiveGame;
+use App\Models\LiveGamePlayerDelegation;
 use App\Models\LiveGameEvent;
+use App\Models\Player;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +62,51 @@ class LiveGameEventRecorder
         $errors = [];
         $type = $input['type'] ?? null;
         $side = $game->sideFor($user);
+        $controlledPlayerIds = [];
+
+        if ($side !== null) {
+            $teamId = $side === LiveGame::SIDE_OPPONENT ? (int) $game->opponent_team_id : (int) $game->home_team_id;
+            $mainCoachUserId = $side === LiveGame::SIDE_OPPONENT
+                ? $game->opponent_main_coach_user_id
+                : $game->home_main_coach_user_id;
+
+            $allActiveRosterPlayerIds = Player::query()
+                ->where('team_id', $teamId)
+                ->where('is_active', true)
+                ->pluck('id')
+                ->map(fn (mixed $id): int => (int) $id)
+                ->values()
+                ->all();
+
+            if ($mainCoachUserId === null) {
+                // Defensive fallback: if main-coach isn't established yet, don't block recordings.
+                $controlledPlayerIds = $allActiveRosterPlayerIds;
+            } else {
+                $delegations = LiveGamePlayerDelegation::query()
+                    ->where('live_game_id', $game->id)
+                    ->whereIn('player_id', $allActiveRosterPlayerIds)
+                    ->get(['coach_user_id', 'player_id']);
+
+                if ((int) $mainCoachUserId === (int) $user->id) {
+                    $delegatedAwayPlayerIds = $delegations
+                        ->reject(fn ($row) => (int) $row->coach_user_id === (int) $mainCoachUserId)
+                        ->pluck('player_id')
+                        ->map(fn (mixed $id): int => (int) $id)
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    $controlledPlayerIds = array_values(array_diff($allActiveRosterPlayerIds, $delegatedAwayPlayerIds));
+                } else {
+                    $controlledPlayerIds = $delegations
+                        ->where('coach_user_id', $user->id)
+                        ->pluck('player_id')
+                        ->map(fn (mixed $id): int => (int) $id)
+                        ->values()
+                        ->all();
+                }
+            }
+        }
 
         if ($game->status === LiveGame::STATUS_SETUP) {
             $errors['game'][] = 'Events cannot be recorded until the game is live.';
@@ -96,8 +143,16 @@ class LiveGameEventRecorder
                 $errors['payload.player_out_id'][] = 'The outgoing player must be active.';
             }
 
+            if ($playerOutId && ! in_array((int) $playerOutId, $controlledPlayerIds, true)) {
+                $errors['payload.player_out_id'][] = 'You can only substitute players assigned to you.';
+            }
+
             if ($playerInId && in_array((int) $playerInId, $activePlayerIds, true)) {
                 $errors['payload.player_in_id'][] = 'The incoming player must be inactive.';
+            }
+
+            if ($playerInId && ! in_array((int) $playerInId, $controlledPlayerIds, true)) {
+                $errors['payload.player_in_id'][] = 'You can only substitute players assigned to you.';
             }
         }
 
@@ -109,9 +164,14 @@ class LiveGameEventRecorder
                 $errors['game'][] = 'Only team coaches can record player events for this live game.';
             } else {
                 $activePlayerIds = $game->activePlayerIdsForSide($side);
+                $playerId = (int) ($input['player_id'] ?? 0);
 
-                if (! in_array((int) ($input['player_id'] ?? 0), $activePlayerIds, true)) {
+                if (! in_array($playerId, $activePlayerIds, true)) {
                     $errors['player_id'][] = 'The player must be active to record this event.';
+                }
+
+                if (! in_array($playerId, $controlledPlayerIds, true)) {
+                    $errors['player_id'][] = 'You can only record events for players assigned to you.';
                 }
             }
         }
