@@ -9,6 +9,7 @@ use App\Models\Player;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameClockService;
+use App\Services\LiveGame\LiveGameDelegationWriter;
 use App\Services\LiveGame\LiveGameEventRecorder;
 use App\Services\LiveGame\LiveGameFinalizer;
 use App\Services\LiveGame\LiveGameStateBuilder;
@@ -63,15 +64,27 @@ class LiveGameController extends Controller
             $opponentTeams->pluck('id')->all(),
         );
 
+        $assistantCoachOptions = [];
+        if ($user->team_id !== null) {
+            $assistantCoachOptions = User::query()
+                ->where('team_id', $user->team_id)
+                ->where('id', '!=', $user->id)
+                ->whereNotNull('email_verified_at')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->all();
+        }
+
         return Inertia::render('LiveGames/Create', [
             'homeTeam' => $homeTeam,
             'opponentTeams' => $opponentTeams,
             'preselectedPlayerIds' => $preselectedPlayerIds,
             'preselectedOpponentTeamId' => $preselectedOpponentTeamId,
+            'assistantCoachOptions' => $assistantCoachOptions,
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, LiveGameDelegationWriter $delegationWriter): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
@@ -94,7 +107,12 @@ class LiveGameController extends Controller
             'period_length_seconds' => ['required', 'integer', 'between:60,1200'],
             'starting_player_ids' => ['required', 'array', 'size:5'],
             'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+            'assistant_coach_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('team_id', $homeTeamId)],
+            'delegated_player_ids' => ['nullable', 'array'],
+            'delegated_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
         ])->validate();
+
+        $this->assertDelegationPair($validated);
 
         $homePlayerCount = Player::query()
             ->where('team_id', $homeTeamId)
@@ -122,6 +140,22 @@ class LiveGameController extends Controller
             'opponent_main_coach_user_id' => null,
         ]);
 
+        if (! empty($validated['assistant_coach_user_id'])) {
+            /** @var list<int> $delegatedPlayerIds */
+            $delegatedPlayerIds = array_values(array_map(
+                static fn (mixed $id): int => (int) $id,
+                $validated['delegated_player_ids'] ?? [],
+            ));
+
+            $delegationWriter->write(
+                $game,
+                $user,
+                $homeTeamId,
+                (int) $validated['assistant_coach_user_id'],
+                $delegatedPlayerIds,
+            );
+        }
+
         return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created. Share the link so the opponent coach can submit their lineup.');
     }
 
@@ -147,7 +181,6 @@ class LiveGameController extends Controller
         $viewerSide = $liveGame->sideFor($user);
         $controlledPlayerIds = [];
         $isMainCoach = false;
-        $delegationsByCoachUserId = [];
         $teamCoaches = [];
 
         if ($viewerSide !== null) {
@@ -196,6 +229,7 @@ class LiveGameController extends Controller
             $teamCoaches = User::query()
                 ->where('team_id', $teamId)
                 ->whereNotNull('email_verified_at')
+                ->orderBy('name')
                 ->get(['id', 'name']);
         }
 
@@ -210,13 +244,16 @@ class LiveGameController extends Controller
             'isCreator' => $liveGame->isCreator($user),
             'controlled_player_ids' => $controlledPlayerIds,
             'is_main_coach' => $isMainCoach,
-            'delegations_by_coach_user_id' => $delegationsByCoachUserId,
             'team_coaches' => $teamCoaches,
         ]);
     }
 
-    public function submitLineup(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder): RedirectResponse
-    {
+    public function submitLineup(
+        Request $request,
+        LiveGame $liveGame,
+        LiveGameStateBuilder $stateBuilder,
+        LiveGameDelegationWriter $delegationWriter,
+    ): RedirectResponse {
         /** @var User $user */
         $user = $request->user();
         $side = $liveGame->sideFor($user);
@@ -231,14 +268,19 @@ class LiveGameController extends Controller
             ]);
         }
 
-        $validated = Validator::make($request->all(), [
-            'starting_player_ids' => ['required', 'array', 'size:5'],
-            'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
-        ])->validate();
-
         $teamId = $side === LiveGame::SIDE_OPPONENT
             ? (int) $liveGame->opponent_team_id
             : (int) $liveGame->home_team_id;
+
+        $validated = Validator::make($request->all(), [
+            'starting_player_ids' => ['required', 'array', 'size:5'],
+            'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+            'assistant_coach_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('team_id', $teamId)],
+            'delegated_player_ids' => ['nullable', 'array'],
+            'delegated_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+        ])->validate();
+
+        $this->assertDelegationPair($validated);
 
         $playerCount = Player::query()
             ->where('team_id', $teamId)
@@ -268,6 +310,29 @@ class LiveGameController extends Controller
                 'starting_player_ids' => $ids,
                 'active_player_ids' => $ids,
             ])->save();
+        }
+
+        $mainCoachUserId = $side === LiveGame::SIDE_OPPONENT
+            ? (int) $liveGame->fresh()->opponent_main_coach_user_id
+            : (int) $liveGame->home_main_coach_user_id;
+
+        $canWriteDelegation = $mainCoachUserId === (int) $user->id
+            && ! empty($validated['assistant_coach_user_id']);
+
+        if ($canWriteDelegation) {
+            /** @var list<int> $delegatedPlayerIds */
+            $delegatedPlayerIds = array_values(array_map(
+                static fn (mixed $id): int => (int) $id,
+                $validated['delegated_player_ids'] ?? [],
+            ));
+
+            $delegationWriter->write(
+                $liveGame,
+                $user,
+                $teamId,
+                (int) $validated['assistant_coach_user_id'],
+                $delegatedPlayerIds,
+            );
         }
 
         event(new LiveGameStateUpdated($liveGame->id, $stateBuilder->build($liveGame->fresh())));
@@ -330,6 +395,27 @@ class LiveGameController extends Controller
         $request->merge(['type' => 'correction', 'team_scope' => 'game']);
 
         return $events->store($request, $liveGame, app(LiveGameEventRecorder::class));
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function assertDelegationPair(array $validated): void
+    {
+        $hasAssistant = ! empty($validated['assistant_coach_user_id']);
+        $hasPlayers = ! empty($validated['delegated_player_ids']);
+
+        if ($hasAssistant && ! $hasPlayers) {
+            throw ValidationException::withMessages([
+                'delegated_player_ids' => 'Select at least one player for the assistant.',
+            ]);
+        }
+
+        if ($hasPlayers && ! $hasAssistant) {
+            throw ValidationException::withMessages([
+                'assistant_coach_user_id' => 'Select an assistant coach for the delegated players.',
+            ]);
+        }
     }
 
     /** @return list<int> */

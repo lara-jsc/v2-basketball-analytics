@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { playerName } from '@/Components/features/live-game/live-game-utils';
@@ -14,6 +15,7 @@ interface LiveGameCreateProps extends PageProps {
     opponentTeams: Team[];
     preselectedPlayerIds: number[];
     preselectedOpponentTeamId: number | null;
+    assistantCoachOptions: Array<{ id: number; name: string }>;
 }
 
 export default function LiveGamesCreate({
@@ -21,12 +23,15 @@ export default function LiveGamesCreate({
     opponentTeams,
     preselectedPlayerIds,
     preselectedOpponentTeamId,
+    assistantCoachOptions,
 }: LiveGameCreateProps) {
     const [initialized, setInitialized] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
         opponent_team_id: preselectedOpponentTeamId ? String(preselectedOpponentTeamId) : '',
         period_length_seconds: 600,
         starting_player_ids: [] as number[],
+        assistant_coach_user_id: null as number | null,
+        delegated_player_ids: [] as number[],
     });
 
     useEffect(() => {
@@ -166,6 +171,29 @@ export default function LiveGamesCreate({
                             </div>
                             {errors.starting_player_ids && <p className="mt-3 text-xs text-red-300">{errors.starting_player_ids}</p>}
                         </section>
+
+                        <div className="lg:col-span-2">
+                            <AssignAssistantPanel
+                                coaches={assistantCoachOptions}
+                                players={homeTeam.players}
+                                visible={lineupReady}
+                                value={{
+                                    assistantCoachUserId: data.assistant_coach_user_id,
+                                    delegatedPlayerIds: data.delegated_player_ids,
+                                }}
+                                onChange={(next) => {
+                                    setData({
+                                        ...data,
+                                        assistant_coach_user_id: next.assistantCoachUserId,
+                                        delegated_player_ids: next.delegatedPlayerIds,
+                                    });
+                                }}
+                                errors={{
+                                    assistant_coach_user_id: errors.assistant_coach_user_id,
+                                    delegated_player_ids: errors.delegated_player_ids as string | undefined,
+                                }}
+                            />
+                        </div>
                     </form>
                 )}
             </div>

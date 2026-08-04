@@ -1,5 +1,7 @@
 # Assistant Coach Delegation (Live Game) Implementation Plan
 
+> **Superseded for UI placement:** see [`docs/superpowers/specs/2026-08-04-assistant-delegation-setup-placement-design.md`](../specs/2026-08-04-assistant-delegation-setup-placement-design.md) and the Cursor plan *Delegation Setup Placement*. Delegation is now configured on Create / join lineup (atomic submit), not via a Show-page Delegate Controls panel.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Let the *main coach* delegate which players an *assistant coach* can record for during a live game, so the main pad/substitution UI is not overwhelming.

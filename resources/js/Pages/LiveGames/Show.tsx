@@ -1,5 +1,6 @@
 import { ActiveLineup } from '@/Components/features/live-game/ActiveLineup';
 import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
+import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
 import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitution';
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
 import { GameScoreboard } from '@/Components/features/live-game/GameScoreboard';
@@ -23,7 +24,6 @@ interface LiveGameShowProps extends PageProps {
     isCreator: boolean;
     controlled_player_ids: number[];
     is_main_coach: boolean;
-    delegations_by_coach_user_id: Record<string, number[]>;
     team_coaches: Array<{ id: number; name: string }>;
 }
 
@@ -37,8 +37,6 @@ export default function LiveGamesShow({
     viewerSide,
     isCreator,
     controlled_player_ids,
-    is_main_coach,
-    delegations_by_coach_user_id,
     team_coaches,
     auth,
 }: LiveGameShowProps) {
@@ -75,60 +73,14 @@ export default function LiveGamesShow({
 
     const lineupForm = useForm({
         starting_player_ids: ownPlayers.slice(0, 5).map((player) => player.id),
+        assistant_coach_user_id: null as number | null,
+        delegated_player_ids: [] as number[],
     });
 
     const assistantCoachOptions = useMemo(
         () => team_coaches.filter((coach) => coach.id !== auth.user.id),
         [team_coaches, auth.user.id],
     );
-
-    const [selectedAssistantCoachId, setSelectedAssistantCoachId] = useState<number | null>(assistantCoachOptions[0]?.id ?? null);
-    const [delegationProcessing, setDelegationProcessing] = useState(false);
-    const [delegationError, setDelegationError] = useState<string | null>(null);
-
-    const delegatedPlayerIdsForSelectedAssistant = selectedAssistantCoachId !== null
-        ? (delegations_by_coach_user_id[String(selectedAssistantCoachId)] ?? [])
-        : [];
-
-    const [delegatedPlayerSelection, setDelegatedPlayerSelection] = useState<number[]>(delegatedPlayerIdsForSelectedAssistant);
-
-    useEffect(() => {
-        const stillValid = selectedAssistantCoachId !== null && assistantCoachOptions.some((c) => c.id === selectedAssistantCoachId);
-        if (!stillValid) setSelectedAssistantCoachId(assistantCoachOptions[0]?.id ?? null);
-    }, [assistantCoachOptions, selectedAssistantCoachId]);
-
-    useEffect(() => {
-        setDelegatedPlayerSelection(delegatedPlayerIdsForSelectedAssistant);
-    }, [selectedAssistantCoachId, delegations_by_coach_user_id]);
-
-    function toggleDelegatedPlayer(playerId: number): void {
-        setDelegatedPlayerSelection((selected) => (
-            selected.includes(playerId) ? selected.filter((id) => id !== playerId) : [...selected, playerId]
-        ));
-    }
-
-    async function saveDelegations(): Promise<void> {
-        if (selectedAssistantCoachId === null) return;
-        setDelegationProcessing(true);
-        setDelegationError(null);
-
-        try {
-            await axios.post(route('live-games.delegations.store', { liveGame: liveGame.id }), {
-                assistant_coach_user_id: selectedAssistantCoachId,
-                player_ids: delegatedPlayerSelection,
-            });
-
-            router.get(route('live-games.show', { liveGame: liveGame.id }));
-        } catch (requestError) {
-            if (axios.isAxiosError(requestError) && requestError.response?.data?.message) {
-                setDelegationError(requestError.response.data.message as string);
-            } else {
-                setDelegationError('Delegations could not be saved. Check the connection and try again.');
-            }
-        } finally {
-            setDelegationProcessing(false);
-        }
-    }
 
     useEffect(() => {
         setSnapshot(initialSnapshot);
@@ -228,6 +180,7 @@ export default function LiveGamesShow({
 
     const eventsDisabled = processing || snapshot.liveGame.status !== 'live' || !canRecord;
     const allPlayers = [...homePlayers, ...opponentPlayers];
+    const lineupReady = lineupForm.data.starting_player_ids.length === 5;
 
     return (
         <AuthenticatedLayout>
@@ -290,45 +243,68 @@ export default function LiveGamesShow({
                 )}
 
                 {isSetup && viewerSide && !ownLineupReady && (
-                    <form onSubmit={submitLineup} className="mx-4 mt-4 rounded-lg border border-border bg-card p-5 sm:mx-5">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Submit your starting five</h2>
-                                <p className="mt-1 text-sm text-muted-foreground">Select five active players from your roster.</p>
+                    <form onSubmit={submitLineup} className="mx-4 mt-4 space-y-4 sm:mx-5">
+                        <div className="rounded-lg border border-border bg-card p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Submit your starting five</h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">Select five active players from your roster.</p>
+                                </div>
+                                <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${lineupReady ? 'bg-cyan-300/10 text-cyan-100' : 'bg-amber-300/10 text-amber-100'}`}>
+                                    {lineupForm.data.starting_player_ids.length}/5 selected
+                                </span>
                             </div>
-                            <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${lineupForm.data.starting_player_ids.length === 5 ? 'bg-cyan-300/10 text-cyan-100' : 'bg-amber-300/10 text-amber-100'}`}>
-                                {lineupForm.data.starting_player_ids.length}/5 selected
-                            </span>
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {ownPlayers.map((player) => {
+                                    const selected = lineupForm.data.starting_player_ids.includes(player.id);
+                                    return (
+                                        <label
+                                            key={player.id}
+                                            className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${selected ? 'border-amber-300/60 bg-amber-300/10' : 'border-border hover:bg-muted/40'}`}
+                                        >
+                                            <input type="checkbox" checked={selected} onChange={() => toggleLineupPlayer(player.id)} className="h-4 w-4 accent-amber-400" />
+                                            <span className="font-mono text-amber-200">{player.jersey_number}</span>
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
+                                            </span>
+                                            {selected && <Check size={15} className="ml-auto text-cyan-200" />}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            {lineupForm.errors.starting_player_ids && (
+                                <p className="mt-3 text-xs text-red-300">{lineupForm.errors.starting_player_ids}</p>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={lineupForm.processing || !lineupReady}
+                                className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-amber-400 px-4 text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                            >
+                                <UsersRound size={16} /> Submit lineup
+                            </button>
                         </div>
-                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {ownPlayers.map((player) => {
-                                const selected = lineupForm.data.starting_player_ids.includes(player.id);
-                                return (
-                                    <label
-                                        key={player.id}
-                                        className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${selected ? 'border-amber-300/60 bg-amber-300/10' : 'border-border hover:bg-muted/40'}`}
-                                    >
-                                        <input type="checkbox" checked={selected} onChange={() => toggleLineupPlayer(player.id)} className="h-4 w-4 accent-amber-400" />
-                                        <span className="font-mono text-amber-200">{player.jersey_number}</span>
-                                        <span className="min-w-0">
-                                            <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
-                                            <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
-                                        </span>
-                                        {selected && <Check size={15} className="ml-auto text-cyan-200" />}
-                                    </label>
-                                );
-                            })}
-                        </div>
-                        {lineupForm.errors.starting_player_ids && (
-                            <p className="mt-3 text-xs text-red-300">{lineupForm.errors.starting_player_ids}</p>
-                        )}
-                        <button
-                            type="submit"
-                            disabled={lineupForm.processing || lineupForm.data.starting_player_ids.length !== 5}
-                            className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-amber-400 px-4 text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                        >
-                            <UsersRound size={16} /> Submit lineup
-                        </button>
+
+                        <AssignAssistantPanel
+                            coaches={assistantCoachOptions}
+                            players={ownPlayers}
+                            visible={lineupReady}
+                            value={{
+                                assistantCoachUserId: lineupForm.data.assistant_coach_user_id,
+                                delegatedPlayerIds: lineupForm.data.delegated_player_ids,
+                            }}
+                            onChange={(next) => {
+                                lineupForm.setData({
+                                    ...lineupForm.data,
+                                    assistant_coach_user_id: next.assistantCoachUserId,
+                                    delegated_player_ids: next.delegatedPlayerIds,
+                                });
+                            }}
+                            errors={{
+                                assistant_coach_user_id: lineupForm.errors.assistant_coach_user_id,
+                                delegated_player_ids: lineupForm.errors.delegated_player_ids,
+                            }}
+                        />
                     </form>
                 )}
 
@@ -352,93 +328,6 @@ export default function LiveGamesShow({
                 {isSetup && snapshot.both_lineups_ready && (
                     <div className="mx-4 mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/5 px-4 py-4 text-sm text-cyan-100 sm:mx-5">
                         Both starting fives are ready{isCreator ? '. You can start the game.' : '. Waiting for the creator to start.'}
-                    </div>
-                )}
-
-                {isSetup && is_main_coach && viewerSide && assistantCoachOptions.length > 0 && (
-                    <div className="mx-4 mt-4 rounded-lg border border-border bg-card p-5 sm:mx-5">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Delegate controls</h2>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    Your assistant can record events and substitutions only for the players you assign.
-                                </p>
-                            </div>
-                            <span className="rounded px-2 py-1 text-xs font-bold uppercase tracking-wide bg-cyan-300/10 text-cyan-100">
-                                {delegatedPlayerSelection.length} assigned
-                            </span>
-                        </div>
-
-                        {delegationError && (
-                            <div role="alert" className="mt-4 rounded-md border border-red-300/40 bg-red-400/10 px-4 py-3 text-sm text-red-100">
-                                <AlertTriangle size={16} className="mr-2 inline" /> {delegationError}
-                            </div>
-                        )}
-
-                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground" htmlFor="assistant-coach">
-                                    Assistant coach
-                                </label>
-                                <select
-                                    id="assistant-coach"
-                                    value={selectedAssistantCoachId ?? ''}
-                                    onChange={(event) => setSelectedAssistantCoachId(Number(event.target.value))}
-                                    className="h-11 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-                                >
-                                    {assistantCoachOptions.map((coach) => (
-                                        <option key={coach.id} value={coach.id}>
-                                            {coach.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <div className="mb-2 flex items-center justify-between gap-3">
-                                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Assign players</p>
-                                    <span className="text-xs text-muted-foreground">{delegatedPlayerSelection.length} selected</span>
-                                </div>
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    {ownPlayers.map((player) => {
-                                        const checked = delegatedPlayerSelection.includes(player.id);
-                                        return (
-                                            <label
-                                                key={player.id}
-                                                className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${
-                                                    checked
-                                                        ? 'border-cyan-300/60 bg-cyan-300/10'
-                                                        : 'border-border hover:bg-muted/40'
-                                                }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={checked}
-                                                    onChange={() => toggleDelegatedPlayer(player.id)}
-                                                    className="h-4 w-4 accent-cyan-400"
-                                                />
-                                                <span className="font-mono text-amber-200">{player.jersey_number}</span>
-                                                <span className="min-w-0">
-                                                    <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
-                                                    <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
-                                                </span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-5 flex items-center justify-end">
-                            <button
-                                type="button"
-                                onClick={() => void saveDelegations()}
-                                disabled={delegationProcessing || selectedAssistantCoachId === null}
-                                className="flex h-11 items-center gap-2 rounded-md bg-amber-400 px-4 text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Save delegation
-                            </button>
-                        </div>
                     </div>
                 )}
 
