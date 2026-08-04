@@ -275,6 +275,7 @@ export interface LiveGameEvent {
 export interface LiveGameAlert {
   id: number;
   player_id: number | null;
+  team_id: number | null;
   type: string;
   severity: string;
   period: number;

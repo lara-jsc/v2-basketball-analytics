@@ -11,7 +11,7 @@ class LiveGameAlert extends Model
     use HasFactory;
 
     protected $fillable = [
-        'live_game_id', 'player_id', 'type', 'severity', 'period', 'clock_seconds_remaining',
+        'live_game_id', 'player_id', 'team_id', 'type', 'severity', 'period', 'clock_seconds_remaining',
         'message', 'context', 'triggered_at', 'resolved_at',
     ];
 
@@ -36,5 +36,11 @@ class LiveGameAlert extends Model
     public function player(): BelongsTo
     {
         return $this->belongsTo(Player::class);
+    }
+
+    /** @return BelongsTo<Team, LiveGameAlert> */
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
     }
 }

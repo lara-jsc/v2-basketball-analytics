@@ -22,9 +22,7 @@ class LiveGameClockService
 
         if (! $this->canPerform($game, $user, $action)) {
             throw ValidationException::withMessages([
-                'game' => $action === 'stop'
-                    ? 'Only the game creator or a main coach can stop the clock.'
-                    : 'Only the game creator can start the clock or change the period.',
+                'game' => 'Only a main coach can control the clock.',
             ]);
         }
 
@@ -55,15 +53,16 @@ class LiveGameClockService
         return $snapshot;
     }
 
+    /**
+     * Clock authority is not action-dependent: either bench's main coach runs the clock.
+     * The destructive actions (advance, reset) are confirmed in the UI instead, because
+     * setPeriod() refuses to move a period backward.
+     *
+     * @param  string  $action  retained so this stays the one place authority is decided
+     */
     private function canPerform(LiveGame $game, User $user, string $action): bool
     {
-        if ($game->isCreator($user)) {
-            return true;
-        }
-
-        // Either bench can whistle, so either main coach may stop the clock. Starting,
-        // advancing and resetting stay with the creator so there is one authoritative clock.
-        return $action === 'stop' && $game->isMainCoach($user);
+        return $game->isCreator($user) || $game->isMainCoach($user);
     }
 
     /**

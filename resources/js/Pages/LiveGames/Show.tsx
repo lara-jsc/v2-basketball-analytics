@@ -3,6 +3,7 @@ import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
 import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
 import { LineupConfirmModal } from '@/Components/features/live-game/LineupConfirmModal';
 import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitution';
+import { ClockActionConfirmModal, type ConfirmableClockAction } from '@/Components/features/live-game/ClockActionConfirmModal';
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
 import { GameScoreboard } from '@/Components/features/live-game/GameScoreboard';
 import { Timeline } from '@/Components/features/live-game/Timeline';
@@ -25,7 +26,8 @@ interface LiveGameShowProps extends PageProps {
     players: Player[];
     viewerSide: 'home' | 'opponent' | null;
     isCreator: boolean;
-    can_stop_clock: boolean;
+    can_control_clock: boolean;
+    clock_shared: boolean;
     controlled_player_ids: number[];
     is_main_coach: boolean;
     team_coaches: Array<{ id: number; name: string }>;
@@ -41,7 +43,8 @@ export default function LiveGamesShow({
     players,
     viewerSide,
     isCreator,
-    can_stop_clock,
+    can_control_clock,
+    clock_shared,
     controlled_player_ids,
     team_coaches,
     auth,
@@ -68,6 +71,7 @@ export default function LiveGamesShow({
     const [assignPanelVisible, setAssignPanelVisible] = useState(false);
     const [assignExpanded, setAssignExpanded] = useState(false);
     const [pendingVoidEvent, setPendingVoidEvent] = useState<LiveGameEvent | null>(null);
+    const [pendingClockAction, setPendingClockAction] = useState<ConfirmableClockAction | null>(null);
 
     const applySnapshot = useCallback((next: LiveGameSnapshot): void => {
         setSnapshot(next);
@@ -180,6 +184,16 @@ export default function LiveGamesShow({
     function clockAction(action: 'start' | 'stop' | 'reset_period' | 'set_period', period?: number): void {
         void postSnapshot(route('live-games.clock.store', { liveGame: liveGame.id }), { action, ...(period ? { period } : {}) });
     }
+    function confirmClockAction(): void {
+        const action = pendingClockAction;
+        setPendingClockAction(null);
+
+        if (action === 'set_period') {
+            clockAction('set_period', displayedClock.period + 1);
+        } else if (action === 'reset_period') {
+            clockAction('reset_period');
+        }
+    }
     function substitute(playerOutId: number, playerInId: number): void {
         record({ type: 'substitution', team_scope: 'game', payload: { player_out_id: playerOutId, player_in_id: playerInId } });
     }
@@ -278,10 +292,18 @@ export default function LiveGamesShow({
                     opponentTeam={opponentTeam}
                     score={snapshot.score}
                     processing={processing}
-                    canControlClock={isCreator && snapshot.both_lineups_ready}
-                    canStopClock={can_stop_clock && snapshot.both_lineups_ready}
+                    canControlClock={can_control_clock && snapshot.both_lineups_ready}
+                    clockShared={clock_shared}
                     viewerSide={viewerSide}
                     onClockAction={clockAction}
+                    onClockActionRequest={setPendingClockAction}
+                />
+                <ClockActionConfirmModal
+                    open={pendingClockAction !== null}
+                    onOpenChange={(open) => !open && setPendingClockAction(null)}
+                    action={pendingClockAction}
+                    period={displayedClock.period}
+                    onConfirm={confirmClockAction}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/75 px-4 py-2 sm:px-5">
                     <Link href={route('live-games.index')} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
@@ -430,7 +452,7 @@ export default function LiveGamesShow({
 
                 {isSetup && snapshot.both_lineups_ready && (
                     <div className="mx-4 mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/5 px-4 py-4 text-sm text-cyan-100 sm:mx-5">
-                        Both starting fives are ready{isCreator ? '. You can start the game.' : '. Waiting for the creator to start.'}
+                        Both starting fives are ready{can_control_clock ? '. Start the clock to begin the game.' : '. Waiting for a main coach to start the clock.'}
                     </div>
                 )}
 
@@ -479,7 +501,14 @@ export default function LiveGamesShow({
                         />
                     </div>
                     <aside className="min-w-0">
-                        <AlertsPanel alerts={snapshot.alerts} players={allPlayers} />
+                        <AlertsPanel
+                            alerts={snapshot.alerts}
+                            players={allPlayers}
+                            teams={teams}
+                            viewerSide={viewerSide}
+                            homeTeamId={liveGame.home_team_id}
+                            opponentTeamId={liveGame.opponent_team_id}
+                        />
                     </aside>
                 </div>
             </div>

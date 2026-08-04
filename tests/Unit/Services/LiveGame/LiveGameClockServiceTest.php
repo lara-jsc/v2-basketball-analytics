@@ -133,15 +133,22 @@ class LiveGameClockServiceTest extends TestCase
         $this->assertSame(510, $snapshot['clock']['seconds_remaining']);
     }
 
-    public function test_an_opponent_main_coach_may_not_start_the_clock(): void
+    public function test_an_opponent_main_coach_may_start_advance_and_reset_the_clock(): void
     {
         $game = LiveGame::factory()->withBothLineups()->create(['status' => LiveGame::STATUS_LIVE]);
         $opponentCoach = User::factory()->forTeam($game->opponentTeam)->create();
         $game->forceFill(['opponent_main_coach_user_id' => $opponentCoach->id])->save();
+        $clock = app(LiveGameClockService::class);
 
-        $this->expectException(ValidationException::class);
+        $started = $clock->handle($game->fresh(), $opponentCoach, ['action' => 'start']);
+        $this->assertTrue($started['clock']['running']);
 
-        app(LiveGameClockService::class)->handle($game->fresh(), $opponentCoach, ['action' => 'start']);
+        $advanced = $clock->handle($game->fresh(), $opponentCoach, ['action' => 'set_period', 'period' => 2]);
+        $this->assertSame(2, $advanced['clock']['period']);
+        $this->assertFalse($advanced['clock']['running']);
+
+        $reset = $clock->handle($game->fresh(), $opponentCoach, ['action' => 'reset_period']);
+        $this->assertSame($game->period_length_seconds, $reset['clock']['seconds_remaining']);
     }
 
     public function test_a_coach_who_is_not_a_main_coach_may_not_stop_the_clock(): void

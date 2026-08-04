@@ -85,6 +85,21 @@ class LiveGameAuthorizationTest extends TestCase
             ->assertOk();
     }
 
+    public function test_an_assistant_coach_passes_the_policy_but_cannot_control_the_clock(): void
+    {
+        [$game] = $this->liveGameWithOneEvent();
+        // On the home team, so isParticipant passes the route policy — but not a main coach,
+        // so the service must still refuse.
+        $assistant = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
+
+        $this->actingAs($assistant)
+            ->postJson("/live-games/{$game->id}/clock", ['action' => 'stop'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('game');
+
+        $this->assertTrue($game->fresh()->clock_running);
+    }
+
     /** @return array{0: LiveGame, 1: LiveGameEvent} */
     private function liveGameWithOneEvent(): array
     {

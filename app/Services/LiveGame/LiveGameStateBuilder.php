@@ -124,6 +124,7 @@ class LiveGameStateBuilder
         return [
             'id' => $alert->id,
             'player_id' => $alert->player_id,
+            'team_id' => $alert->team_id,
             'type' => $alert->type,
             'severity' => $alert->severity,
             'period' => $alert->period,
