@@ -265,6 +265,111 @@ class LiveGameFinalizationTest extends TestCase
         $this->assertDatabaseHas('live_games', ['id' => $game->id, 'status' => LiveGame::STATUS_LIVE]);
     }
 
+    public function test_finalization_rejects_imported_history_notes_instead_of_overwriting_them(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $game = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $player = Player::factory()->for($game->homeTeam)->create();
+        $game->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
+        $this->recordThreePointShot($game, $player);
+        $importedHistory = PlayerHistory::factory()->create([
+            'player_id' => $player->id,
+            'playing_team_id' => $game->home_team_id,
+            'opponent_team_id' => $game->opponent_team_id,
+            'game_date' => '2026-08-02',
+            'points' => 11,
+            'notes' => 'Imported from CSV',
+        ]);
+
+        $this->actingAs($user)->postJson(route('live-games.finish', $game))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('game');
+
+        $this->assertDatabaseHas('player_histories', [
+            'id' => $importedHistory->id,
+            'points' => 11,
+            'notes' => 'Imported from CSV',
+        ]);
+        $this->assertDatabaseHas('live_games', ['id' => $game->id, 'status' => LiveGame::STATUS_LIVE]);
+    }
+
+    public function test_finishing_replaces_prior_live_finalized_history_same_matchup_date(): void
+    {
+        Event::fake([LiveGameStateUpdated::class]);
+        Queue::fake();
+
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $priorGame = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
+            'status' => LiveGame::STATUS_FINISHED,
+            'game_date' => '2026-08-02',
+            'finished_at' => now(),
+        ]);
+        $rematch = LiveGame::factory()->create([
+            'created_by_user_id' => $user->id,
+            'home_team_id' => $priorGame->home_team_id,
+            'opponent_team_id' => $priorGame->opponent_team_id,
+            'status' => LiveGame::STATUS_LIVE,
+            'game_date' => '2026-08-02',
+        ]);
+        $player = Player::factory()->for($rematch->homeTeam)->create();
+        $priorOnlyPlayer = Player::factory()->for($rematch->homeTeam)->create();
+        $rematch->update([
+            'starting_player_ids' => [$player->id],
+            'active_player_ids' => [$player->id],
+        ]);
+        $this->recordThreePointShot($rematch, $player);
+
+        PlayerHistory::factory()->create([
+            'player_id' => $player->id,
+            'playing_team_id' => $rematch->home_team_id,
+            'opponent_team_id' => $rematch->opponent_team_id,
+            'game_date' => '2026-08-02',
+            'points' => 17,
+            'notes' => "Finalized from live game #{$priorGame->id}",
+        ]);
+        PlayerHistory::factory()->create([
+            'player_id' => $priorOnlyPlayer->id,
+            'playing_team_id' => $rematch->home_team_id,
+            'opponent_team_id' => $rematch->opponent_team_id,
+            'game_date' => '2026-08-02',
+            'points' => 5,
+            'notes' => "Finalized from live game #{$priorGame->id}",
+        ]);
+
+        $this->actingAs($user)->post(route('live-games.finish', $rematch))
+            ->assertRedirect(route('live-games.index'));
+
+        $this->assertDatabaseHas('live_games', [
+            'id' => $rematch->id,
+            'status' => LiveGame::STATUS_FINISHED,
+        ]);
+        $this->assertDatabaseHas('player_histories', [
+            'player_id' => $player->id,
+            'playing_team_id' => $rematch->home_team_id,
+            'opponent_team_id' => $rematch->opponent_team_id,
+            'points' => 3,
+            'notes' => "Finalized from live game #{$rematch->id}",
+        ]);
+        $this->assertDatabaseMissing('player_histories', [
+            'player_id' => $priorOnlyPlayer->id,
+            'game_date' => '2026-08-02',
+        ]);
+        Queue::assertPushed(
+            RebuildPlayerStats::class,
+            fn (RebuildPlayerStats $job): bool => $job->playerId === $priorOnlyPlayer->id && $job->afterCommit === true,
+        );
+    }
+
     public function test_finishing_finalizes_histories_for_both_teams(): void
     {
         Event::fake([LiveGameStateUpdated::class]);

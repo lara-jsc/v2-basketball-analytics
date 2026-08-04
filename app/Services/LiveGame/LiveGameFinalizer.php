@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class LiveGameFinalizer
 {
+    private const LIVE_FINALIZED_NOTES_PATTERN = '/^Finalized from live game #\d+$/';
+
     public function __construct(
         private readonly UpsertPlayerHistoryAction $upsertPlayerHistory,
         private readonly LiveGameProjectionService $projectionService,
@@ -51,35 +53,32 @@ class LiveGameFinalizer
                 );
                 $participatingPlayerIds = $teamStats->pluck('player_id')->all();
 
-                $conflictingHistory = PlayerHistory::query()
-                    ->whereIn('player_id', $participatingPlayerIds)
+                $matchupHistories = PlayerHistory::query()
                     ->where('playing_team_id', $playingTeamId)
                     ->where('opponent_team_id', $opponentTeamId)
                     ->whereDate('game_date', $gameDate)
-                    ->where(fn ($query) => $query->whereNull('notes')->orWhere('notes', '!=', $notes))
-                    ->exists();
+                    ->get();
+
+                $conflictingHistory = $matchupHistories
+                    ->whereIn('player_id', $participatingPlayerIds)
+                    ->contains(fn (PlayerHistory $history): bool => ! $this->isLiveFinalizedNotes($history->notes));
 
                 if ($conflictingHistory) {
                     throw ValidationException::withMessages([
-                        'game' => 'Finalization would overwrite an existing manual player history entry.',
+                        'game' => 'Finalization would overwrite an existing manual or imported player history entry.',
                     ]);
                 }
 
-                $previouslyFinalizedPlayerIds = PlayerHistory::query()
-                    ->where('playing_team_id', $playingTeamId)
-                    ->where('opponent_team_id', $opponentTeamId)
-                    ->whereDate('game_date', $gameDate)
-                    ->where('notes', $notes)
-                    ->pluck('player_id')
-                    ->all();
+                $replaceableHistories = $matchupHistories->filter(
+                    fn (PlayerHistory $history): bool => $this->isLiveFinalizedNotes($history->notes),
+                );
+                $previouslyFinalizedPlayerIds = $replaceableHistories->pluck('player_id')->all();
 
-                PlayerHistory::query()
-                    ->whereIn('player_id', $previouslyFinalizedPlayerIds)
-                    ->where('playing_team_id', $playingTeamId)
-                    ->where('opponent_team_id', $opponentTeamId)
-                    ->whereDate('game_date', $gameDate)
-                    ->where('notes', $notes)
-                    ->delete();
+                if ($replaceableHistories->isNotEmpty()) {
+                    PlayerHistory::query()
+                        ->whereIn('id', $replaceableHistories->pluck('id')->all())
+                        ->delete();
+                }
 
                 $teamStats->each(function (LiveGamePlayerStat $stat) use ($playingTeamId, $opponentTeamId, $gameDate, $notes): void {
                     $this->upsertPlayerHistory->execute($stat->player_id, [
@@ -119,6 +118,11 @@ class LiveGameFinalizer
                 }
             }
         });
+    }
+
+    private function isLiveFinalizedNotes(?string $notes): bool
+    {
+        return $notes !== null && preg_match(self::LIVE_FINALIZED_NOTES_PATTERN, $notes) === 1;
     }
 
     private function participated(LiveGamePlayerStat $stat): bool

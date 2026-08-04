@@ -26,6 +26,7 @@ interface LiveGameShowProps extends PageProps {
     controlled_player_ids: number[];
     is_main_coach: boolean;
     team_coaches: Array<{ id: number; name: string }>;
+    errors?: { game?: string };
 }
 
 export default function LiveGamesShow({
@@ -40,6 +41,7 @@ export default function LiveGamesShow({
     controlled_player_ids,
     team_coaches,
     auth,
+    errors = {},
 }: LiveGameShowProps) {
     const ownPlayers = viewerSide === 'opponent' ? opponentPlayers : viewerSide === 'home' ? homePlayers : players;
     const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -271,9 +273,9 @@ export default function LiveGamesShow({
                         <Link2 size={16} /> {copyFeedback}
                     </div>
                 )}
-                {error && (
+                {(error || errors.game) && (
                     <div role="alert" className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-red-300/40 bg-red-400/10 px-4 py-3 text-sm text-red-100 sm:mx-5">
-                        <AlertTriangle size={16} /> {error}
+                        <AlertTriangle size={16} /> {error ?? errors.game}
                     </div>
                 )}
 
