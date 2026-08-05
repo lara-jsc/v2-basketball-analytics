@@ -27,7 +27,7 @@ export function GameScoreboard({ status, clock, homeTeam, opponentTeam, score, p
     const clockNote = isFinished
         ? null
         : canControlClock
-            ? (clockShared ? 'Either bench can move this clock.' : null)
+            ? (clockShared ? '' : null)
             : 'Clock controlled by the team coaches.';
 
     return (

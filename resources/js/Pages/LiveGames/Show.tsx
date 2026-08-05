@@ -1,7 +1,9 @@
 import { ActiveLineup } from '@/Components/features/live-game/ActiveLineup';
 import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
+import { ApplyLineupConfirmModal, type PendingLineupChange } from '@/Components/features/live-game/ApplyLineupConfirmModal';
 import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
 import { LineupConfirmModal } from '@/Components/features/live-game/LineupConfirmModal';
+import { SuggestedLineupSheet } from '@/Components/features/live-game/SuggestedLineupSheet';
 import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitution';
 import { ClockActionConfirmModal, type ConfirmableClockAction } from '@/Components/features/live-game/ClockActionConfirmModal';
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
@@ -11,7 +13,15 @@ import { VoidEventConfirmModal } from '@/Components/features/live-game/VoidEvent
 import { clockBlockReason, type ClockState } from '@/Components/features/live-game/event-catalog';
 import { eventLabel, playerName } from '@/Components/features/live-game/live-game-utils';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import type { LiveGame, LiveGameEvent, LiveGameSnapshot, PageProps, Player, Team } from '@/types';
+import type {
+    LiveGame,
+    LiveGameEvent,
+    LiveGameSnapshot,
+    LiveLineupSuggestionResponse,
+    PageProps,
+    Player,
+    Team,
+} from '@/types';
 import axios from 'axios';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, Check, ChevronLeft, CircleStop, Copy, Link2, Play, Radio, UsersRound } from 'lucide-react';
@@ -72,6 +82,7 @@ export default function LiveGamesShow({
     const [assignExpanded, setAssignExpanded] = useState(false);
     const [pendingVoidEvent, setPendingVoidEvent] = useState<LiveGameEvent | null>(null);
     const [pendingClockAction, setPendingClockAction] = useState<ConfirmableClockAction | null>(null);
+    const [pendingLineupChange, setPendingLineupChange] = useState<PendingLineupChange | null>(null);
 
     const applySnapshot = useCallback((next: LiveGameSnapshot): void => {
         setSnapshot(next);
@@ -197,6 +208,60 @@ export default function LiveGamesShow({
     function substitute(playerOutId: number, playerInId: number): void {
         record({ type: 'substitution', team_scope: 'game', payload: { player_out_id: playerOutId, player_in_id: playerInId } });
     }
+    const requestSuggestion = useCallback(async (): Promise<LiveLineupSuggestionResponse | null> => {
+        const response = await axios.post<LiveLineupSuggestionResponse>(
+            route('live-games.suggested-lineup', { liveGame: liveGame.id }),
+        );
+
+        return response.data;
+    }, [liveGame.id]);
+
+    /**
+     * Applying a five is up to five substitutions, so it goes through a confirm step like
+     * every other multi-effect action in this console.
+     */
+    function requestLineupChange(source: 'season' | 'tonight', playerIds: number[]): void {
+        const outs = ownActiveIds.filter((id) => !playerIds.includes(id));
+        const ins = playerIds.filter((id) => !ownActiveIds.includes(id));
+
+        if (outs.length === 0) {
+            setError('That five is already on the floor.');
+
+            return;
+        }
+
+        setPendingLineupChange({ source, playerIds, outs, ins });
+    }
+
+    function confirmLineupChange(): void {
+        const change = pendingLineupChange;
+        setPendingLineupChange(null);
+
+        if (change === null) return;
+
+        // This endpoint answers { applied, snapshot } rather than a bare snapshot, so it
+        // cannot go through postSnapshot.
+        void (async () => {
+            setProcessing(true);
+            setError(null);
+            try {
+                const response = await axios.post<{ applied: unknown[]; snapshot: LiveGameSnapshot }>(
+                    route('live-games.suggested-lineup.apply', { liveGame: liveGame.id }),
+                    { player_ids: change.playerIds },
+                );
+                applySnapshot(response.data.snapshot);
+            } catch (requestError) {
+                if (axios.isAxiosError(requestError) && requestError.response?.data?.message) {
+                    setError(requestError.response.data.message as string);
+                } else {
+                    setError('The lineup could not be applied. Check the connection and try again.');
+                }
+            } finally {
+                setProcessing(false);
+            }
+        })();
+    }
+
     function confirmVoid(): void {
         const target = pendingVoidEvent;
         setPendingVoidEvent(null);
@@ -470,6 +535,32 @@ export default function LiveGamesShow({
                             activePlayerIds={controlledActiveIds}
                             disabled={recordingBlockedReason !== null || clockState !== 'stopped'}
                             onSubstitute={substitute}
+                            suggestionSlot={
+                                snapshot.liveGame.status === 'live' && canRecord ? (
+                                    <SuggestedLineupSheet
+                                        players={ownPlayers}
+                                        activePlayerIds={ownActiveIds}
+                                        stats={snapshot.stats}
+                                        disabled={processing}
+                                        applyBlockedReason={
+                                            clockState === 'stopped'
+                                                ? null
+                                                : clockState === 'expired'
+                                                    ? `Q${displayedClock.period} has ended. Advance the period first.`
+                                                    : 'Substitutions need the clock stopped. Stop the clock to apply a five.'
+                                        }
+                                        onRequest={requestSuggestion}
+                                        onApply={requestLineupChange}
+                                    />
+                                ) : undefined
+                            }
+                        />
+                        <ApplyLineupConfirmModal
+                            open={pendingLineupChange !== null}
+                            onOpenChange={(open) => !open && setPendingLineupChange(null)}
+                            change={pendingLineupChange}
+                            players={ownPlayers}
+                            onConfirm={confirmLineupChange}
                         />
                     </div>
                     <div className="flex min-w-0 flex-col gap-4">

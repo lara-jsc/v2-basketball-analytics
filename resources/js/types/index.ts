@@ -145,12 +145,39 @@ export interface TeamAggregateStats {
 export interface LineupPlayer {
   player_id: number;
   name: string;
-  plus_minus_score: number;
+  /** Null for a player drafted in to fill a short lineup — they were never ranked. */
+  plus_minus_score: number | null;
 }
 
 export interface LineupRecommendation {
   recommended_lineup: LineupPlayer[];
   confidence: number;
+}
+
+/** Why the live feed held a player back. Mirrors LiveLineupEligibilityFilter's constants. */
+export type LiveLineupReason =
+  | 'disqualified'
+  | 'foul_trouble'
+  | 'inactive'
+  | 'assigned_to_assistant';
+
+/**
+ * The two rankings are deliberately NOT merged: one is a 20-game rating, the other an
+ * 8-minute sample, and adding them would need an exchange rate the data can't justify.
+ * The coach is the merge function.
+ */
+export interface LiveLineupSuggestion {
+  season: LineupRecommendation;
+  tonight: LineupRecommendation;
+}
+
+export interface LiveLineupSuggestionResponse {
+  pending: boolean;
+  team_id: number;
+  suggestion: LiveLineupSuggestion | null;
+  reasons: Record<string, LiveLineupReason>;
+  locked_player_ids: number[];
+  controlled_player_ids: number[];
 }
 
 export interface WinProbabilityResult {

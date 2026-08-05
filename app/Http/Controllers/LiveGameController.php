@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Events\LiveGameStateUpdated;
 use App\Models\LiveGame;
-use App\Models\LiveGamePlayerDelegation;
 use App\Models\Player;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameClockService;
+use App\Services\LiveGame\LiveGameControlResolver;
 use App\Services\LiveGame\LiveGameDelegationWriter;
 use App\Services\LiveGame\LiveGameEventRecorder;
 use App\Services\LiveGame\LiveGameFinalizer;
@@ -163,8 +163,13 @@ class LiveGameController extends Controller
         return redirect()->route('live-games.show', $game)->with('success', 'Live game setup created. Share the link so the opponent coach can submit their lineup.');
     }
 
-    public function show(Request $request, LiveGame $liveGame, LiveGameStateBuilder $stateBuilder, LiveGameInviteReader $inviteReader): Response
-    {
+    public function show(
+        Request $request,
+        LiveGame $liveGame,
+        LiveGameStateBuilder $stateBuilder,
+        LiveGameInviteReader $inviteReader,
+        LiveGameControlResolver $controlResolver,
+    ): Response {
         $liveGame->load(['homeTeam:id,name,code,logo_path', 'opponentTeam:id,name,code,logo_path']);
 
         /** @var User $user */
@@ -184,55 +189,18 @@ class LiveGameController extends Controller
             ->get();
 
         $viewerSide = $liveGame->sideFor($user);
-        $controlledPlayerIds = [];
-        $isMainCoach = false;
+        $control = $controlResolver->resolve(
+            $liveGame,
+            $user,
+            $viewerSide === LiveGame::SIDE_OPPONENT ? $opponentPlayers : $homePlayers,
+        );
+        $controlledPlayerIds = $control->controlledPlayerIds;
+        $isMainCoach = $control->isMainCoach;
         $teamCoaches = [];
 
-        if ($viewerSide !== null) {
-            $teamId = $viewerSide === LiveGame::SIDE_OPPONENT
-                ? (int) $liveGame->opponent_team_id
-                : (int) $liveGame->home_team_id;
-
-            $mainCoachUserId = $viewerSide === LiveGame::SIDE_OPPONENT
-                ? $liveGame->opponent_main_coach_user_id
-                : $liveGame->home_main_coach_user_id;
-
-            $rosterPlayers = $viewerSide === LiveGame::SIDE_OPPONENT ? $opponentPlayers : $homePlayers;
-            $rosterPlayerIds = $rosterPlayers->pluck('id')->map(fn (mixed $id): int => (int) $id)->values();
-
-            $delegations = LiveGamePlayerDelegation::query()
-                ->where('live_game_id', $liveGame->id)
-                ->whereIn('player_id', $rosterPlayerIds->all())
-                ->get(['coach_user_id', 'player_id']);
-
-            $delegationsByCoachUserId = $delegations
-                ->groupBy(fn ($row) => (int) $row->coach_user_id)
-                ->map(fn ($rows) => $rows->pluck('player_id')->map(fn (mixed $id): int => (int) $id)->values()->all())
-                ->all();
-
-            $isMainCoach = $mainCoachUserId !== null && (int) $mainCoachUserId === (int) $user->id;
-
-            if ($mainCoachUserId === null) {
-                // Defensive default: if we haven't determined main-coach yet, don't block UI/recording.
-                $controlledPlayerIds = $rosterPlayerIds->all();
-            } elseif ($isMainCoach) {
-                $delegatedAwayIds = $delegations
-                    ->reject(fn ($row) => (int) $row->coach_user_id === (int) $mainCoachUserId)
-                    ->pluck('player_id')
-                    ->map(fn (mixed $id): int => (int) $id)
-                    ->unique()
-                    ->values();
-
-                $controlledPlayerIds = $rosterPlayerIds
-                    ->diff($delegatedAwayIds)
-                    ->values()
-                    ->all();
-            } else {
-                $controlledPlayerIds = $delegationsByCoachUserId[(int) $user->id] ?? [];
-            }
-
+        if ($control->teamId !== null) {
             $teamCoaches = User::query()
-                ->where('team_id', $teamId)
+                ->where('team_id', $control->teamId)
                 ->whereNotNull('email_verified_at')
                 ->orderBy('name')
                 ->get(['id', 'name']);

@@ -6,6 +6,7 @@ use App\Http\Controllers\LiveGameClockController;
 use App\Http\Controllers\LiveGameController;
 use App\Http\Controllers\LiveGameEventController;
 use App\Http\Controllers\LiveGameInviteController;
+use App\Http\Controllers\LiveGameSuggestionController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
@@ -45,6 +46,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
         ->can('record', 'liveGame')
         ->name('live-games.clock.store');
+
+    Route::post('/live-games/{liveGame}/suggested-lineup', [LiveGameSuggestionController::class, 'store'])
+        ->can('record', 'liveGame')
+        ->name('live-games.suggested-lineup');
+
+    Route::post('/live-games/{liveGame}/suggested-lineup/apply', [LiveGameSuggestionController::class, 'apply'])
+        ->can('record', 'liveGame')
+        ->name('live-games.suggested-lineup.apply');
 
     Route::post('/live-games/{liveGame}/correction', [LiveGameController::class, 'correction'])
         ->can('record', 'liveGame')

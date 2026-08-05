@@ -27,7 +27,7 @@ function computeOvr(player: PlayerWithStats | undefined): number | null {
 
 export function LineupModal({ open, onClose, lineup, teamName, players, opponentTeamId }: LineupModalProps) {
     const netPlusMinus = lineup
-        ? lineup.recommended_lineup.reduce((sum, p) => sum + p.plus_minus_score, 0)
+        ? lineup.recommended_lineup.reduce((sum, p) => sum + (p.plus_minus_score ?? 0), 0)
         : null;
 
     function confirmLineup(): void {
@@ -98,7 +98,7 @@ export function LineupModal({ open, onClose, lineup, teamName, players, opponent
                                         <PlayerCard
                                             key={lp.player_id}
                                             name={lp.name}
-                                            plusMinus={lp.plus_minus_score}
+                                            plusMinus={lp.plus_minus_score ?? 0}
                                             jerseyNumber={match?.jersey_number ?? null}
                                             position={match?.role ?? null}
                                             photoUrl={photoUrl}
