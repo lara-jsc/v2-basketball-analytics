@@ -18,6 +18,9 @@ class LiveGameEventRules
     /** FIBA: a player is disqualified on their 5th personal foul. Set to 6 for NBA rules. */
     public const MAX_PERSONAL_FOULS = 5;
 
+    /** Players on court per side. */
+    public const LINEUP_SIZE = 5;
+
     /** Event types still recordable once the period clock reaches 0:00. */
     public const EXEMPT_AT_PERIOD_END = ['correction'];
 

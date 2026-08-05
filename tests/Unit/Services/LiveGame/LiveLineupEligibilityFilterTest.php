@@ -6,6 +6,7 @@ use App\Models\LiveGame;
 use App\Models\LiveGamePlayerStat;
 use App\Models\Player;
 use App\Services\LiveGame\LiveGameEventRules;
+use App\Services\LiveGame\LiveLineupEligibility;
 use App\Services\LiveGame\LiveLineupEligibilityFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -123,36 +124,99 @@ class LiveLineupEligibilityFilterTest extends TestCase
         );
     }
 
-    public function test_a_player_outside_the_controlled_set_is_ranked_but_locked(): void
+    public function test_an_uncontrolled_player_on_court_is_fixed_and_never_a_candidate(): void
     {
         [$game, $mine] = $this->gameWithPlayer();
         $theirs = Player::factory()->for($game->homeTeam)->create();
         $this->stat($game, $mine, ['personal_fouls' => 0]);
         $this->stat($game, $theirs, ['personal_fouls' => 0]);
+        $this->putOnCourt($game, [$mine, $theirs]);
 
         $result = $this->filter($game, [$mine, $theirs], controlledPlayerIds: [$mine->id]);
 
-        $this->assertEqualsCanonicalizing([$mine->id, $theirs->id], $result->rankablePlayerIds);
-        $this->assertSame([$theirs->id], $result->lockedPlayerIds);
+        $this->assertSame([$mine->id], $result->rankablePlayerIds);
+        $this->assertSame([$theirs->id], $result->fixedPlayerIds);
         $this->assertSame(
             [$theirs->id => LiveLineupEligibilityFilter::REASON_ASSIGNED_TO_ASSISTANT],
             $result->reasons,
         );
     }
 
-    public function test_a_locked_player_who_is_disqualified_reports_disqualified_and_is_excluded(): void
+    public function test_an_uncontrolled_player_on_the_bench_is_excluded_entirely(): void
+    {
+        [$game, $mine] = $this->gameWithPlayer();
+        $theirs = Player::factory()->for($game->homeTeam)->create();
+        $this->stat($game, $mine, ['personal_fouls' => 0]);
+        $this->stat($game, $theirs, ['personal_fouls' => 0]);
+        $this->putOnCourt($game, [$mine]);
+
+        $result = $this->filter($game, [$mine, $theirs], controlledPlayerIds: [$mine->id]);
+
+        $this->assertSame([$mine->id], $result->rankablePlayerIds);
+        $this->assertSame([], $result->fixedPlayerIds, 'a bench player holds no place in the five');
+        $this->assertSame(
+            [$theirs->id => LiveLineupEligibilityFilter::REASON_ASSIGNED_TO_ASSISTANT],
+            $result->reasons,
+        );
+    }
+
+    public function test_an_uncontrolled_player_who_is_disqualified_reports_disqualified_and_is_not_fixed(): void
     {
         [$game, $player] = $this->gameWithPlayer();
         $this->stat($game, $player, ['personal_fouls' => LiveGameEventRules::MAX_PERSONAL_FOULS]);
+        $this->putOnCourt($game, [$player]);
 
         $result = $this->filter($game, [$player], controlledPlayerIds: []);
 
         $this->assertSame([], $result->rankablePlayerIds);
-        $this->assertSame([], $result->lockedPlayerIds);
+        $this->assertSame([], $result->fixedPlayerIds, 'a fouled-out player cannot hold a place in the five');
         $this->assertSame(
             [$player->id => LiveLineupEligibilityFilter::REASON_DISQUALIFIED],
             $result->reasons,
         );
+    }
+
+    public function test_slot_count_is_five_when_the_coach_controls_the_whole_lineup(): void
+    {
+        [$game, $first] = $this->gameWithPlayer();
+        $others = Player::factory()->count(4)->for($game->homeTeam)->create();
+        $roster = [$first, ...$others->all()];
+        $this->putOnCourt($game, $roster);
+
+        $result = $this->filter($game, $roster);
+
+        $this->assertSame(5, $result->slotCount());
+        $this->assertSame([], $result->fixedPlayerIds);
+    }
+
+    public function test_slot_count_shrinks_by_one_for_each_fixed_player_on_court(): void
+    {
+        [$game, $first] = $this->gameWithPlayer();
+        $others = Player::factory()->count(4)->for($game->homeTeam)->create();
+        $roster = [$first, ...$others->all()];
+        $this->putOnCourt($game, $roster);
+
+        // The assistant holds two of the five on the floor.
+        $mine = [$first->id, $others[0]->id, $others[1]->id];
+
+        $result = $this->filter($game, $roster, controlledPlayerIds: $mine);
+
+        $this->assertSame(3, $result->slotCount());
+        $this->assertCount(2, $result->fixedPlayerIds);
+    }
+
+    public function test_slot_count_is_zero_when_the_assistant_holds_every_player_on_court(): void
+    {
+        [$game, $first] = $this->gameWithPlayer();
+        $others = Player::factory()->count(4)->for($game->homeTeam)->create();
+        $roster = [$first, ...$others->all()];
+        $this->putOnCourt($game, $roster);
+
+        $result = $this->filter($game, $roster, controlledPlayerIds: []);
+
+        $this->assertSame(0, $result->slotCount());
+        $this->assertSame([], $result->rankablePlayerIds);
+        $this->assertCount(5, $result->fixedPlayerIds);
     }
 
     public function test_a_player_with_no_live_stat_row_yet_is_rankable(): void
@@ -211,11 +275,20 @@ class LiveLineupEligibilityFilterTest extends TestCase
         ]);
     }
 
+    /** @param list<Player> $players */
+    private function putOnCourt(LiveGame $game, array $players): void
+    {
+        $ids = array_map(fn (Player $player): int => $player->id, $players);
+
+        $game->forceFill(['starting_player_ids' => $ids, 'active_player_ids' => $ids])->save();
+        $game->refresh();
+    }
+
     /**
      * @param  list<Player>  $roster
      * @param  list<int>|null  $controlledPlayerIds  null means the coach controls the whole roster
      */
-    private function filter(LiveGame $game, array $roster, ?array $controlledPlayerIds = null): object
+    private function filter(LiveGame $game, array $roster, ?array $controlledPlayerIds = null): LiveLineupEligibility
     {
         $players = Player::query()
             ->whereIn('id', array_map(fn (Player $player): int => $player->id, $roster))
@@ -223,6 +296,7 @@ class LiveLineupEligibilityFilterTest extends TestCase
 
         return app(LiveLineupEligibilityFilter::class)->filter(
             $game,
+            LiveGame::SIDE_HOME,
             $players,
             $controlledPlayerIds ?? $players->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
         );

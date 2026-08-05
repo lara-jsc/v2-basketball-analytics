@@ -92,13 +92,15 @@ export function SuggestedLineupSheet({
     const seasonIds = (suggestion?.season.recommended_lineup ?? []).map((row) => row.player_id);
     const tonightIds = (suggestion?.tonight.recommended_lineup ?? []).map((row) => row.player_id);
     const consensusIds = seasonIds.filter((id) => tonightIds.includes(id));
-    const lockedIds = data?.locked_player_ids ?? [];
+    const fixedIds = data?.fixed_player_ids ?? [];
+    const slotCount = data?.slot_count ?? 0;
     const reasons = data?.reasons ?? {};
 
-    const held = Object.entries(reasons).map(([playerId, reason]) => ({
-        playerId: Number(playerId),
-        reason,
-    }));
+    // Fixed players are listed in their own rows, so repeating them under "Held back"
+    // would say the same thing twice.
+    const held = Object.entries(reasons)
+        .map(([playerId, reason]) => ({ playerId: Number(playerId), reason }))
+        .filter((entry) => !fixedIds.includes(entry.playerId));
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -130,7 +132,13 @@ export function SuggestedLineupSheet({
                     <p className="mt-5 text-sm text-muted-foreground">Ranking the roster…</p>
                 )}
 
-                {suggestion && (
+                {suggestion && slotCount === 0 && (
+                    <p className="mt-5 rounded-md border border-dashed border-border bg-muted/20 px-4 py-4 text-sm text-muted-foreground">
+                        Your assistant holds all five players on court. Nothing here is yours to change.
+                    </p>
+                )}
+
+                {suggestion && slotCount > 0 && (
                     <>
                         <div className="mt-6 grid gap-5 sm:grid-cols-2">
                             <LineupColumn
@@ -140,11 +148,12 @@ export function SuggestedLineupSheet({
                                 players={players}
                                 activePlayerIds={activePlayerIds}
                                 consensusIds={consensusIds}
-                                lockedIds={lockedIds}
+                                fixedIds={fixedIds}
+                                slotCount={slotCount}
                                 metric={(row) => formatScore(row.plus_minus_score)}
                                 metricLabel="Score"
                                 applyBlockedReason={applyBlockedReason}
-                                onApply={() => onApply('season', seasonIds)}
+                                onApply={() => onApply('season', [...fixedIds, ...seasonIds])}
                             />
                             <LineupColumn
                                 heading="By tonight"
@@ -153,19 +162,28 @@ export function SuggestedLineupSheet({
                                 players={players}
                                 activePlayerIds={activePlayerIds}
                                 consensusIds={consensusIds}
-                                lockedIds={lockedIds}
+                                fixedIds={fixedIds}
+                                slotCount={slotCount}
                                 metric={(row) => formatTonight(stats, row.player_id)}
                                 metricLabel="Tonight"
                                 emptyMessage="No one has played enough minutes yet for tonight's numbers to mean anything."
                                 applyBlockedReason={applyBlockedReason}
-                                onApply={() => onApply('tonight', tonightIds)}
+                                onApply={() => onApply('tonight', [...fixedIds, ...tonightIds])}
                             />
                         </div>
 
-                        <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                            <Check size={13} className="text-cyan-200" aria-hidden="true" />
-                            Marked players appear in both lists — {consensusIds.length} of 5 agree.
-                        </p>
+                        <div className="mt-4 grid gap-1.5 text-xs text-muted-foreground">
+                            <p className="flex items-center gap-2">
+                                <Check size={13} className="text-cyan-200" aria-hidden="true" />
+                                Marked players appear in both lists — {consensusIds.length} of {slotCount} agree.
+                            </p>
+                            <p>
+                                {slotCount} of 5 slots {slotCount === 1 ? 'is' : 'are'} yours to change
+                                {fixedIds.length > 0
+                                    ? `; your assistant holds the other ${fixedIds.length}.`
+                                    : '.'}
+                            </p>
+                        </div>
 
                         {held.length > 0 && (
                             <section className="mt-6 rounded-lg border border-border bg-card p-4" aria-labelledby="held-back-heading">
@@ -210,7 +228,8 @@ interface LineupColumnProps {
     players: Player[];
     activePlayerIds: number[];
     consensusIds: number[];
-    lockedIds: number[];
+    fixedIds: number[];
+    slotCount: number;
     metric: (row: LineupPlayer) => string;
     metricLabel: string;
     emptyMessage?: string;
@@ -225,16 +244,19 @@ function LineupColumn({
     players,
     activePlayerIds,
     consensusIds,
-    lockedIds,
+    fixedIds,
+    slotCount,
     metric,
     metricLabel,
     emptyMessage,
     applyBlockedReason,
     onApply,
 }: LineupColumnProps) {
-    const hasLockedPlayer = rows.some((row) => lockedIds.includes(row.player_id));
-    const blockedReason = applyBlockedReason
-        ?? (hasLockedPlayer ? 'This five includes a player assigned to your assistant.' : null);
+    // Every candidate is one the coach controls, so the clock is the only thing that can
+    // block applying. The old check also disabled on a fixed player who was merely staying
+    // on court — a change the server would have accepted.
+    const blockedReason = applyBlockedReason;
+    const alreadyOnCourt = rows.length > 0 && rows.every((row) => activePlayerIds.includes(row.player_id));
 
     return (
         <section className="rounded-lg border border-border bg-card" aria-labelledby={`column-${heading}`}>
@@ -255,6 +277,28 @@ function LineupColumn({
             ) : (
                 <>
                     <ul className="divide-y divide-border/70">
+                        {fixedIds.map((playerId) => {
+                            const player = players.find((candidate) => candidate.id === playerId);
+
+                            return (
+                                <li
+                                    key={`fixed-${playerId}`}
+                                    className="flex min-h-12 items-center gap-2 bg-muted/20 px-4 py-2"
+                                >
+                                    <span className="w-6 shrink-0 font-mono text-muted-foreground">
+                                        {player?.jersey_number ?? '—'}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-semibold text-muted-foreground">
+                                            {player ? playerName(player) : `Player #${playerId}`}
+                                        </span>
+                                        <span className="block truncate text-xs text-muted-foreground">
+                                            Fixed · assistant&apos;s
+                                        </span>
+                                    </span>
+                                </li>
+                            );
+                        })}
                         {rows.map((row) => {
                             const player = players.find((candidate) => candidate.id === row.player_id);
                             const onCourt = activePlayerIds.includes(row.player_id);
@@ -280,7 +324,6 @@ function LineupColumn({
                                         </span>
                                         <span className="block truncate text-xs text-muted-foreground">
                                             {onCourt ? 'On court' : 'Sub in'}
-                                            {lockedIds.includes(row.player_id) ? " · assistant's player" : ''}
                                         </span>
                                     </span>
                                     <span className="shrink-0 text-right">
@@ -298,7 +341,7 @@ function LineupColumn({
                         <button
                             type="button"
                             onClick={onApply}
-                            disabled={blockedReason !== null || rows.length !== 5}
+                            disabled={blockedReason !== null || rows.length !== slotCount || alreadyOnCourt}
                             className="flex min-h-11 w-full items-center justify-center rounded-md bg-amber-400 px-4 text-xs font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Use this five
@@ -306,9 +349,14 @@ function LineupColumn({
                         {blockedReason !== null && (
                             <p className="mt-2 text-xs text-muted-foreground">{blockedReason}</p>
                         )}
-                        {blockedReason === null && rows.length !== 5 && (
+                        {blockedReason === null && rows.length !== slotCount && (
                             <p className="mt-2 text-xs text-muted-foreground">
-                                Only {rows.length} of 5 players can be ranked from this sample.
+                                Only {rows.length} of your {slotCount} slots can be filled from this sample.
+                            </p>
+                        )}
+                        {blockedReason === null && rows.length === slotCount && alreadyOnCourt && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                Your five is already the recommended one.
                             </p>
                         )}
                     </div>

@@ -45,17 +45,18 @@ class LiveGameSuggestionController extends Controller
 
         $roster = $comparisonRepository->activPlayersWithStats($control->teamId);
 
-        // Re-derived per viewer: the ranking is shared across the bench, but who may
-        // actually apply it depends on the assistant-coach split.
-        $eligibility = $eligibilityFilter->filter($liveGame, $roster, $control->controlledPlayerIds);
-        $suggestion = $suggestions->getOrDispatch($liveGame, $control->teamId);
+        // The job derives this identically to decide what to rank; the controller repeats it
+        // so the response can name the fixed players and the coach's open slot count.
+        $eligibility = $eligibilityFilter->filter($liveGame, $control->side, $roster, $control->controlledPlayerIds);
+        $suggestion = $suggestions->getOrDispatch($liveGame, $control->teamId, (int) $user->id);
 
         return response()->json([
             'pending' => $suggestion === null,
             'team_id' => $control->teamId,
             'suggestion' => $suggestion,
             'reasons' => $eligibility->reasons,
-            'locked_player_ids' => $eligibility->lockedPlayerIds,
+            'fixed_player_ids' => $eligibility->fixedPlayerIds,
+            'slot_count' => $eligibility->slotCount(),
             'controlled_player_ids' => $control->controlledPlayerIds,
         ]);
     }

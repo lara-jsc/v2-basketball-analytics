@@ -20,22 +20,25 @@ class LiveLineupSuggestionService
     private const TTL_MINUTES = 15;
 
     /**
-     * Cached suggestion for the bench, or null after dispatching the job.
+     * Cached suggestion for this coach, or null after dispatching the job.
+     *
+     * Keyed per coach, not per bench: the suggestion only fills the slots this coach
+     * controls, so a main coach and an assistant on the same bench get different answers.
      *
      * @return array<string, mixed>|null
      */
-    public function getOrDispatch(LiveGame $game, int $teamId): ?array
+    public function getOrDispatch(LiveGame $game, int $teamId, int $coachUserId): ?array
     {
         $sequence = $this->currentSequence($game);
 
         /** @var array<string, mixed>|null $cached */
-        $cached = Cache::get($this->cacheKey($game->id, $teamId, $sequence));
+        $cached = Cache::get($this->cacheKey($game->id, $teamId, $coachUserId, $sequence));
 
         if ($cached !== null) {
             return $cached;
         }
 
-        RecommendLiveLineup::dispatch($game->id, $teamId, $sequence);
+        RecommendLiveLineup::dispatch($game->id, $teamId, $coachUserId, $sequence);
 
         return null;
     }
@@ -50,10 +53,10 @@ class LiveLineupSuggestionService
      *
      * @param  array<string, mixed>  $result
      */
-    public function store(int $liveGameId, int $teamId, int $sequence, array $result): void
+    public function store(int $liveGameId, int $teamId, int $coachUserId, int $sequence, array $result): void
     {
         Cache::put(
-            $this->cacheKey($liveGameId, $teamId, $sequence),
+            $this->cacheKey($liveGameId, $teamId, $coachUserId, $sequence),
             $result,
             now()->addMinutes(self::TTL_MINUTES),
         );
@@ -66,8 +69,8 @@ class LiveLineupSuggestionService
             ->max('sequence');
     }
 
-    private function cacheKey(int $liveGameId, int $teamId, int $sequence): string
+    private function cacheKey(int $liveGameId, int $teamId, int $coachUserId, int $sequence): string
     {
-        return "live_lineup.{$liveGameId}.{$teamId}.seq{$sequence}";
+        return "live_lineup.{$liveGameId}.{$teamId}.u{$coachUserId}.seq{$sequence}";
     }
 }

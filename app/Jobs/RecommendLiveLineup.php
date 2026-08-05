@@ -4,7 +4,9 @@ namespace App\Jobs;
 
 use App\Models\LiveGame;
 use App\Models\Player;
+use App\Models\User;
 use App\Repositories\ComparisonRepository;
+use App\Services\LiveGame\LiveGameControlResolver;
 use App\Services\LiveGame\LiveLineupEligibility;
 use App\Services\LiveGame\LiveLineupEligibilityFilter;
 use App\Services\LiveGame\LiveLineupPayloadBuilder;
@@ -18,36 +20,64 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Ranks one bench twice with the same Python `lineup` command: once on season averages,
- * once on tonight's per-36 box score.
+ * Ranks the slots one coach can fill, twice, with the same Python `lineup` command: once
+ * on season averages, once on tonight's per-36 box score.
  *
  * Two calls rather than one blended call is the whole design. The columns disagree
  * often, and that disagreement is the information the coach actually wants — collapsing
  * it into a single number would require an exchange rate between a 20-game rating and an
  * 8-minute sample that nothing in the data justifies.
+ *
+ * The payload is scoped to the players this coach controls, so the job is per-coach, not
+ * per-bench. It has to be: `analytics/lineup_optimizer/ranker.py` returns only its top 5,
+ * so a bench-wide ranking cannot be sliced per coach afterwards — the coach's best
+ * available player might rank sixth and never appear at all.
  */
 class RecommendLiveLineup implements ShouldQueue
 {
     use Queueable;
 
-    private const LINEUP_SIZE = 5;
-
     public function __construct(
         public readonly int $liveGameId,
         public readonly int $teamId,
+        public readonly int $coachUserId,
         public readonly int $sequence,
     ) {}
 
     public function handle(
         ComparisonRepository $comparisonRepository,
+        LiveGameControlResolver $controlResolver,
         LiveLineupEligibilityFilter $eligibilityFilter,
         LiveLineupPayloadBuilder $payloadBuilder,
         PythonEngineService $engine,
         LiveLineupSuggestionService $suggestions,
     ): void {
         $game = LiveGame::query()->find($this->liveGameId);
+        $coach = User::query()->find($this->coachUserId);
 
-        if (! $game instanceof LiveGame) {
+        if (! $game instanceof LiveGame || ! $coach instanceof User) {
+            return;
+        }
+
+        $roster = $comparisonRepository->activPlayersWithStats($this->teamId);
+
+        // Reuse the resolver rather than re-deriving delegation arithmetic — the controller
+        // must reach the identical answer or the coach gets offered a change they cannot make.
+        $control = $controlResolver->resolve($game, $coach, $roster);
+
+        if ($control->side === null) {
+            return;
+        }
+
+        $eligibility = $eligibilityFilter->filter($game, $control->side, $roster, $control->controlledPlayerIds);
+        $slotCount = $eligibility->slotCount();
+
+        if ($slotCount === 0 || $eligibility->eligiblePlayerIds() === []) {
+            $suggestions->store($this->liveGameId, $this->teamId, $this->coachUserId, $this->sequence, [
+                'season' => $this->emptyColumn(),
+                'tonight' => $this->emptyColumn(),
+            ]);
+
             return;
         }
 
@@ -55,17 +85,7 @@ class RecommendLiveLineup implements ShouldQueue
             ? (int) $game->opponent_team_id
             : (int) $game->home_team_id;
 
-        $roster = $comparisonRepository->activPlayersWithStats($this->teamId);
         $opponents = $comparisonRepository->activPlayersWithStats($opponentTeamId);
-
-        // Locking is presentational and per-user, so ranking treats the whole roster as
-        // controlled. The controller re-derives the real locks for the viewer.
-        $eligibility = $eligibilityFilter->filter(
-            $game,
-            $roster,
-            $roster->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
-        );
-
         $rankable = $this->only($roster, $eligibility->rankablePlayerIds);
 
         try {
@@ -84,15 +104,16 @@ class RecommendLiveLineup implements ShouldQueue
             Log::error('RecommendLiveLineup: engine error', [
                 'live_game' => $this->liveGameId,
                 'team' => $this->teamId,
+                'coach' => $this->coachUserId,
                 'error' => $e->getMessage(),
             ]);
 
             return;
         }
 
-        $suggestions->store($this->liveGameId, $this->teamId, $this->sequence, [
-            'season' => $this->backfilled($season, $eligibility, $roster),
-            'tonight' => $this->backfilled($tonight, $eligibility, $roster),
+        $suggestions->store($this->liveGameId, $this->teamId, $this->coachUserId, $this->sequence, [
+            'season' => $this->shaped($season, $eligibility, $roster, $slotCount),
+            'tonight' => $this->shaped($tonight, $eligibility, $roster, $slotCount),
         ]);
     }
 
@@ -101,33 +122,27 @@ class RecommendLiveLineup implements ShouldQueue
         Log::error('RecommendLiveLineup job failed', [
             'live_game' => $this->liveGameId,
             'team' => $this->teamId,
+            'coach' => $this->coachUserId,
             'error' => $e->getMessage(),
         ]);
     }
 
     /**
-     * Top up a short lineup from the demoted pool.
+     * Trim the ranker's five down to the coach's open slots, backfilling from the demoted
+     * pool if the ranked candidates don't reach that far.
      *
-     * A player in foul trouble is only ever offered when there aren't five healthier
-     * bodies — which is exactly what "demoted to last" should mean in practice. They
-     * carry a null score because they were never ranked, only drafted to fill a hole.
+     * A player in foul trouble is only ever offered when there aren't enough healthier
+     * bodies — which is what "demoted to last" should mean in practice. They carry a null
+     * score because they were never ranked, only drafted to fill a hole.
      *
      * @param  array<string, mixed>  $result
      * @param  Collection<int, Player>  $roster
      * @return array<string, mixed>
      */
-    private function backfilled(array $result, LiveLineupEligibility $eligibility, Collection $roster): array
+    private function shaped(array $result, LiveLineupEligibility $eligibility, Collection $roster, int $slotCount): array
     {
         /** @var list<array<string, mixed>> $lineup */
-        $lineup = $result['recommended_lineup'] ?? [];
-        $shortfall = self::LINEUP_SIZE - count($lineup);
-
-        if ($shortfall <= 0 || $eligibility->demotedPlayerIds === []) {
-            return [
-                'recommended_lineup' => $lineup,
-                'confidence' => $result['confidence'] ?? 0.0,
-            ];
-        }
+        $lineup = array_slice($result['recommended_lineup'] ?? [], 0, $slotCount);
 
         $chosenIds = array_map(
             static fn (array $row): int => (int) ($row['player_id'] ?? 0),
@@ -135,7 +150,7 @@ class RecommendLiveLineup implements ShouldQueue
         );
 
         foreach ($this->only($roster, $eligibility->demotedPlayerIds) as $player) {
-            if ($shortfall <= 0) {
+            if (count($lineup) >= $slotCount) {
                 break;
             }
 
@@ -148,13 +163,18 @@ class RecommendLiveLineup implements ShouldQueue
                 'name' => "{$player->first_name} {$player->last_name}",
                 'plus_minus_score' => null,
             ];
-            $shortfall--;
         }
 
         return [
             'recommended_lineup' => $lineup,
             'confidence' => $result['confidence'] ?? 0.0,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function emptyColumn(): array
+    {
+        return ['recommended_lineup' => [], 'confidence' => 0.0];
     }
 
     /**

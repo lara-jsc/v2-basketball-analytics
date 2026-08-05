@@ -32,12 +32,42 @@ decide for the coach.
 An 8-minute on/off margin and a 20-game fitted rating are not the same unit. Blending them requires
 defending an exchange rate that nothing in the data justifies. So the two roles are split:
 
-- **Live data decides eligibility** (legality): 5+ personal fouls → excluded; inactive → excluded;
-  outside `controlled_player_ids` → shown but locked.
+- **Live data decides eligibility** (legality): 5+ personal fouls → excluded; inactive → excluded.
 - **Season data decides rank** among the eligible, via the existing Python `lineup` command, unchanged.
 - **Tonight gets its own column**, ranked by the *same formula fed different data*.
 
 Defence: one documented ranking function; the columns differ only in which sample feeds it.
+
+### 1a. The suggestion only fills the slots this coach controls.
+
+The on-court five is shared between a bench's two coaches, but each may only substitute their own
+players. A suggestion that proposes moving the assistant's players is one the coach cannot act on, so
+an uncontrolled player is never a candidate:
+
+| Player | Treatment |
+|---|---|
+| On court, controlled | A **slot** — open to replacement |
+| On court, **not** controlled | **Fixed** — shown dimmed, holds a place in the five, never a candidate |
+| Bench, controlled, eligible | A **candidate** |
+| Bench, **not** controlled | **Excluded** — irrelevant to this coach |
+
+`slot_count = |on-court ∩ controlled|`, and the ranker fills exactly that many places. With no
+assistant assigned the coach controls all five, so `slot_count` is 5 and nothing changes.
+
+Disqualification outranks fixed status: a fouled-out player cannot hold a place in the five,
+whoever they are assigned to.
+
+**This makes the suggestion per-coach, so the cache key is too.**
+`analytics/lineup_optimizer/ranker.py` hardcodes `_LINEUP_SIZE = 5` and returns `ranked[:5]`, so a
+bench-wide ranking cannot be sliced per coach after the fact — the coach's best available player
+might rank sixth and never appear. The payload is therefore pre-scoped to the controlled pool, and
+the key carries the coach:
+
+```
+live_lineup.{liveGameId}.{teamId}.u{coachUserId}.seq{maxEventSequence}
+```
+
+At most two coaches per bench, so this at most doubles the Python calls inside an already-queued job.
 
 ### 2. Same formula, two data sources — no new Python code.
 
@@ -123,18 +153,23 @@ following `LineupService`'s orphan-and-TTL approach rather than explicit forgets
 
 ### `LiveLineupEligibilityFilter` (new)
 
-Given a `LiveGame`, a side, and `controlled_player_ids`, returns eligible player IDs plus a reason
-map for everyone excluded or locked.
+Given a `LiveGame`, a side, and `controlled_player_ids`, partitions the roster and returns a reason
+for every player who is not a plain candidate. Checked in this order — the first match wins:
 
 | Condition | Result | Reason code |
 |---|---|---|
 | `personal_fouls >= LiveGameEventRules::MAX_PERSONAL_FOULS` | excluded | `disqualified` |
-| `personal_fouls >= 4` | eligible, demoted to last | `foul_trouble` |
 | `Player::is_active === false` | excluded | `inactive` |
-| not in `controlled_player_ids` | eligible, locked | `assigned_to_assistant` |
+| not in `controlled_player_ids`, on court | fixed (holds a slot) | `assigned_to_assistant` |
+| not in `controlled_player_ids`, on bench | excluded | `assigned_to_assistant` |
+| `personal_fouls >= 4` | candidate, demoted to backfill | `foul_trouble` |
+| otherwise | rankable candidate | — |
 
-Reasons surface in the UI. Players are never silently dropped — this mirrors the disabled-with-reason
-pattern `padEventBlockReason` already uses in `EventPad`.
+`slotCount()` is `LiveGameEventRules::LINEUP_SIZE` minus the fixed players.
+
+Reasons surface in the UI — this mirrors the disabled-with-reason pattern `padEventBlockReason`
+already uses in `EventPad`. Fixed players get their own dimmed rows in each column rather than an
+entry in the "Held back" list, so the same fact is not stated twice.
 
 ### `LiveLineupPayloadBuilder` (new)
 
@@ -169,10 +204,17 @@ class vocabulary: `rounded-lg border border-border bg-card`, headings
 `text-sm font-bold uppercase tracking-[0.1em]` with a lucide icon in `text-amber-300`, jersey numbers
 `font-mono text-amber-200`, rows `min-h-12`, focus rings `focus-visible:ring-cyan-300`.
 
+- Fixed players render first as dimmed rows labelled `Fixed · assistant's`, with no metric — they
+  hold a place in the five but are not the coach's to move.
 - `✓` marks players present in **both** columns, with a text legend — never colour alone.
-- Excluded and locked players listed below with their reason string.
+- Footer states how many of the five are the coach's to change.
+- Excluded players listed below with their reason string.
 - Pending state while the job runs, matching `AlertsPanel`'s muted-text empty state.
-- Each column's `USE THIS` disabled while the clock runs, with the reason visible.
+- Each column's `USE THIS` is disabled only while the clock runs, or when the recommended five is
+  already on the floor. It is **not** gated on fixed players: every candidate is one the coach
+  controls, so a fixed player staying on court can never make the change illegal.
+- `slot_count === 0` (the assistant holds all five on court) shows a plain explanatory state rather
+  than empty columns.
 
 `ApplyLineupConfirmModal.tsx` (new) — lists the exact OUT → IN pairs before committing, mirroring
 `VoidEventConfirmModal` / `ClockActionConfirmModal` / `LineupConfirmModal`. The console already

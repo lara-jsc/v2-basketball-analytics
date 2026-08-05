@@ -16,11 +16,14 @@ use App\Services\PythonEngineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class LiveLineupSuggestionTest extends TestCase
 {
     use RefreshDatabase;
+
+    private ?User $assistant = null;
 
     protected function setUp(): void
     {
@@ -150,27 +153,125 @@ class LiveLineupSuggestionTest extends TestCase
             );
     }
 
-    public function test_a_player_assigned_to_an_assistant_is_reported_as_locked(): void
+    public function test_an_on_court_player_assigned_to_an_assistant_is_reported_as_fixed(): void
     {
         Queue::fake();
         [$game, $coach] = $this->liveGame();
         $delegated = Player::query()->findOrFail($game->starting_player_ids[0]);
-        $assistant = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
-
-        LiveGamePlayerDelegation::query()->create([
-            'live_game_id' => $game->id,
-            'coach_user_id' => $assistant->id,
-            'player_id' => $delegated->id,
-        ]);
+        $this->delegate($game, $delegated);
 
         $this->actingAs($coach)
             ->postJson("/live-games/{$game->id}/suggested-lineup")
             ->assertOk()
-            ->assertJsonPath('locked_player_ids.0', $delegated->id)
+            ->assertJsonPath('fixed_player_ids.0', $delegated->id)
+            ->assertJsonPath('slot_count', 4)
             ->assertJsonPath(
                 "reasons.{$delegated->id}",
                 LiveLineupEligibilityFilter::REASON_ASSIGNED_TO_ASSISTANT,
             );
+    }
+
+    public function test_slot_count_is_five_when_no_assistant_holds_any_player(): void
+    {
+        Queue::fake();
+        [$game, $coach] = $this->liveGame();
+
+        $this->actingAs($coach)
+            ->postJson("/live-games/{$game->id}/suggested-lineup")
+            ->assertOk()
+            ->assertJsonPath('slot_count', 5)
+            ->assertJsonPath('fixed_player_ids', []);
+    }
+
+    public function test_each_column_only_fills_the_slots_the_coach_controls(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach] = $this->liveGame();
+        Player::factory()->count(4)->for($game->homeTeam)->create(['is_active' => true]);
+
+        // The assistant holds two of the five on the floor, leaving three open slots.
+        $this->delegate($game, Player::query()->findOrFail($game->starting_player_ids[0]));
+        $this->delegate($game, Player::query()->findOrFail($game->starting_player_ids[1]));
+
+        $response = $this->suggestion($game, $coach);
+
+        $response->assertJsonPath('slot_count', 3);
+        $this->assertCount(3, $response->json('suggestion.season.recommended_lineup'));
+    }
+
+    public function test_a_delegated_player_is_never_offered_as_a_candidate(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach] = $this->liveGame();
+        $delegatedBench = Player::factory()->for($game->homeTeam)->create(['is_active' => true]);
+        $this->delegate($game, $delegatedBench);
+        $onCourtDelegated = Player::query()->findOrFail($game->starting_player_ids[0]);
+        $this->delegate($game, $onCourtDelegated);
+
+        $suggested = collect($this->suggestion($game, $coach)->json('suggestion.season.recommended_lineup'))
+            ->pluck('player_id');
+
+        $this->assertNotContains($delegatedBench->id, $suggested, 'a delegated bench player is not this coach\'s to bring on');
+        $this->assertNotContains($onCourtDelegated->id, $suggested, 'a fixed player occupies a slot rather than filling one');
+    }
+
+    /**
+     * The regression this scoping exists to prevent: the ranker returns only its top five,
+     * so a bench-wide ranking would hide the coach's best available player behind the
+     * assistant's. Scoping the payload is what keeps them visible.
+     */
+    public function test_the_coachs_own_candidate_appears_even_when_the_assistant_holds_most_players(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach] = $this->liveGame();
+        $mine = Player::factory()->count(2)->for($game->homeTeam)->create(['is_active' => true]);
+
+        // The assistant takes four of the five on court; one slot stays with the coach.
+        foreach (array_slice($game->starting_player_ids, 0, 4) as $playerId) {
+            $this->delegate($game, Player::query()->findOrFail($playerId));
+        }
+
+        $response = $this->suggestion($game, $coach);
+
+        $response->assertJsonPath('slot_count', 1);
+        $lineup = collect($response->json('suggestion.season.recommended_lineup'))->pluck('player_id');
+        $this->assertCount(1, $lineup);
+        $this->assertContains(
+            $lineup->first(),
+            [$game->starting_player_ids[4], ...$mine->modelKeys()],
+            'the one open slot must be filled from the coach\'s own players',
+        );
+    }
+
+    public function test_a_coach_with_no_players_on_court_gets_empty_columns_rather_than_an_error(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach] = $this->liveGame();
+
+        foreach ($game->starting_player_ids as $playerId) {
+            $this->delegate($game, Player::query()->findOrFail($playerId));
+        }
+
+        $response = $this->suggestion($game, $coach);
+
+        $response->assertJsonPath('slot_count', 0);
+        $this->assertSame([], $response->json('suggestion.season.recommended_lineup'));
+        $this->assertSame([], $response->json('suggestion.tonight.recommended_lineup'));
+    }
+
+    public function test_a_main_coach_and_an_assistant_get_different_suggestions(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach] = $this->liveGame();
+        $delegated = Player::query()->findOrFail($game->starting_player_ids[0]);
+        $assistant = $this->delegate($game, $delegated);
+
+        $mainFixed = $this->suggestion($game, $coach)->json('fixed_player_ids');
+        $assistantFixed = $this->suggestion($game, $assistant)->json('fixed_player_ids');
+
+        $this->assertSame([$delegated->id], $mainFixed);
+        $this->assertCount(4, $assistantFixed, 'the assistant sees the main coach\'s four as fixed');
+        $this->assertNotContains($delegated->id, $assistantFixed);
     }
 
     public function test_applying_a_lineup_records_one_substitution_per_change(): void
@@ -293,6 +394,39 @@ class LiveLineupSuggestionTest extends TestCase
         ])->save();
 
         return [$game->fresh(), $coach];
+    }
+
+    /**
+     * Hand one player to an assistant coach, reusing the same assistant across calls so a
+     * test can delegate several players to one person.
+     */
+    private function delegate(LiveGame $game, Player $player): User
+    {
+        $assistant = $this->assistant ??= User::factory()
+            ->forTeam($game->homeTeam)
+            ->create(['email_verified_at' => now()]);
+
+        LiveGamePlayerDelegation::query()->create([
+            'live_game_id' => $game->id,
+            'coach_user_id' => $assistant->id,
+            'player_id' => $player->id,
+        ]);
+
+        return $assistant;
+    }
+
+    /**
+     * Poll twice: the first call decides against an empty cache and dispatches, the sync
+     * queue runs the job inline, and the second call reads the stored result.
+     */
+    private function suggestion(LiveGame $game, User $user): TestResponse
+    {
+        $this->actingAs($user)->postJson("/live-games/{$game->id}/suggested-lineup")->assertOk();
+
+        return $this->actingAs($user)
+            ->postJson("/live-games/{$game->id}/suggested-lineup")
+            ->assertOk()
+            ->assertJsonPath('pending', false);
     }
 
     /** @param array<string, mixed> $attributes */

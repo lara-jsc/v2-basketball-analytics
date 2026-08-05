@@ -176,7 +176,10 @@ export interface LiveLineupSuggestionResponse {
   team_id: number;
   suggestion: LiveLineupSuggestion | null;
   reasons: Record<string, LiveLineupReason>;
-  locked_player_ids: number[];
+  /** On court but assigned to another coach: they hold a place in the five and cannot be moved. */
+  fixed_player_ids: number[];
+  /** How many of the five this coach may fill. 5 when no assistant is assigned. */
+  slot_count: number;
   controlled_player_ids: number[];
 }
 

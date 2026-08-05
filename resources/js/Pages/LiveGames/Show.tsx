@@ -224,11 +224,9 @@ export default function LiveGamesShow({
         const outs = ownActiveIds.filter((id) => !playerIds.includes(id));
         const ins = playerIds.filter((id) => !ownActiveIds.includes(id));
 
-        if (outs.length === 0) {
-            setError('That five is already on the floor.');
-
-            return;
-        }
+        // The sheet already disables Apply when there is nothing to change, so this is only
+        // a guard against a stale snapshot — not a state worth shouting about.
+        if (outs.length === 0) return;
 
         setPendingLineupChange({ source, playerIds, outs, ins });
     }

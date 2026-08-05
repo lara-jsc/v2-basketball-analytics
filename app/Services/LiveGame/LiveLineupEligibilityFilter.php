@@ -34,16 +34,18 @@ class LiveLineupEligibilityFilter
     public const FOUL_TROUBLE_THRESHOLD = LiveGameEventRules::MAX_PERSONAL_FOULS - 1;
 
     /**
+     * @param  'home'|'opponent'  $side
      * @param  Collection<int, Player>  $roster
      * @param  list<int>  $controlledPlayerIds  Players this coach may substitute.
      */
-    public function filter(LiveGame $game, Collection $roster, array $controlledPlayerIds): LiveLineupEligibility
+    public function filter(LiveGame $game, string $side, Collection $roster, array $controlledPlayerIds): LiveLineupEligibility
     {
         $personalFouls = $this->personalFoulsByPlayer($game, $roster);
+        $onCourt = $game->activePlayerIdsForSide($side);
 
         $rankable = [];
         $demoted = [];
-        $locked = [];
+        $fixed = [];
         $reasons = [];
 
         foreach ($roster as $player) {
@@ -51,7 +53,8 @@ class LiveLineupEligibilityFilter
             $fouls = $personalFouls[$playerId] ?? 0;
 
             // Disqualification is a rule of the game, so it outranks every other reason —
-            // including inactivity, which is only a roster preference.
+            // including inactivity and fixed status. A fouled-out player cannot hold a place
+            // in the five, whoever they are assigned to.
             if ($fouls >= LiveGameEventRules::MAX_PERSONAL_FOULS) {
                 $reasons[$playerId] = self::REASON_DISQUALIFIED;
 
@@ -64,22 +67,30 @@ class LiveLineupEligibilityFilter
                 continue;
             }
 
+            // A player this coach does not control is never a candidate. On court they still
+            // occupy one of the five, so they are reported as fixed and shown for context;
+            // on the bench they are simply not this coach's problem.
+            if (! in_array($playerId, $controlledPlayerIds, true)) {
+                $reasons[$playerId] = self::REASON_ASSIGNED_TO_ASSISTANT;
+
+                if (in_array($playerId, $onCourt, true)) {
+                    $fixed[] = $playerId;
+                }
+
+                continue;
+            }
+
             if ($fouls >= self::FOUL_TROUBLE_THRESHOLD) {
                 $demoted[] = $playerId;
                 $reasons[$playerId] = self::REASON_FOUL_TROUBLE;
-            } else {
-                $rankable[] = $playerId;
+
+                continue;
             }
 
-            // Locked players are still ranked: the coach should see that the system wants
-            // them, then be told plainly why they cannot make the change themselves.
-            if (! in_array($playerId, $controlledPlayerIds, true)) {
-                $locked[] = $playerId;
-                $reasons[$playerId] ??= self::REASON_ASSIGNED_TO_ASSISTANT;
-            }
+            $rankable[] = $playerId;
         }
 
-        return new LiveLineupEligibility($rankable, $demoted, $locked, $reasons);
+        return new LiveLineupEligibility($rankable, $demoted, $fixed, $reasons);
     }
 
     /**

@@ -103,7 +103,7 @@ class LiveGameLineupApplier
             $errors['game'][] = "Q{$game->current_period} has ended. Advance the period before substituting.";
         }
 
-        if (count($chosen) !== 5) {
+        if (count($chosen) !== LiveGameEventRules::LINEUP_SIZE) {
             $errors['player_ids'][] = 'A lineup must be exactly five distinct players.';
         }
 
@@ -125,8 +125,9 @@ class LiveGameLineupApplier
             }
         }
 
-        // Locked players are shown in the suggestion on purpose, so a coach can see what
-        // the system wants. Applying them is what they cannot do.
+        // Defence in depth. The suggestion no longer offers uncontrolled players as
+        // candidates, so a well-behaved client cannot reach this — but the endpoint accepts
+        // arbitrary player_ids, and an assistant's player must never be moved by someone else.
         foreach (array_merge($outs, $ins) as $playerId) {
             if (! in_array($playerId, $control->controlledPlayerIds, true)) {
                 $errors['player_ids'][] = 'This change includes players assigned to another coach.';
