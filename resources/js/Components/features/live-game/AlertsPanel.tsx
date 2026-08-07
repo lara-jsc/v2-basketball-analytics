@@ -27,7 +27,7 @@ export function AlertsPanel({ alerts, players, teams, viewerSide, homeTeamId, op
                     id="alerts-heading"
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"
                 >
-                    <BellRing size={16} className="text-amber-300" /> Coach alerts
+                    <BellRing size={16} className="live-text-warn" /> Coach alerts
                 </h2>
                 <span className="text-xs text-muted-foreground">{alerts.length} active</span>
             </div>

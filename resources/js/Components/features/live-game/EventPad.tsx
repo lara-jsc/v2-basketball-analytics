@@ -40,7 +40,7 @@ export function EventPad({
                         ? `${selectedPlayer.first_name} ${selectedPlayer.last_name} selected`
                         : 'Select an active player'}
                     {selectedPlayer && disqualified ? (
-                        <span className="text-red-300"> · disqualified ({MAX_PERSONAL_FOULS} fouls)</span>
+                        <span className="live-text-danger"> · disqualified ({MAX_PERSONAL_FOULS} fouls)</span>
                     ) : null}
                 </p>
             </div>
@@ -108,7 +108,7 @@ function PadButton({
             onClick={onRecord}
             className={`flex h-14 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
                 padEvent.tone === 'amber'
-                    ? 'border-amber-300/35 bg-amber-300/10 text-amber-100 hover:bg-amber-300/20'
+                    ? 'live-badge-warn hover:bg-amber-200/90 dark:hover:bg-amber-300/20'
                     : 'border-border bg-muted/30 text-foreground hover:bg-muted/70'
             }`}
         >

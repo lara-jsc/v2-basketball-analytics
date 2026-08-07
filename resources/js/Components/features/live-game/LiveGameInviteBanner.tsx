@@ -18,15 +18,15 @@ export function LiveGameInviteBanner({ invite }: LiveGameInviteBannerProps) {
         <div
             role="dialog"
             aria-label={invite.title}
-            className="relative z-20 border-b border-cyan-300/40 bg-cyan-300/15 px-4 py-4 backdrop-blur-sm sm:px-6"
+            className="relative z-20 border-b border-cyan-600/30 bg-cyan-100/80 px-4 py-4 backdrop-blur-sm dark:border-cyan-300/40 dark:bg-cyan-300/15 sm:px-6"
         >
             <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
-                    <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-cyan-300/40 bg-cyan-300/10 text-cyan-100">
+                    <span className="live-badge-info mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md">
                         <Radio size={18} />
                     </span>
                     <div className="min-w-0">
-                        <p className="text-sm font-bold uppercase tracking-[0.1em] text-cyan-100">{invite.title}</p>
+                        <p className="live-text-info-soft text-sm font-bold uppercase tracking-[0.1em]">{invite.title}</p>
                         <p className="mt-1 text-sm text-foreground">{invite.body}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                             {invite.home_team_name} vs {invite.opponent_team_name}

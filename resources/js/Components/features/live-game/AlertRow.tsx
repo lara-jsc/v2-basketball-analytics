@@ -12,8 +12,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const SEVERITY_CLASSES: Record<string, string> = {
-    info: 'bg-cyan-300/10 text-cyan-200',
-    warning: 'bg-amber-300/10 text-amber-200',
+    info: 'live-badge-info',
+    warning: 'live-badge-warn',
 };
 
 export function AlertRow({ alert, players }: { alert: LiveGameAlert; players: Player[] }) {
@@ -27,7 +27,7 @@ export function AlertRow({ alert, players }: { alert: LiveGameAlert; players: Pl
                 <span
                     className={`shrink-0 rounded px-2 py-0.5 text-xs font-bold uppercase ${
                         disqualified
-                            ? 'bg-red-400/15 text-red-200'
+                            ? 'live-badge-danger'
                             : (SEVERITY_CLASSES[alert.severity] ?? 'bg-muted text-muted-foreground')
                     }`}
                 >

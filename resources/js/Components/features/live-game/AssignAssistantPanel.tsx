@@ -87,7 +87,7 @@ export function AssignAssistantPanel({
                 className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
             >
                 <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <UserRound size={16} className="text-cyan-200" />
+                    <UserRound size={16} className="live-text-info" />
                     {hasAssignment
                         ? `${selectedCoach.name} · ${delegatedCount} player${delegatedCount === 1 ? '' : 's'}`
                         : 'Assign an assistant'}
@@ -113,7 +113,7 @@ export function AssignAssistantPanel({
                                             onClick={() => selectCoach(coach.id)}
                                             className={`flex min-h-11 w-full cursor-pointer items-center rounded-md border px-3 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
                                                 selected
-                                                    ? 'border-cyan-300/60 bg-cyan-300/10 text-cyan-100'
+                                                    ? 'live-badge-info'
                                                     : 'border-border text-foreground hover:bg-muted/40'
                                             }`}
                                         >
@@ -124,7 +124,7 @@ export function AssignAssistantPanel({
                             })}
                         </ul>
                         {errors?.assistant_coach_user_id && (
-                            <p className="mt-2 text-xs text-red-300">{errors.assistant_coach_user_id}</p>
+                            <p className="live-text-danger mt-2 text-xs">{errors.assistant_coach_user_id}</p>
                         )}
                     </div>
 
@@ -141,7 +141,7 @@ export function AssignAssistantPanel({
                                         key={player.id}
                                         className="flex min-h-14 flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2"
                                     >
-                                        <span className="font-mono text-amber-200">{player.jersey_number}</span>
+                                        <span className="live-text-warn font-mono">{player.jersey_number}</span>
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
                                             <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
@@ -164,7 +164,7 @@ export function AssignAssistantPanel({
                                                 disabled={value.assistantCoachUserId === null}
                                                 className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
                                                     isAssistant
-                                                        ? 'bg-cyan-300/20 text-cyan-100'
+                                                        ? 'bg-cyan-100 text-cyan-900 dark:bg-cyan-300/20 dark:text-cyan-100'
                                                         : 'text-muted-foreground hover:bg-muted/50'
                                                 }`}
                                             >
@@ -176,7 +176,7 @@ export function AssignAssistantPanel({
                             })}
                         </ul>
                         {errors?.delegated_player_ids && (
-                            <p className="mt-2 text-xs text-red-300">{errors.delegated_player_ids}</p>
+                            <p className="live-text-danger mt-2 text-xs">{errors.delegated_player_ids}</p>
                         )}
                     </div>
 

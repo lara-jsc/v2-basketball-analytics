@@ -20,7 +20,7 @@ export function TimelineRow({ event, players, teams, voided, disabled, onRequest
                 voided ? 'opacity-45' : 'hover:bg-muted/25'
             }`}
         >
-            <span className="font-mono text-xs text-cyan-200">
+            <span className="live-text-info font-mono text-xs">
                 Q{event.period}
                 <br />
                 {clockLabel(event.clock_seconds_remaining)}
@@ -40,7 +40,7 @@ export function TimelineRow({ event, players, teams, voided, disabled, onRequest
                     onClick={() => onRequestVoid(event)}
                     aria-label={`Void event ${event.sequence}`}
                     title="Void event"
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-red-300/60 hover:bg-red-400/10 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-red-600/40 hover:bg-red-100 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:border-red-300/60 dark:hover:bg-red-400/10 dark:hover:text-red-200"
                 >
                     <Ban size={16} />
                 </button>

@@ -61,9 +61,9 @@ export function ApplyLineupConfirmModal({
                             key={pair.out}
                             className="flex min-h-11 items-center gap-2 rounded-md border border-border px-3 py-2 text-sm"
                         >
-                            <span className="min-w-0 flex-1 truncate font-mono text-red-200">{label(pair.out)}</span>
+                            <span className="live-text-danger min-w-0 flex-1 truncate font-mono">{label(pair.out)}</span>
                             <ArrowRight size={14} className="shrink-0 text-muted-foreground" aria-label="is replaced by" />
-                            <span className="min-w-0 flex-1 truncate font-mono text-cyan-200">{label(pair.in)}</span>
+                            <span className="live-text-info min-w-0 flex-1 truncate font-mono">{label(pair.in)}</span>
                         </li>
                     ))}
                 </ul>

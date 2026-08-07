@@ -80,7 +80,7 @@ export default function LiveGamesCreate({
                 </div>
 
                 {!homeTeam ? (
-                    <div className="rounded-lg border border-amber-300/40 bg-amber-300/10 px-4 py-5 text-sm text-amber-100">
+                    <div className="live-badge-warn rounded-lg px-4 py-5 text-sm">
                         Your account is not assigned to a team. Ask an admin to set your team before creating a live game.
                     </div>
                 ) : (
@@ -92,7 +92,7 @@ export default function LiveGamesCreate({
                                     <Label htmlFor="home-team">Your team</Label>
                                     <Input id="home-team" value={homeTeam.name} readOnly className="h-11 bg-muted/40" />
                                     {(errors as Record<string, string>).home_team_id && (
-                                        <p className="text-xs text-red-300">{(errors as Record<string, string>).home_team_id}</p>
+                                        <p className="live-text-danger text-xs">{(errors as Record<string, string>).home_team_id}</p>
                                     )}
                                 </div>
                                 <div className="grid gap-2">
@@ -108,7 +108,7 @@ export default function LiveGamesCreate({
                                             <option key={team.id} value={team.id}>{team.name}</option>
                                         ))}
                                     </select>
-                                    {errors.opponent_team_id && <p className="text-xs text-red-300">{errors.opponent_team_id}</p>}
+                                    {errors.opponent_team_id && <p className="live-text-danger text-xs">{errors.opponent_team_id}</p>}
                                 </div>
                                 <div className="grid gap-2 sm:col-span-2">
                                     <Label htmlFor="period-length">Quarter length in seconds</Label>
@@ -122,13 +122,13 @@ export default function LiveGamesCreate({
                                         className="h-11"
                                     />
                                     <p className="text-xs text-muted-foreground">Four quarters. The default 600 seconds is a 10-minute quarter.</p>
-                                    {errors.period_length_seconds && <p className="text-xs text-red-300">{errors.period_length_seconds}</p>}
+                                    {errors.period_length_seconds && <p className="live-text-danger text-xs">{errors.period_length_seconds}</p>}
                                 </div>
                             </div>
                         </section>
 
-                        <aside className="rounded-lg border border-cyan-300/25 bg-cyan-300/5 p-5">
-                            <UsersRound size={20} className="text-cyan-200" />
+                        <aside className="rounded-lg border border-cyan-600/25 bg-cyan-100/50 p-5 dark:border-cyan-300/25 dark:bg-cyan-300/5">
+                            <UsersRound size={20} className="live-text-info" />
                             <h2 className="mt-3 text-sm font-bold uppercase tracking-[0.1em] text-foreground">Your starting five</h2>
                             <p className="mt-1 text-sm text-muted-foreground">The opponent coach will submit their five after you share the game link.</p>
                             <button
@@ -146,7 +146,7 @@ export default function LiveGamesCreate({
                                     <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">{homeTeam.name} lineup</h2>
                                     <p className="mt-1 text-sm text-muted-foreground">Select exactly five active players.</p>
                                 </div>
-                                <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${data.starting_player_ids.length === 5 ? 'bg-cyan-300/10 text-cyan-100' : 'bg-amber-300/10 text-amber-100'}`}>
+                                <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${data.starting_player_ids.length === 5 ? 'live-badge-info' : 'live-badge-warn'}`}>
                                     {data.starting_player_ids.length}/5 selected
                                 </span>
                             </div>
@@ -159,17 +159,17 @@ export default function LiveGamesCreate({
                                             className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${selected ? 'border-amber-300/60 bg-amber-300/10' : 'border-border hover:bg-muted/40'}`}
                                         >
                                             <input type="checkbox" checked={selected} onChange={() => togglePlayer(player.id)} className="h-4 w-4 accent-amber-400" />
-                                            <span className="font-mono text-amber-200">{player.jersey_number}</span>
+                                            <span className="live-text-warn font-mono">{player.jersey_number}</span>
                                             <span className="min-w-0">
                                                 <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
                                                 <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
                                             </span>
-                                            {selected && <Check size={15} className="ml-auto text-cyan-200" />}
+                                            {selected && <Check size={15} className="live-text-info ml-auto" />}
                                         </label>
                                     );
                                 })}
                             </div>
-                            {errors.starting_player_ids && <p className="mt-3 text-xs text-red-300">{errors.starting_player_ids}</p>}
+                            {errors.starting_player_ids && <p className="live-text-danger mt-3 text-xs">{errors.starting_player_ids}</p>}
                         </section>
 
                         <div className="lg:col-span-2">

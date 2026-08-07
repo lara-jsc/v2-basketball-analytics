@@ -61,7 +61,7 @@ export function LineupConfirmModal({
                     <button
                         type="button"
                         onClick={onAssignAssistant}
-                        className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-4 text-xs font-bold uppercase tracking-wide text-cyan-100 transition-colors hover:bg-cyan-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                        className="live-badge-info flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-cyan-300/20"
                     >
                         <UserRound size={16} /> Assign assistant
                     </button>

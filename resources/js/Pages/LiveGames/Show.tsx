@@ -377,7 +377,7 @@ export default function LiveGamesShow({
                             <button
                                 type="button"
                                 onClick={() => void copyLink()}
-                                className="flex h-11 min-w-11 items-center gap-2 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-3 text-xs font-bold uppercase tracking-wide text-cyan-100 transition-colors hover:bg-cyan-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                                className="live-badge-info flex h-11 min-w-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-cyan-300/20"
                             >
                                 <Copy size={14} /> Copy link
                             </button>
@@ -393,23 +393,23 @@ export default function LiveGamesShow({
                             </button>
                         )}
                         {snapshot.liveGame.status === 'live' && isCreator && (
-                            <button type="button" onClick={finishGame} className="flex h-11 items-center gap-2 rounded-md border border-red-300/50 bg-red-400/10 px-3 text-xs font-bold uppercase tracking-wide text-red-100 transition-colors hover:bg-red-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+                            <button type="button" onClick={finishGame} className="live-badge-danger flex h-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-red-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-red-400/20">
                                 <CircleStop size={14} /> Finish
                             </button>
                         )}
-                        <span className={`flex h-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide ${snapshot.liveGame.status === 'live' ? 'bg-cyan-300/10 text-cyan-100' : 'bg-muted/50 text-muted-foreground'}`}>
+                        <span className={`flex h-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide ${snapshot.liveGame.status === 'live' ? 'live-badge-info' : 'bg-muted/50 text-muted-foreground'}`}>
                             <Radio size={14} /> {snapshot.liveGame.status}
                             {viewerTeamName ? ` · ${viewerTeamName}` : ''}
                         </span>
                     </div>
                 </div>
                 {copyFeedback && (
-                    <div className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100 sm:mx-5">
+                    <div className="live-badge-info mx-4 mt-4 flex items-center gap-2 rounded-md px-4 py-3 text-sm sm:mx-5">
                         <Link2 size={16} /> {copyFeedback}
                     </div>
                 )}
                 {(error || errors.game) && (
-                    <div role="alert" className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-red-300/40 bg-red-400/10 px-4 py-3 text-sm text-red-100 sm:mx-5">
+                    <div role="alert" className="live-badge-danger mx-4 mt-4 flex items-center gap-2 rounded-md px-4 py-3 text-sm sm:mx-5">
                         <AlertTriangle size={16} /> {error ?? errors.game}
                     </div>
                 )}
@@ -422,7 +422,7 @@ export default function LiveGamesShow({
                                     <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Submit your starting five</h2>
                                     <p className="mt-1 text-sm text-muted-foreground">Select five active players from your roster.</p>
                                 </div>
-                                <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${lineupReady ? 'bg-cyan-300/10 text-cyan-100' : 'bg-amber-300/10 text-amber-100'}`}>
+                                <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${lineupReady ? 'live-badge-info' : 'live-badge-warn'}`}>
                                     {lineupForm.data.starting_player_ids.length}/5 selected
                                 </span>
                             </div>
@@ -435,18 +435,18 @@ export default function LiveGamesShow({
                                             className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${selected ? 'border-amber-300/60 bg-amber-300/10' : 'border-border hover:bg-muted/40'}`}
                                         >
                                             <input type="checkbox" checked={selected} onChange={() => toggleLineupPlayer(player.id)} className="h-4 w-4 accent-amber-400" />
-                                            <span className="font-mono text-amber-200">{player.jersey_number}</span>
+                                            <span className="live-text-warn font-mono">{player.jersey_number}</span>
                                             <span className="min-w-0">
                                                 <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
                                                 <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
                                             </span>
-                                            {selected && <Check size={15} className="ml-auto text-cyan-200" />}
+                                            {selected && <Check size={15} className="live-text-info ml-auto" />}
                                         </label>
                                     );
                                 })}
                             </div>
                             {lineupForm.errors.starting_player_ids && (
-                                <p className="mt-3 text-xs text-red-300">{lineupForm.errors.starting_player_ids}</p>
+                                <p className="live-text-danger mt-3 text-xs">{lineupForm.errors.starting_player_ids}</p>
                             )}
                             <button
                                 type="submit"
@@ -506,7 +506,7 @@ export default function LiveGamesShow({
                         <button
                             type="button"
                             onClick={() => void copyLink()}
-                            className="mx-auto mt-5 flex h-11 items-center gap-2 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-4 text-xs font-bold uppercase tracking-wide text-cyan-100 transition-colors hover:bg-cyan-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                            className="live-badge-info mx-auto mt-5 flex h-11 items-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-cyan-300/20"
                         >
                             <Copy size={14} /> Copy link
                         </button>
@@ -514,7 +514,7 @@ export default function LiveGamesShow({
                 )}
 
                 {isSetup && snapshot.both_lineups_ready && (
-                    <div className="mx-4 mt-4 rounded-lg border border-cyan-300/30 bg-cyan-300/5 px-4 py-4 text-sm text-cyan-100 sm:mx-5">
+                    <div className="live-badge-info mx-4 mt-4 rounded-lg px-4 py-4 text-sm sm:mx-5">
                         Both starting fives are ready{can_control_clock ? '. Start the clock to begin the game.' : '. Waiting for a main coach to start the clock.'}
                     </div>
                 )}

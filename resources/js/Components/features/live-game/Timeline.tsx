@@ -30,7 +30,7 @@ export function Timeline({ events, players, teams, disabled, onRequestVoid }: Ti
                     id="timeline-heading"
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"
                 >
-                    <History size={16} className="text-cyan-300" /> Timeline
+                    <History size={16} className="live-text-info" /> Timeline
                 </h2>
                 <span className="text-xs text-muted-foreground">
                     {recordedCount} recorded

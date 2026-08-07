@@ -41,7 +41,7 @@ export function VoidEventConfirmModal({
                     <button
                         type="button"
                         onClick={onConfirm}
-                        className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-red-300/50 bg-red-400/15 px-4 text-xs font-bold uppercase tracking-wide text-red-100 transition-colors hover:bg-red-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                        className="live-badge-danger flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-red-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-red-400/25"
                     >
                         <Ban size={16} /> Void event
                     </button>

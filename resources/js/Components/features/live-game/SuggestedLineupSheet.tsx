@@ -108,7 +108,7 @@ export function SuggestedLineupSheet({
                 <button
                     type="button"
                     disabled={disabled}
-                    className="flex h-9 items-center gap-2 rounded-md border border-cyan-300/40 bg-cyan-300/10 px-3 text-xs font-bold uppercase tracking-wide text-cyan-100 transition-colors hover:bg-cyan-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50"
+                    className="live-badge-info flex h-9 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-50 dark:hover:bg-cyan-300/20"
                 >
                     <Sparkles size={15} /> Suggest 5
                 </button>
@@ -123,7 +123,7 @@ export function SuggestedLineupSheet({
                 </SheetHeader>
 
                 {error && (
-                    <p role="alert" className="mt-5 rounded-md border border-red-300/40 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+                    <p role="alert" className="live-badge-danger mt-5 rounded-md px-4 py-3 text-sm">
                         {error}
                     </p>
                 )}
@@ -174,7 +174,7 @@ export function SuggestedLineupSheet({
 
                         <div className="mt-4 grid gap-1.5 text-xs text-muted-foreground">
                             <p className="flex items-center gap-2">
-                                <Check size={13} className="text-cyan-200" aria-hidden="true" />
+                                <Check size={13} className="live-text-info" aria-hidden="true" />
                                 Marked players appear in both lists — {consensusIds.length} of {slotCount} agree.
                             </p>
                             <p>
@@ -199,7 +199,7 @@ export function SuggestedLineupSheet({
 
                                         return (
                                             <li key={entry.playerId} className="flex min-h-11 items-center gap-3 text-sm">
-                                                <span className="font-mono text-amber-200">
+                                                <span className="live-text-warn font-mono">
                                                     {player?.jersey_number ?? '—'}
                                                 </span>
                                                 <span className="min-w-0 flex-1 truncate text-foreground">
@@ -306,7 +306,7 @@ function LineupColumn({
 
                             return (
                                 <li key={row.player_id} className="flex min-h-12 items-center gap-2 px-4 py-2">
-                                    <span className="w-6 shrink-0 font-mono text-amber-200">
+                                    <span className="live-text-warn w-6 shrink-0 font-mono">
                                         {player?.jersey_number ?? '—'}
                                     </span>
                                     <span className="min-w-0 flex-1">
@@ -317,7 +317,7 @@ function LineupColumn({
                                             {inBoth && (
                                                 <Check
                                                     size={13}
-                                                    className="shrink-0 text-cyan-200"
+                                                    className="live-text-info shrink-0"
                                                     aria-label="in both lists"
                                                 />
                                             )}
