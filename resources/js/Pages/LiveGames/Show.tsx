@@ -346,9 +346,9 @@ export default function LiveGamesShow({
 
     const isLiveConsole = snapshot.liveGame.status === 'live';
 
-    const eventSequence = useMemo(
-        () => snapshot.events.reduce((max, event) => Math.max(max, event.sequence), 0),
-        [snapshot.events],
+    const lineupKey = useMemo(
+        () => [...ownActiveIds].sort((a, b) => a - b).join(','),
+        [ownActiveIds],
     );
 
     return (
@@ -604,7 +604,7 @@ export default function LiveGamesShow({
                         />
                         {isLiveConsole && canRecord && (
                             <SuggestedLineupPanel
-                                eventSequence={eventSequence}
+                                lineupKey={lineupKey}
                                 players={ownPlayers}
                                 activePlayerIds={ownActiveIds}
                                 stats={snapshot.stats}

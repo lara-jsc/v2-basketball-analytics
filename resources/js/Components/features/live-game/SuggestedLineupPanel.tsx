@@ -12,7 +12,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 type Column = 'season' | 'tonight';
 
 interface SuggestedLineupPanelProps {
-    eventSequence: number;
+    /** Sorted on-court player ids; changes only when a substitution alters the five. */
+    lineupKey: string;
     players: Player[];
     activePlayerIds: number[];
     stats: LiveGamePlayerStat[];
@@ -25,8 +26,6 @@ interface SuggestedLineupPanelProps {
 
 const POLL_INTERVAL_MS = 1500;
 const MAX_POLLS = 8;
-const REFETCH_DEBOUNCE_MS = 300;
-
 const REASON_LABELS: Record<LiveLineupReason, string> = {
     disqualified: 'Fouled out',
     foul_trouble: 'In foul trouble — held back',
@@ -50,7 +49,7 @@ function buildHeldBackList(
 }
 
 export function SuggestedLineupPanel({
-    eventSequence,
+    lineupKey,
     players,
     activePlayerIds,
     stats,
@@ -64,7 +63,6 @@ export function SuggestedLineupPanel({
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const pollsRef = useRef(0);
-    const debounceRef = useRef<number | null>(null);
 
     const load = useCallback(async (): Promise<void> => {
         if (disabled) return;
@@ -104,21 +102,10 @@ export function SuggestedLineupPanel({
     useEffect(() => {
         if (disabled) return;
 
-        if (debounceRef.current !== null) {
-            window.clearTimeout(debounceRef.current);
-        }
-
-        debounceRef.current = window.setTimeout(() => {
-            pollsRef.current = 0;
-            void load();
-        }, REFETCH_DEBOUNCE_MS);
-
-        return () => {
-            if (debounceRef.current !== null) {
-                window.clearTimeout(debounceRef.current);
-            }
-        };
-    }, [disabled, eventSequence, load]);
+        pollsRef.current = 0;
+        setData(null);
+        void load();
+    }, [disabled, lineupKey, load]);
 
     const suggestion = data?.suggestion ?? null;
     const seasonIds = (suggestion?.season.recommended_lineup ?? []).map((row) => row.player_id);
