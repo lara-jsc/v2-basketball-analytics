@@ -18,9 +18,11 @@ class LiveGameAlertService
         $opponentTeamId = (int) $game->opponent_team_id;
 
         $madeShots = [];
-        $missStreaks = [];
         $personalFouls = [];
         $playerTeamIds = $this->playerTeamIds($effectiveEvents);
+        $missStreaks = app(LiveGameMissStreakCalculator::class)->compute(
+            $effectiveEvents->filter(fn (LiveGameEvent $event): bool => $event->team_scope === 'own'),
+        );
 
         // Every accumulator is keyed by team: a single scalar would mix both benches, which is
         // what made opponent_run and team_drought meaningless in a dual-team game.
@@ -55,13 +57,10 @@ class LiveGameAlertService
                     $madeShots[$event->player_id] = ($madeShots[$event->player_id] ?? 0) + 1;
                 }
 
-                $missStreaks[$event->player_id] = 0;
-
                 continue;
             }
 
             if ($event->type === 'shot_missed') {
-                $missStreaks[$event->player_id] = ($missStreaks[$event->player_id] ?? 0) + 1;
                 $emptyPossessions[$teamId]++;
 
                 continue;
