@@ -6,6 +6,7 @@ use App\Models\LiveGame;
 use App\Models\Player;
 use App\Models\User;
 use App\Repositories\ComparisonRepository;
+use App\Services\LiveGame\EligibilityMode;
 use App\Services\LiveGame\LiveGameControlResolver;
 use App\Services\LiveGame\LiveLineupEligibility;
 use App\Services\LiveGame\LiveLineupEligibilityFilter;
@@ -69,13 +70,29 @@ class RecommendLiveLineup implements ShouldQueue
             return;
         }
 
-        $eligibility = $eligibilityFilter->filter($game, $control->side, $roster, $control->controlledPlayerIds);
-        $slotCount = $eligibility->slotCount();
+        $seasonEligibility = $eligibilityFilter->filter(
+            $game,
+            $control->side,
+            $roster,
+            $control->controlledPlayerIds,
+            EligibilityMode::Season,
+        );
+        $tonightEligibility = $eligibilityFilter->filter(
+            $game,
+            $control->side,
+            $roster,
+            $control->controlledPlayerIds,
+            EligibilityMode::Tonight,
+        );
 
-        if ($slotCount === 0 || $eligibility->eligiblePlayerIds() === []) {
+        if ($seasonEligibility->slotCount() === 0 || $seasonEligibility->eligiblePlayerIds() === []) {
             $suggestions->store($this->liveGameId, $this->teamId, $this->coachUserId, $this->sequence, [
                 'season' => $this->emptyColumn(),
                 'tonight' => $this->emptyColumn(),
+                'reasons' => [
+                    'season' => $seasonEligibility->reasons,
+                    'tonight' => $tonightEligibility->reasons,
+                ],
             ]);
 
             return;
@@ -86,16 +103,17 @@ class RecommendLiveLineup implements ShouldQueue
             : (int) $game->home_team_id;
 
         $opponents = $comparisonRepository->activPlayersWithStats($opponentTeamId);
-        $rankable = $this->only($roster, $eligibility->rankablePlayerIds);
+        $seasonRankable = $this->only($roster, $seasonEligibility->rankablePlayerIds);
+        $tonightRankable = $this->only($roster, $tonightEligibility->rankablePlayerIds);
 
         try {
             $season = $engine->call('lineup', [
-                'home_team_players' => $payloadBuilder->season($rankable),
+                'home_team_players' => $payloadBuilder->season($seasonRankable),
                 'opponent_team_players' => $payloadBuilder->season($opponents),
             ]);
 
             $tonight = $engine->call('lineup', [
-                'home_team_players' => $payloadBuilder->tonight($game, $rankable),
+                'home_team_players' => $payloadBuilder->tonight($game, $tonightRankable),
                 'opponent_team_players' => $payloadBuilder->tonight($game, $opponents),
             ]);
         } catch (RuntimeException $e) {
@@ -112,8 +130,22 @@ class RecommendLiveLineup implements ShouldQueue
         }
 
         $suggestions->store($this->liveGameId, $this->teamId, $this->coachUserId, $this->sequence, [
-            'season' => $this->shaped($season, $eligibility, $roster, $slotCount),
-            'tonight' => $this->shaped($tonight, $eligibility, $roster, $slotCount),
+            'season' => $this->shaped(
+                $season,
+                $seasonEligibility,
+                $roster,
+                $seasonEligibility->slotCount(),
+            ),
+            'tonight' => $this->shaped(
+                $tonight,
+                $tonightEligibility,
+                $roster,
+                $tonightEligibility->slotCount(),
+            ),
+            'reasons' => [
+                'season' => $seasonEligibility->reasons,
+                'tonight' => $tonightEligibility->reasons,
+            ],
         ]);
     }
 

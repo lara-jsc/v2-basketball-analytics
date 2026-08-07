@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LiveGame;
 use App\Models\User;
 use App\Repositories\ComparisonRepository;
+use App\Services\LiveGame\EligibilityMode;
 use App\Services\LiveGame\LiveGameControlResolver;
 use App\Services\LiveGame\LiveGameLineupApplier;
 use App\Services\LiveGame\LiveLineupEligibilityFilter;
@@ -47,16 +48,32 @@ class LiveGameSuggestionController extends Controller
 
         // The job derives this identically to decide what to rank; the controller repeats it
         // so the response can name the fixed players and the coach's open slot count.
-        $eligibility = $eligibilityFilter->filter($liveGame, $control->side, $roster, $control->controlledPlayerIds);
+        $seasonEligibility = $eligibilityFilter->filter(
+            $liveGame,
+            $control->side,
+            $roster,
+            $control->controlledPlayerIds,
+            EligibilityMode::Season,
+        );
+        $tonightEligibility = $eligibilityFilter->filter(
+            $liveGame,
+            $control->side,
+            $roster,
+            $control->controlledPlayerIds,
+            EligibilityMode::Tonight,
+        );
         $suggestion = $suggestions->getOrDispatch($liveGame, $control->teamId, (int) $user->id);
 
         return response()->json([
             'pending' => $suggestion === null,
             'team_id' => $control->teamId,
             'suggestion' => $suggestion,
-            'reasons' => $eligibility->reasons,
-            'fixed_player_ids' => $eligibility->fixedPlayerIds,
-            'slot_count' => $eligibility->slotCount(),
+            'reasons' => [
+                'season' => $seasonEligibility->reasons,
+                'tonight' => $tonightEligibility->reasons,
+            ],
+            'fixed_player_ids' => $seasonEligibility->fixedPlayerIds,
+            'slot_count' => $seasonEligibility->slotCount(),
             'controlled_player_ids' => $control->controlledPlayerIds,
         ]);
     }

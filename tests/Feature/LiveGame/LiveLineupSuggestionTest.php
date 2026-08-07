@@ -5,6 +5,7 @@ namespace Tests\Feature\LiveGame;
 use App\Events\LiveGameStateUpdated;
 use App\Jobs\RecommendLiveLineup;
 use App\Models\LiveGame;
+use App\Models\LiveGameEvent;
 use App\Models\LiveGamePlayerDelegation;
 use App\Models\LiveGamePlayerStat;
 use App\Models\Player;
@@ -148,7 +149,7 @@ class LiveLineupSuggestionTest extends TestCase
             ->postJson("/live-games/{$game->id}/suggested-lineup")
             ->assertOk()
             ->assertJsonPath(
-                "reasons.{$fouledOut->id}",
+                "reasons.season.{$fouledOut->id}",
                 LiveLineupEligibilityFilter::REASON_DISQUALIFIED,
             );
     }
@@ -166,7 +167,7 @@ class LiveLineupSuggestionTest extends TestCase
             ->assertJsonPath('fixed_player_ids.0', $delegated->id)
             ->assertJsonPath('slot_count', 4)
             ->assertJsonPath(
-                "reasons.{$delegated->id}",
+                "reasons.season.{$delegated->id}",
                 LiveLineupEligibilityFilter::REASON_ASSIGNED_TO_ASSISTANT,
             );
     }
@@ -274,6 +275,47 @@ class LiveLineupSuggestionTest extends TestCase
         $this->assertNotContains($delegated->id, $assistantFixed);
     }
 
+    public function test_a_cold_shooter_is_held_back_from_tonight_but_not_season(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach, $players] = $this->liveGameWithFullRoster();
+
+        $cold = $players[0];
+        foreach ($game->activePlayerIdsForSide(LiveGame::SIDE_HOME) as $playerId) {
+            $this->liveStat($game, Player::query()->findOrFail($playerId), [
+                'minutes_seconds' => 1080,
+                'points' => 10,
+            ]);
+        }
+
+        foreach ([1, 2, 3] as $sequence) {
+            LiveGameEvent::query()->create([
+                'live_game_id' => $game->id,
+                'sequence' => $sequence,
+                'type' => 'shot_missed',
+                'team_scope' => 'own',
+                'player_id' => $cold->id,
+                'period' => 1,
+                'clock_seconds_remaining' => 600,
+                'occurred_at' => now(),
+                'payload' => [],
+            ]);
+        }
+
+        $this->actingAs($coach)->postJson("/live-games/{$game->id}/suggested-lineup");
+        $response = $this->actingAs($coach)
+            ->postJson("/live-games/{$game->id}/suggested-lineup")
+            ->assertOk()
+            ->assertJson(['pending' => false]);
+
+        $seasonIds = collect($response->json('suggestion.season.recommended_lineup'))->pluck('player_id');
+        $tonightIds = collect($response->json('suggestion.tonight.recommended_lineup'))->pluck('player_id');
+
+        $this->assertTrue($seasonIds->contains($cold->id), 'season may still rank a cold player');
+        $this->assertFalse($tonightIds->contains($cold->id), 'tonight should not rank a cold player');
+        $response->assertJsonPath("reasons.tonight.{$cold->id}", 'cold_player');
+    }
+
     public function test_applying_a_lineup_records_one_substitution_per_change(): void
     {
         [$game, $coach] = $this->liveGame();
@@ -372,6 +414,31 @@ class LiveLineupSuggestionTest extends TestCase
             ->assertJsonValidationErrors('player_ids');
 
         $this->assertSame(0, $game->events()->where('type', 'substitution')->count());
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array{LiveGame, User, list<Player>}
+     */
+    private function liveGameWithFullRoster(array $attributes = []): array
+    {
+        [$game, $coach] = $this->liveGame($attributes);
+
+        $bench = Player::factory()->count(2)->for($game->homeTeam)->create(['is_active' => true]);
+        foreach ($bench as $player) {
+            $this->liveStat($game, $player, [
+                'minutes_seconds' => 1080,
+                'points' => 10,
+            ]);
+        }
+
+        $starters = Player::query()
+            ->whereIn('id', $game->starting_player_ids)
+            ->orderBy('id')
+            ->get()
+            ->all();
+
+        return [$game, $coach, $starters];
     }
 
     /**

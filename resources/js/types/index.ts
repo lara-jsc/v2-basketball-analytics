@@ -158,6 +158,7 @@ export interface LineupRecommendation {
 export type LiveLineupReason =
   | 'disqualified'
   | 'foul_trouble'
+  | 'cold_player'
   | 'inactive'
   | 'assigned_to_assistant';
 
@@ -175,7 +176,10 @@ export interface LiveLineupSuggestionResponse {
   pending: boolean;
   team_id: number;
   suggestion: LiveLineupSuggestion | null;
-  reasons: Record<string, LiveLineupReason>;
+  reasons: {
+    season: Record<string, LiveLineupReason>;
+    tonight: Record<string, LiveLineupReason>;
+  };
   /** On court but assigned to another coach: they hold a place in the five and cannot be moved. */
   fixed_player_ids: number[];
   /** How many of the five this coach may fill. 5 when no assistant is assigned. */
