@@ -9,6 +9,7 @@ const TYPE_LABELS: Record<string, string> = {
     team_drought: 'Team drought',
     timeout_prompt: 'Timeout prompt',
     substitution_prompt: 'Substitution prompt',
+    keys_threat_spike: 'Keys spike',
 };
 
 const SEVERITY_CLASSES: Record<string, string> = {

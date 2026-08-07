@@ -9,10 +9,28 @@ use App\Models\LiveGamePlayerStat;
 
 class LiveGameStateBuilder
 {
+    public function __construct(
+        private readonly LiveGameKeysToWinService $keysToWinService,
+    ) {}
+
     /** @return array<string, mixed> */
     public function build(LiveGame $game): array
     {
         $game->refresh();
+
+        $events = LiveGameEvent::query()
+            ->where('live_game_id', $game->id)
+            ->orderBy('sequence')
+            ->get();
+        $voidedEventIds = $events
+            ->where('type', 'correction')
+            ->pluck('voids_event_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+        $effectiveEvents = $events
+            ->reject(fn (LiveGameEvent $event): bool => in_array($event->id, $voidedEventIds, true) || $event->type === 'correction')
+            ->values();
 
         return [
             'liveGame' => [
@@ -46,10 +64,7 @@ class LiveGameStateBuilder
                 ->get()
                 ->map(fn (LiveGamePlayerStat $stat): array => $this->stat($stat))
                 ->all(),
-            'events' => LiveGameEvent::query()
-                ->where('live_game_id', $game->id)
-                ->orderBy('sequence')
-                ->get()
+            'events' => $events
                 ->map(fn (LiveGameEvent $event): array => $this->event($event))
                 ->all(),
             'alerts' => LiveGameAlert::query()
@@ -59,6 +74,7 @@ class LiveGameStateBuilder
                 ->get()
                 ->map(fn (LiveGameAlert $alert): array => $this->alert($alert))
                 ->all(),
+            'keys_to_win' => $this->keysToWinService->compute($game, $effectiveEvents),
         ];
     }
 

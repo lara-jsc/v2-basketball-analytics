@@ -10,8 +10,11 @@ use Illuminate\Support\Collection;
 
 class LiveGameAlertService
 {
-    /** @param Collection<int, LiveGameEvent> $effectiveEvents */
-    public function sync(LiveGame $game, Collection $effectiveEvents): void
+    /**
+     * @param  Collection<int, LiveGameEvent>  $effectiveEvents
+     * @param  array{home?: array{team_id: int, keys: list<array<string, mixed>>}, opponent?: array{team_id: int, keys: list<array<string, mixed>>}}  $keysToWin
+     */
+    public function sync(LiveGame $game, Collection $effectiveEvents, array $keysToWin = []): void
     {
         $currentPeriod = $game->current_period;
         $homeTeamId = (int) $game->home_team_id;
@@ -213,6 +216,59 @@ class LiveGameAlertService
                     ? sprintf('Sub out %s — %d personal fouls.', $this->playerName($players, $playerId), $personalFouls[$playerId])
                     : sprintf('Sub out %s — %d straight misses.', $this->playerName($players, $playerId), $missStreaks[$playerId]),
                 ['reason' => $reason],
+            );
+        }
+
+        $confirmedKeys = [];
+        $spikeNameIds = [];
+        foreach (['home', 'opponent'] as $side) {
+            $sideKeys = $keysToWin[$side]['keys'] ?? [];
+            $defendingTeamId = (int) ($keysToWin[$side]['team_id'] ?? 0);
+            foreach ($sideKeys as $key) {
+                if (($key['live_status'] ?? null) !== 'confirmed') {
+                    continue;
+                }
+                $threatId = (int) ($key['opponent_player_id'] ?? 0);
+                if ($threatId === 0 || isset($confirmedKeys[$threatId])) {
+                    continue;
+                }
+                $counterId = isset($key['counter_player_id']) ? (int) $key['counter_player_id'] : null;
+                $confirmedKeys[$threatId] = [
+                    'defending_team_id' => $defendingTeamId,
+                    'counter_player_id' => $counterId,
+                    'strength_tag' => $key['strength_tag'] ?? null,
+                ];
+                $spikeNameIds[] = $threatId;
+                if ($counterId !== null) {
+                    $spikeNameIds[] = $counterId;
+                }
+            }
+        }
+        if ($spikeNameIds !== []) {
+            $players = $players->union(
+                Player::query()->whereIn('id', array_unique($spikeNameIds))->get()->keyBy('id'),
+            );
+        }
+        foreach ($confirmedKeys as $threatId => $spike) {
+            $counterId = $spike['counter_player_id'];
+            $counterName = $counterId !== null ? $this->playerName($players, $counterId) : 'your best matchup';
+            $alerts[] = $this->playerAlert(
+                'keys_threat_spike',
+                $threatId,
+                $spike['defending_team_id'] > 0 ? $spike['defending_team_id'] : null,
+                'warning',
+                $currentPeriod,
+                $game->clock_seconds_remaining,
+                sprintf(
+                    '%s is heating up — put %s on them.',
+                    $this->playerName($players, $threatId),
+                    $counterName,
+                ),
+                [
+                    'strength_tag' => $spike['strength_tag'],
+                    'counter_player_id' => $counterId,
+                    'live_status' => 'confirmed',
+                ],
             );
         }
 

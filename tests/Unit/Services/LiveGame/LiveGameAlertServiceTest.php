@@ -259,6 +259,93 @@ class LiveGameAlertServiceTest extends TestCase
         $this->assertAlert($game, 'substitution_prompt', $foulPlayer, ['reason' => 'foul_trouble']);
     }
 
+    public function test_it_creates_keys_threat_spike_for_confirmed_keys(): void
+    {
+        [$game, $homePlayer] = $this->gameWithPlayer();
+        $threat = Player::factory()->for($game->opponentTeam)->create([
+            'first_name' => 'Hot',
+            'last_name' => 'Threat',
+        ]);
+
+        $keysToWin = [
+            'home' => [
+                'team_id' => $game->home_team_id,
+                'keys' => [[
+                    'opponent_player_id' => $threat->id,
+                    'strength_tag' => 'scorer',
+                    'threat_score' => 0.9,
+                    'live_status' => 'confirmed',
+                    'defense_key' => 'Deny the ball; force contested looks',
+                    'counter_player_id' => $homePlayer->id,
+                    'context' => [],
+                ]],
+            ],
+            'opponent' => [
+                'team_id' => $game->opponent_team_id,
+                'keys' => [],
+            ],
+        ];
+
+        app(LiveGameAlertService::class)->sync($game, collect(), $keysToWin);
+
+        $this->assertAlert($game, 'keys_threat_spike', $threat, [
+            'strength_tag' => 'scorer',
+            'counter_player_id' => $homePlayer->id,
+            'live_status' => 'confirmed',
+        ]);
+        $alert = LiveGameAlert::query()
+            ->where('live_game_id', $game->id)
+            ->where('type', 'keys_threat_spike')
+            ->firstOrFail();
+        $this->assertSame($game->home_team_id, $alert->team_id);
+        $this->assertStringContainsString('heating up', $alert->message);
+    }
+
+    public function test_it_resolves_keys_threat_spike_when_confirmation_clears(): void
+    {
+        [$game, $homePlayer] = $this->gameWithPlayer();
+        $threat = Player::factory()->for($game->opponentTeam)->create();
+        $keysConfirmed = [
+            'home' => [
+                'team_id' => $game->home_team_id,
+                'keys' => [[
+                    'opponent_player_id' => $threat->id,
+                    'strength_tag' => 'scorer',
+                    'threat_score' => 0.9,
+                    'live_status' => 'confirmed',
+                    'defense_key' => 'Deny the ball',
+                    'counter_player_id' => $homePlayer->id,
+                    'context' => [],
+                ]],
+            ],
+            'opponent' => ['team_id' => $game->opponent_team_id, 'keys' => []],
+        ];
+        app(LiveGameAlertService::class)->sync($game, collect(), $keysConfirmed);
+        $alert = LiveGameAlert::query()
+            ->where('type', 'keys_threat_spike')
+            ->whereNull('resolved_at')
+            ->firstOrFail();
+
+        $keysSeason = [
+            'home' => [
+                'team_id' => $game->home_team_id,
+                'keys' => [[
+                    'opponent_player_id' => $threat->id,
+                    'strength_tag' => 'scorer',
+                    'threat_score' => 0.9,
+                    'live_status' => 'season',
+                    'defense_key' => 'Deny the ball',
+                    'counter_player_id' => $homePlayer->id,
+                    'context' => [],
+                ]],
+            ],
+            'opponent' => ['team_id' => $game->opponent_team_id, 'keys' => []],
+        ];
+        app(LiveGameAlertService::class)->sync($game, collect(), $keysSeason);
+
+        $this->assertNotNull($alert->fresh()->resolved_at);
+    }
+
     public function test_it_resolves_alerts_that_are_no_longer_active_after_rebuild(): void
     {
         [$game, $player] = $this->gameWithPlayer();

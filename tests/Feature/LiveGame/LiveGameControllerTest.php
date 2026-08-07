@@ -49,6 +49,8 @@ class LiveGameControllerTest extends TestCase
                 ->has('snapshot.home_lineup_ready')
                 ->has('snapshot.opponent_lineup_ready')
                 ->has('snapshot.both_lineups_ready')
+                ->has('snapshot.keys_to_win.home')
+                ->has('snapshot.keys_to_win.opponent')
                 ->has('homePlayers')
                 ->has('opponentPlayers')
                 ->has('viewerSide')

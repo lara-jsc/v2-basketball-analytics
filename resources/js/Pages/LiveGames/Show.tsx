@@ -1,5 +1,6 @@
 import { ActiveLineup } from '@/Components/features/live-game/ActiveLineup';
 import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
+import { KeysToWinPanel } from '@/Components/features/live-game/KeysToWinPanel';
 import { ApplyLineupConfirmModal, type PendingLineupChange } from '@/Components/features/live-game/ApplyLineupConfirmModal';
 import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
 import { LineupConfirmModal } from '@/Components/features/live-game/LineupConfirmModal';
@@ -343,6 +344,9 @@ export default function LiveGamesShow({
     const padUnavailableReason = recordingBlockedReason ?? clockBlockReason('running', clockState);
     const allPlayers = [...homePlayers, ...opponentPlayers];
     const lineupReady = lineupForm.data.starting_player_ids.length === 5;
+    const viewerKeys = viewerSide === 'opponent'
+        ? (snapshot.keys_to_win?.opponent.keys ?? [])
+        : (snapshot.keys_to_win?.home.keys ?? []);
 
     const isLiveConsole = snapshot.liveGame.status === 'live';
 
@@ -593,6 +597,12 @@ export default function LiveGamesShow({
                         )}
                     </div>
                     <aside className="order-3 flex min-w-0 flex-col gap-3 lg:order-none lg:min-h-0 lg:overflow-hidden">
+                        <KeysToWinPanel
+                            keys={viewerKeys}
+                            players={allPlayers}
+                            controlledPlayerIds={controlled_player_ids}
+                            className={isLiveConsole ? 'lg:flex-[0.25]' : ''}
+                        />
                         <AlertsPanel
                             alerts={snapshot.alerts}
                             players={allPlayers}
@@ -600,7 +610,7 @@ export default function LiveGamesShow({
                             viewerSide={viewerSide}
                             homeTeamId={liveGame.home_team_id}
                             opponentTeamId={liveGame.opponent_team_id}
-                            className={isLiveConsole ? 'lg:flex-[0.35]' : ''}
+                            className={isLiveConsole ? 'lg:flex-[0.30]' : ''}
                         />
                         {isLiveConsole && canRecord && (
                             <SuggestedLineupPanel
@@ -618,7 +628,7 @@ export default function LiveGamesShow({
                                 }
                                 onRequest={requestSuggestion}
                                 onApply={requestLineupChange}
-                                className="lg:flex-[0.65]"
+                                className="lg:flex-[0.45]"
                             />
                         )}
                     </aside>

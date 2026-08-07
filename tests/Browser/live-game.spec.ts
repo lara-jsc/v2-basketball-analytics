@@ -21,5 +21,6 @@ test('coach can create and open a live game console', async ({ page }) => {
     await expect(page.getByRole('button', { name: /start game/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: /active lineup/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: /event pad/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /keys to win/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: /coach alerts/i })).toBeVisible();
 });

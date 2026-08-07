@@ -12,6 +12,7 @@ class LiveGameProjectionService
 {
     public function __construct(
         private readonly LiveGameAlertService $alertService,
+        private readonly LiveGameKeysToWinService $keysToWinService,
     ) {}
 
     public function rebuild(LiveGame $game): void
@@ -153,7 +154,8 @@ class LiveGameProjectionService
             'opponent_active_player_ids' => array_values($opponentActiveIds),
         ])->save();
 
-        $this->alertService->sync($game, $effectiveEvents);
+        $keysToWin = $this->keysToWinService->compute($game, $effectiveEvents);
+        $this->alertService->sync($game, $effectiveEvents, $keysToWin);
     }
 
     /**

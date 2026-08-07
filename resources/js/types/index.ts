@@ -320,6 +320,26 @@ export interface LiveGameAlert {
   resolved_at: string | null;
 }
 
+export interface KeyToWin {
+  opponent_player_id: number;
+  strength_tag: string;
+  threat_score: number;
+  live_status: 'season' | 'confirmed' | 'fading';
+  defense_key: string;
+  counter_player_id: number | null;
+  context: Record<string, unknown>;
+}
+
+export interface KeysToWinSide {
+  team_id: number;
+  keys: KeyToWin[];
+}
+
+export interface KeysToWinSnapshot {
+  home: KeysToWinSide;
+  opponent: KeysToWinSide;
+}
+
 export interface LiveGameSnapshot {
   liveGame: Pick<LiveGame, 'id' | 'home_team_id' | 'opponent_team_id' | 'status' | 'game_date' | 'period_length_seconds' | 'current_period'>;
   score: { home: number; opponent: number };
@@ -332,6 +352,7 @@ export interface LiveGameSnapshot {
   stats: LiveGamePlayerStat[];
   events: LiveGameEvent[];
   alerts: LiveGameAlert[];
+  keys_to_win: KeysToWinSnapshot;
 }
 
 declare global {
