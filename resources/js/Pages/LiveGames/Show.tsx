@@ -349,10 +349,10 @@ export default function LiveGamesShow({
     return (
         <AuthenticatedLayout
             preferCollapsedSidebar={isLiveConsole}
-            mainClassName={isLiveConsole ? 'flex min-h-0 flex-col overflow-hidden py-3' : undefined}
+            mainClassName={isLiveConsole ? 'flex min-h-0 flex-col overflow-y-auto py-3 lg:overflow-hidden' : undefined}
         >
             <Head title={`${homeTeam?.name ?? 'Live game'} vs ${opponentTeam?.name ?? 'Opponent'}`} />
-            <div className={`-mx-5 -my-6 flex flex-col overflow-x-hidden ${isLiveConsole ? 'h-full min-h-0 overflow-hidden' : 'min-h-full'}`}>
+            <div className={`-mx-5 -my-6 flex flex-col overflow-x-hidden ${isLiveConsole ? 'min-h-full overflow-y-auto lg:h-full lg:min-h-0 lg:overflow-hidden' : 'min-h-full'}`}>
                 <div className={isLiveConsole ? 'shrink-0' : undefined}>
                 <GameScoreboard
                     status={snapshot.liveGame.status}
@@ -404,9 +404,14 @@ export default function LiveGamesShow({
                                 <CircleStop size={14} /> Finish
                             </button>
                         )}
-                        <span className={`flex h-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide ${snapshot.liveGame.status === 'live' ? 'live-badge-info' : 'bg-muted/50 text-muted-foreground'}`}>
-                            <Radio size={14} /> {snapshot.liveGame.status}
-                            {viewerTeamName ? ` · ${viewerTeamName}` : ''}
+                        <span className={`flex h-11 max-w-full items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide ${snapshot.liveGame.status === 'live' ? 'live-badge-info' : 'bg-muted/50 text-muted-foreground'}`}>
+                            <Radio size={14} className="shrink-0" /> {snapshot.liveGame.status}
+                            {viewerTeamName ? (
+                                <span className="truncate">
+                                    {' · '}
+                                    {viewerTeamName}
+                                </span>
+                            ) : null}
                         </span>
                     </div>
                 </div>
@@ -526,8 +531,8 @@ export default function LiveGamesShow({
                     </div>
                 )}
 
-                <div className={`grid gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(240px,0.85fr)_minmax(400px,1.5fr)_minmax(240px,0.8fr)] ${isLiveConsole ? 'min-h-0 flex-1' : ''}`}>
-                    <div className={`flex flex-col gap-3 ${isLiveConsole ? 'min-h-0 overflow-hidden' : ''}`}>
+                <div className={`grid gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(240px,0.85fr)_minmax(400px,1.5fr)_minmax(240px,0.8fr)] ${isLiveConsole ? 'lg:min-h-0 lg:flex-1' : ''}`}>
+                    <div className={`order-2 flex flex-col gap-3 lg:order-none ${isLiveConsole ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}>
                         <div className="shrink-0">
                             <ActiveLineup
                                 players={ownPlayers}
@@ -568,7 +573,7 @@ export default function LiveGamesShow({
                             onConfirm={confirmVoid}
                         />
                     </div>
-                    <div className={`flex min-w-0 flex-col gap-3 ${isLiveConsole ? 'min-h-0' : ''}`}>
+                    <div className={`order-1 flex min-w-0 flex-col gap-3 lg:order-none ${isLiveConsole ? 'lg:min-h-0' : ''}`}>
                         <EventPad
                             selectedPlayer={selectedPlayer}
                             clockState={clockState}
@@ -582,7 +587,7 @@ export default function LiveGamesShow({
                             </div>
                         )}
                     </div>
-                    <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
+                    <aside className="order-3 flex min-w-0 flex-col gap-3 lg:order-none lg:min-h-0 lg:overflow-hidden">
                         <AlertsPanel
                             alerts={snapshot.alerts}
                             players={allPlayers}
@@ -590,7 +595,7 @@ export default function LiveGamesShow({
                             viewerSide={viewerSide}
                             homeTeamId={liveGame.home_team_id}
                             opponentTeamId={liveGame.opponent_team_id}
-                            className={isLiveConsole ? 'flex-[0.35]' : ''}
+                            className={isLiveConsole ? 'lg:flex-[0.35]' : ''}
                         />
                         {isLiveConsole && canRecord && (
                             <SuggestedLineupPanel
@@ -607,7 +612,7 @@ export default function LiveGamesShow({
                                 }
                                 onRequest={requestSuggestion}
                                 onApply={requestLineupChange}
-                                className="flex-[0.65]"
+                                className="lg:flex-[0.65]"
                             />
                         )}
                     </aside>

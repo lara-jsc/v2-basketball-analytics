@@ -22,7 +22,7 @@ export function Timeline({ events, players, teams, disabled, onRequestVoid }: Ti
 
     return (
         <section
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card"
+            className="flex max-h-48 flex-col overflow-hidden rounded-lg border border-border bg-card lg:max-h-none lg:min-h-0 lg:flex-1"
             aria-labelledby="timeline-heading"
         >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">

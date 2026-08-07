@@ -64,7 +64,7 @@ export function ActiveLineup({
 
     return (
         <section className="rounded-lg border border-border bg-card p-3" aria-labelledby="active-lineup-heading">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <h2
                     id="active-lineup-heading"
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"
