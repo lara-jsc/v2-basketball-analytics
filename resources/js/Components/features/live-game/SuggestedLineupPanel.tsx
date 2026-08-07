@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 type Column = 'season' | 'tonight';
 
 interface SuggestedLineupPanelProps {
+    eventSequence: number;
     players: Player[];
     activePlayerIds: number[];
     stats: LiveGamePlayerStat[];
@@ -24,15 +25,32 @@ interface SuggestedLineupPanelProps {
 
 const POLL_INTERVAL_MS = 1500;
 const MAX_POLLS = 8;
+const REFETCH_DEBOUNCE_MS = 300;
 
 const REASON_LABELS: Record<LiveLineupReason, string> = {
     disqualified: 'Fouled out',
     foul_trouble: 'In foul trouble — held back',
+    cold_player: 'Struggling tonight — held back',
     inactive: 'Not on the active roster',
     assigned_to_assistant: 'Assigned to your assistant',
 };
 
+interface HeldBackEntry {
+    playerId: number;
+    reason: LiveLineupReason;
+}
+
+function buildHeldBackList(
+    reasons: Record<string, LiveLineupReason> | undefined,
+    fixedIds: number[],
+): HeldBackEntry[] {
+    return Object.entries(reasons ?? {})
+        .map(([playerId, reason]) => ({ playerId: Number(playerId), reason }))
+        .filter((entry) => !fixedIds.includes(entry.playerId));
+}
+
 export function SuggestedLineupPanel({
+    eventSequence,
     players,
     activePlayerIds,
     stats,
@@ -46,6 +64,7 @@ export function SuggestedLineupPanel({
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const pollsRef = useRef(0);
+    const debounceRef = useRef<number | null>(null);
 
     const load = useCallback(async (): Promise<void> => {
         if (disabled) return;
@@ -85,10 +104,21 @@ export function SuggestedLineupPanel({
     useEffect(() => {
         if (disabled) return;
 
-        pollsRef.current = 0;
-        setData(null);
-        void load();
-    }, [disabled, load]);
+        if (debounceRef.current !== null) {
+            window.clearTimeout(debounceRef.current);
+        }
+
+        debounceRef.current = window.setTimeout(() => {
+            pollsRef.current = 0;
+            void load();
+        }, REFETCH_DEBOUNCE_MS);
+
+        return () => {
+            if (debounceRef.current !== null) {
+                window.clearTimeout(debounceRef.current);
+            }
+        };
+    }, [disabled, eventSequence, load]);
 
     const suggestion = data?.suggestion ?? null;
     const seasonIds = (suggestion?.season.recommended_lineup ?? []).map((row) => row.player_id);
@@ -96,11 +126,8 @@ export function SuggestedLineupPanel({
     const consensusIds = seasonIds.filter((id) => tonightIds.includes(id));
     const fixedIds = data?.fixed_player_ids ?? [];
     const slotCount = data?.slot_count ?? 0;
-    const reasons = data?.reasons ?? {};
-
-    const held = Object.entries(reasons)
-        .map(([playerId, reason]) => ({ playerId: Number(playerId), reason }))
-        .filter((entry) => !fixedIds.includes(entry.playerId));
+    const heldSeason = buildHeldBackList(data?.reasons.season, fixedIds);
+    const heldTonight = buildHeldBackList(data?.reasons.tonight, fixedIds);
 
     return (
         <section
@@ -114,6 +141,11 @@ export function SuggestedLineupPanel({
                         className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"
                     >
                         <Sparkles size={15} className="live-text-info shrink-0" /> Suggested five
+                        {loading && data !== null && (
+                            <span className="text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                                Updating…
+                            </span>
+                        )}
                     </h2>
                 </div>
                 <button
@@ -138,7 +170,7 @@ export function SuggestedLineupPanel({
                     </p>
                 )}
 
-                {!error && (loading || data?.pending !== false) && (
+                {!error && data === null && (
                     <p className="px-1 py-2 text-xs text-muted-foreground">Ranking the roster…</p>
                 )}
 
@@ -189,36 +221,60 @@ export function SuggestedLineupPanel({
                             </p>
                         </div>
 
-                        {held.length > 0 && (
-                            <details className="mt-2 rounded-md border border-border/70 bg-muted/10 px-2 py-1.5">
-                                <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                                    Held back ({held.length})
-                                </summary>
-                                <ul className="mt-2 grid gap-1">
-                                    {held.map((entry) => {
-                                        const player = players.find((candidate) => candidate.id === entry.playerId);
+                        {heldSeason.length > 0 && (
+                            <HeldBackDetails
+                                label="Held back (season)"
+                                entries={heldSeason}
+                                players={players}
+                            />
+                        )}
 
-                                        return (
-                                            <li key={entry.playerId} className="flex min-h-9 items-center gap-2 text-xs">
-                                                <span className="live-text-warn font-mono">
-                                                    {player?.jersey_number ?? '—'}
-                                                </span>
-                                                <span className="min-w-0 flex-1 truncate text-foreground">
-                                                    {player ? playerName(player) : `Player #${entry.playerId}`}
-                                                </span>
-                                                <span className="shrink-0 text-[10px] text-muted-foreground">
-                                                    {REASON_LABELS[entry.reason]}
-                                                </span>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </details>
+                        {heldTonight.length > 0 && (
+                            <HeldBackDetails
+                                label="Held back (tonight)"
+                                entries={heldTonight}
+                                players={players}
+                            />
                         )}
                     </>
                 )}
             </div>
         </section>
+    );
+}
+
+interface HeldBackDetailsProps {
+    label: string;
+    entries: HeldBackEntry[];
+    players: Player[];
+}
+
+function HeldBackDetails({ label, entries, players }: HeldBackDetailsProps) {
+    return (
+        <details className="mt-2 rounded-md border border-border/70 bg-muted/10 px-2 py-1.5">
+            <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                {label} ({entries.length})
+            </summary>
+            <ul className="mt-2 grid gap-1">
+                {entries.map((entry) => {
+                    const player = players.find((candidate) => candidate.id === entry.playerId);
+
+                    return (
+                        <li key={entry.playerId} className="flex min-h-9 items-center gap-2 text-xs">
+                            <span className="live-text-warn font-mono">
+                                {player?.jersey_number ?? '—'}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-foreground">
+                                {player ? playerName(player) : `Player #${entry.playerId}`}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-muted-foreground">
+                                {REASON_LABELS[entry.reason]}
+                            </span>
+                        </li>
+                    );
+                })}
+            </ul>
+        </details>
     );
 }
 

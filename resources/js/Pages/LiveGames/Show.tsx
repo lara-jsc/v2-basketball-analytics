@@ -346,6 +346,11 @@ export default function LiveGamesShow({
 
     const isLiveConsole = snapshot.liveGame.status === 'live';
 
+    const eventSequence = useMemo(
+        () => snapshot.events.reduce((max, event) => Math.max(max, event.sequence), 0),
+        [snapshot.events],
+    );
+
     return (
         <AuthenticatedLayout
             preferCollapsedSidebar={isLiveConsole}
@@ -599,6 +604,7 @@ export default function LiveGamesShow({
                         />
                         {isLiveConsole && canRecord && (
                             <SuggestedLineupPanel
+                                eventSequence={eventSequence}
                                 players={ownPlayers}
                                 activePlayerIds={ownActiveIds}
                                 stats={snapshot.stats}
