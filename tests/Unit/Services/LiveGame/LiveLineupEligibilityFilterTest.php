@@ -3,8 +3,10 @@
 namespace Tests\Unit\Services\LiveGame;
 
 use App\Models\LiveGame;
+use App\Models\LiveGameEvent;
 use App\Models\LiveGamePlayerStat;
 use App\Models\Player;
+use App\Services\LiveGame\EligibilityMode;
 use App\Services\LiveGame\LiveGameEventRules;
 use App\Services\LiveGame\LiveLineupEligibility;
 use App\Services\LiveGame\LiveLineupEligibilityFilter;
@@ -229,6 +231,63 @@ class LiveLineupEligibilityFilterTest extends TestCase
         $this->assertSame([], $result->reasons);
     }
 
+    public function test_three_fouls_in_q1_is_rankable_in_season_mode(): void
+    {
+        [$game, $player] = $this->gameWithPlayer(['current_period' => 2]);
+        $this->stat($game, $player, ['personal_fouls' => 3]);
+
+        $result = $this->filter($game, [$player], mode: EligibilityMode::Season);
+
+        $this->assertSame([$player->id], $result->rankablePlayerIds);
+        $this->assertSame([], $result->demotedPlayerIds);
+    }
+
+    public function test_three_fouls_in_q1_is_demoted_in_tonight_mode(): void
+    {
+        [$game, $player] = $this->gameWithPlayer(['current_period' => 2]);
+        $this->stat($game, $player, ['personal_fouls' => 3]);
+
+        $result = $this->filter($game, [$player], mode: EligibilityMode::Tonight);
+
+        $this->assertSame([], $result->rankablePlayerIds);
+        $this->assertSame([$player->id], $result->demotedPlayerIds);
+        $this->assertSame(
+            [$player->id => LiveLineupEligibilityFilter::REASON_FOUL_TROUBLE],
+            $result->reasons,
+        );
+    }
+
+    public function test_a_cold_shooter_is_demoted_in_tonight_mode_only(): void
+    {
+        [$game, $player] = $this->gameWithPlayer();
+        $this->stat($game, $player, ['personal_fouls' => 0]);
+        foreach ([1, 2, 3] as $sequence) {
+            LiveGameEvent::query()->create([
+                'live_game_id' => $game->id,
+                'sequence' => $sequence,
+                'type' => 'shot_missed',
+                'team_scope' => 'own',
+                'player_id' => $player->id,
+                'period' => 1,
+                'clock_seconds_remaining' => 600,
+                'occurred_at' => now(),
+                'payload' => [],
+            ]);
+        }
+
+        $season = $this->filter($game, [$player], mode: EligibilityMode::Season);
+        $tonight = $this->filter($game, [$player], mode: EligibilityMode::Tonight);
+
+        $this->assertSame([$player->id], $season->rankablePlayerIds);
+        $this->assertSame([], $season->demotedPlayerIds);
+        $this->assertSame([], $tonight->rankablePlayerIds);
+        $this->assertSame([$player->id], $tonight->demotedPlayerIds);
+        $this->assertSame(
+            [$player->id => LiveLineupEligibilityFilter::REASON_COLD_PLAYER],
+            $tonight->reasons,
+        );
+    }
+
     public function test_it_partitions_a_mixed_roster_correctly(): void
     {
         [$game, $clean] = $this->gameWithPlayer();
@@ -288,8 +347,12 @@ class LiveLineupEligibilityFilterTest extends TestCase
      * @param  list<Player>  $roster
      * @param  list<int>|null  $controlledPlayerIds  null means the coach controls the whole roster
      */
-    private function filter(LiveGame $game, array $roster, ?array $controlledPlayerIds = null): LiveLineupEligibility
-    {
+    private function filter(
+        LiveGame $game,
+        array $roster,
+        ?array $controlledPlayerIds = null,
+        EligibilityMode $mode = EligibilityMode::Season,
+    ): LiveLineupEligibility {
         $players = Player::query()
             ->whereIn('id', array_map(fn (Player $player): int => $player->id, $roster))
             ->get();
@@ -299,6 +362,7 @@ class LiveLineupEligibilityFilterTest extends TestCase
             LiveGame::SIDE_HOME,
             $players,
             $controlledPlayerIds ?? $players->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+            $mode,
         );
     }
 }

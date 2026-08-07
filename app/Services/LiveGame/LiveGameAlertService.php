@@ -128,7 +128,7 @@ class LiveGameAlertService
         }
 
         foreach ($missStreaks as $playerId => $count) {
-            if ($count >= 3) {
+            if ($count >= LiveGameMissStreakCalculator::DEMOTION_THRESHOLD) {
                 $alerts[] = $this->playerAlert(
                     'cold_player',
                     $playerId,
@@ -195,7 +195,7 @@ class LiveGameAlertService
             }
         }
         foreach ($missStreaks as $playerId => $count) {
-            if ($count >= 3 && ! isset($substitutionReasons[$playerId])) {
+            if ($count >= LiveGameMissStreakCalculator::DEMOTION_THRESHOLD && ! isset($substitutionReasons[$playerId])) {
                 $substitutionReasons[$playerId] = 'cold_player';
             }
         }

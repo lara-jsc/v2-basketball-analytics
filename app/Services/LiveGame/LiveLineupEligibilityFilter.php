@@ -3,6 +3,7 @@
 namespace App\Services\LiveGame;
 
 use App\Models\LiveGame;
+use App\Models\LiveGameEvent;
 use App\Models\LiveGamePlayerStat;
 use App\Models\Player;
 use Illuminate\Support\Collection;
@@ -17,6 +18,8 @@ use Illuminate\Support\Collection;
  */
 class LiveLineupEligibilityFilter
 {
+    public const REASON_COLD_PLAYER = 'cold_player';
+
     public const REASON_DISQUALIFIED = 'disqualified';
 
     public const REASON_FOUL_TROUBLE = 'foul_trouble';
@@ -38,10 +41,28 @@ class LiveLineupEligibilityFilter
      * @param  Collection<int, Player>  $roster
      * @param  list<int>  $controlledPlayerIds  Players this coach may substitute.
      */
-    public function filter(LiveGame $game, string $side, Collection $roster, array $controlledPlayerIds): LiveLineupEligibility
-    {
+    public function filter(
+        LiveGame $game,
+        string $side,
+        Collection $roster,
+        array $controlledPlayerIds,
+        EligibilityMode $mode = EligibilityMode::Season,
+    ): LiveLineupEligibility {
         $personalFouls = $this->personalFoulsByPlayer($game, $roster);
         $onCourt = $game->activePlayerIdsForSide($side);
+
+        $foulThreshold = $mode === EligibilityMode::Tonight && $game->current_period < 4
+            ? 3
+            : self::FOUL_TROUBLE_THRESHOLD;
+
+        $missStreaks = [];
+        if ($mode === EligibilityMode::Tonight) {
+            $missStreaks = app(LiveGameMissStreakCalculator::class)->compute(
+                $this->effectiveEventsFor($game)->filter(
+                    fn (LiveGameEvent $event): bool => $event->team_scope === 'own',
+                ),
+            );
+        }
 
         $rankable = [];
         $demoted = [];
@@ -80,9 +101,19 @@ class LiveLineupEligibilityFilter
                 continue;
             }
 
-            if ($fouls >= self::FOUL_TROUBLE_THRESHOLD) {
+            if ($fouls >= $foulThreshold) {
                 $demoted[] = $playerId;
                 $reasons[$playerId] = self::REASON_FOUL_TROUBLE;
+
+                continue;
+            }
+
+            if (
+                $mode === EligibilityMode::Tonight
+                && ($missStreaks[$playerId] ?? 0) >= LiveGameMissStreakCalculator::DEMOTION_THRESHOLD
+            ) {
+                $demoted[] = $playerId;
+                $reasons[$playerId] = self::REASON_COLD_PLAYER;
 
                 continue;
             }
@@ -111,5 +142,25 @@ class LiveLineupEligibilityFilter
             ->pluck('personal_fouls', 'player_id')
             ->map(fn (mixed $fouls): int => (int) $fouls)
             ->all();
+    }
+
+    /** @return Collection<int, LiveGameEvent> */
+    private function effectiveEventsFor(LiveGame $game): Collection
+    {
+        $events = LiveGameEvent::query()
+            ->where('live_game_id', $game->id)
+            ->orderBy('sequence')
+            ->get();
+
+        $voidedEventIds = $events
+            ->where('type', 'correction')
+            ->pluck('voids_event_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        return $events
+            ->reject(fn (LiveGameEvent $event): bool => in_array($event->id, $voidedEventIds, true) || $event->type === 'correction')
+            ->values();
     }
 }
