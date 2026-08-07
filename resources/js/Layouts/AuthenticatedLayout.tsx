@@ -21,6 +21,10 @@ import { type ReactNode, useEffect, useState } from 'react';
 interface AuthenticatedLayoutProps {
     children: ReactNode;
     header?: ReactNode;
+    /** Overrides main scroll/padding — e.g. viewport-locked live console. */
+    mainClassName?: string;
+    /** Collapse sidebar to icon rail while this layout is mounted (restores on unmount). */
+    preferCollapsedSidebar?: boolean;
 }
 
 function userInitials(name: string): string {
@@ -34,8 +38,8 @@ function userInitials(name: string): string {
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
-export default function AuthenticatedLayout({ children, header }: AuthenticatedLayoutProps) {
-    const { isCollapsed, toggle } = useSidebar();
+export default function AuthenticatedLayout({ children, header, mainClassName, preferCollapsedSidebar = false }: AuthenticatedLayoutProps) {
+    const { isCollapsed, toggle, setCollapsed } = useSidebar();
     const { theme, toggleTheme } = useAppearance();
     const isDark = theme === 'dark';
     const page = usePage<PageProps>();
@@ -46,6 +50,17 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
     useEffect(() => {
         setLiveInvite(sharedInvite ?? null);
     }, [sharedInvite]);
+
+    useEffect(() => {
+        if (!preferCollapsedSidebar) {
+            return;
+        }
+
+        const previous = localStorage.getItem('hoopsense-sidebar-collapsed') === 'true';
+        setCollapsed(true);
+
+        return () => setCollapsed(previous);
+    }, [preferCollapsedSidebar, setCollapsed]);
 
     useEffect(() => {
         if (!user?.id || !window.Echo) {
@@ -228,7 +243,7 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                 )}
 
                 {/* Page content */}
-                <main className="relative z-10 flex-1 overflow-y-auto px-5 py-6">
+                <main className={`relative z-10 flex-1 px-5 py-6 ${mainClassName ?? 'overflow-y-auto'}`}>
                     {children}
                 </main>
             </div>

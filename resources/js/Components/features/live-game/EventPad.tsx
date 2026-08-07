@@ -30,8 +30,8 @@ export function EventPad({
     const disqualified = selectedPlayerPersonalFouls >= MAX_PERSONAL_FOULS;
 
     return (
-        <section className="rounded-lg border border-border bg-card p-4" aria-labelledby="event-pad-heading">
-            <div className="mb-4">
+        <section className="shrink-0 rounded-lg border border-amber-300/30 bg-card p-3 shadow-sm" aria-labelledby="event-pad-heading">
+            <div className="mb-3">
                 <h2 id="event-pad-heading" className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">
                     Event pad
                 </h2>
@@ -45,16 +45,16 @@ export function EventPad({
                 </p>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
                 {PAD_GROUPS.map((group) => {
                     const groupEvents = PAD_EVENTS.filter((padEvent) => padEvent.group === group.key);
 
                     return (
                         <div key={group.key}>
-                            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                                 {group.label}
                             </p>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-3">
                                 {groupEvents.map((padEvent) => (
                                     <PadButton
                                         key={padEvent.key}

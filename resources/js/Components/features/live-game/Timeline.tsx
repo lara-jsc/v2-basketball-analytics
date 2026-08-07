@@ -22,10 +22,10 @@ export function Timeline({ events, players, teams, disabled, onRequestVoid }: Ti
 
     return (
         <section
-            className="flex min-h-[300px] flex-col rounded-lg border border-border bg-card"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card"
             aria-labelledby="timeline-heading"
         >
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
                 <h2
                     id="timeline-heading"
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"
@@ -37,15 +37,11 @@ export function Timeline({ events, players, teams, disabled, onRequestVoid }: Ti
                     {voidedIds.size > 0 ? ` · ${voidedIds.size} voided` : ''}
                 </span>
             </div>
-            {/*
-              The scroller needs an explicit cap: without one the section grows with its
-              content and the page scrolls instead of the panel.
-            */}
+            {/* Parent column must be min-h-0 flex; this panel flex-1 fills leftover height and scrolls inside. */}
             <div
                 tabIndex={0}
                 aria-label="Recorded events, newest first"
                 className="min-h-0 flex-1 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
-                style={{ maxHeight: 'min(55vh, 520px)' }}
             >
                 {[...events].reverse().map((event) => (
                     <TimelineRow

@@ -9,6 +9,7 @@ interface AlertsPanelProps {
     viewerSide: 'home' | 'opponent' | null;
     homeTeamId: number;
     opponentTeamId: number;
+    className?: string;
 }
 
 interface AlertGroup {
@@ -17,12 +18,15 @@ interface AlertGroup {
     alerts: LiveGameAlert[];
 }
 
-export function AlertsPanel({ alerts, players, teams, viewerSide, homeTeamId, opponentTeamId }: AlertsPanelProps) {
+export function AlertsPanel({ alerts, players, teams, viewerSide, homeTeamId, opponentTeamId, className = '' }: AlertsPanelProps) {
     const groups = buildGroups(alerts, teams, viewerSide, homeTeamId, opponentTeamId);
 
     return (
-        <section className="rounded-lg border border-border bg-card" aria-labelledby="alerts-heading">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <section
+            className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card ${className}`}
+            aria-labelledby="alerts-heading"
+        >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2.5">
                 <h2
                     id="alerts-heading"
                     className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.1em] text-foreground"
@@ -34,7 +38,7 @@ export function AlertsPanel({ alerts, players, teams, viewerSide, homeTeamId, op
             <div
                 tabIndex={0}
                 aria-label="Coach alerts, grouped by team"
-                className="max-h-[240px] overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
+                className="min-h-0 flex-1 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-300"
             >
                 {groups.map((group) => (
                     <div key={group.key}>
@@ -47,17 +51,13 @@ export function AlertsPanel({ alerts, players, teams, viewerSide, homeTeamId, op
                     </div>
                 ))}
                 {alerts.length === 0 && (
-                    <p className="p-5 text-sm text-muted-foreground">No rule-based alerts are active.</p>
+                    <p className="p-4 text-sm text-muted-foreground">No rule-based alerts are active.</p>
                 )}
             </div>
         </section>
     );
 }
 
-/**
- * The viewer's own side comes first so a coach reads their own bench without scanning.
- * Alerts written before alerts carried a team fall into a trailing group rather than vanishing.
- */
 function buildGroups(
     alerts: LiveGameAlert[],
     teams: Team[],

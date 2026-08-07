@@ -3,7 +3,7 @@ import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
 import { ApplyLineupConfirmModal, type PendingLineupChange } from '@/Components/features/live-game/ApplyLineupConfirmModal';
 import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
 import { LineupConfirmModal } from '@/Components/features/live-game/LineupConfirmModal';
-import { SuggestedLineupSheet } from '@/Components/features/live-game/SuggestedLineupSheet';
+import { SuggestedLineupPanel } from '@/Components/features/live-game/SuggestedLineupPanel';
 import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitution';
 import { ClockActionConfirmModal, type ConfirmableClockAction } from '@/Components/features/live-game/ClockActionConfirmModal';
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
@@ -344,10 +344,16 @@ export default function LiveGamesShow({
     const allPlayers = [...homePlayers, ...opponentPlayers];
     const lineupReady = lineupForm.data.starting_player_ids.length === 5;
 
+    const isLiveConsole = snapshot.liveGame.status === 'live';
+
     return (
-        <AuthenticatedLayout>
+        <AuthenticatedLayout
+            preferCollapsedSidebar={isLiveConsole}
+            mainClassName={isLiveConsole ? 'flex min-h-0 flex-col overflow-hidden py-3' : undefined}
+        >
             <Head title={`${homeTeam?.name ?? 'Live game'} vs ${opponentTeam?.name ?? 'Opponent'}`} />
-            <div className="-mx-5 -my-6 flex min-h-full flex-col overflow-x-hidden">
+            <div className={`-mx-5 -my-6 flex flex-col overflow-x-hidden ${isLiveConsole ? 'h-full min-h-0 overflow-hidden' : 'min-h-full'}`}>
+                <div className={isLiveConsole ? 'shrink-0' : undefined}>
                 <GameScoreboard
                     status={snapshot.liveGame.status}
                     clock={displayedClock}
@@ -361,6 +367,7 @@ export default function LiveGamesShow({
                     onClockAction={clockAction}
                     onClockActionRequest={setPendingClockAction}
                 />
+                </div>
                 <ClockActionConfirmModal
                     open={pendingClockAction !== null}
                     onOpenChange={(open) => !open && setPendingClockAction(null)}
@@ -368,7 +375,7 @@ export default function LiveGamesShow({
                     period={displayedClock.period}
                     onConfirm={confirmClockAction}
                 />
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/75 px-4 py-2 sm:px-5">
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/75 px-4 py-2 sm:px-5 ${isLiveConsole ? 'shrink-0' : ''}`}>
                     <Link href={route('live-games.index')} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
                         <ChevronLeft size={15} /> Live games
                     </Link>
@@ -519,40 +526,25 @@ export default function LiveGamesShow({
                     </div>
                 )}
 
-                <div className="grid flex-1 gap-4 p-4 sm:p-5 xl:grid-cols-[minmax(250px,0.72fr)_minmax(440px,1.35fr)_minmax(280px,0.85fr)]">
-                    <div className="flex flex-col gap-4">
-                        <ActiveLineup
-                            players={controlledRosterPlayers}
-                            activePlayerIds={controlledActiveIds}
-                            stats={snapshot.stats}
-                            selectedPlayerId={selectedPlayerId}
-                            onSelectPlayer={setSelectedPlayerId}
-                        />
-                        <BenchSubstitution
-                            players={controlledRosterPlayers}
-                            activePlayerIds={controlledActiveIds}
-                            disabled={recordingBlockedReason !== null || clockState !== 'stopped'}
-                            onSubstitute={substitute}
-                            suggestionSlot={
-                                snapshot.liveGame.status === 'live' && canRecord ? (
-                                    <SuggestedLineupSheet
-                                        players={ownPlayers}
-                                        activePlayerIds={ownActiveIds}
-                                        stats={snapshot.stats}
-                                        disabled={processing}
-                                        applyBlockedReason={
-                                            clockState === 'stopped'
-                                                ? null
-                                                : clockState === 'expired'
-                                                    ? `Q${displayedClock.period} has ended. Advance the period first.`
-                                                    : 'Substitutions need the clock stopped. Stop the clock to apply a five.'
-                                        }
-                                        onRequest={requestSuggestion}
-                                        onApply={requestLineupChange}
-                                    />
-                                ) : undefined
-                            }
-                        />
+                <div className={`grid gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(240px,0.85fr)_minmax(400px,1.5fr)_minmax(240px,0.8fr)] ${isLiveConsole ? 'min-h-0 flex-1' : ''}`}>
+                    <div className={`flex flex-col gap-3 ${isLiveConsole ? 'min-h-0 overflow-hidden' : ''}`}>
+                        <div className="shrink-0">
+                            <ActiveLineup
+                                players={controlledRosterPlayers}
+                                activePlayerIds={controlledActiveIds}
+                                stats={snapshot.stats}
+                                selectedPlayerId={selectedPlayerId}
+                                onSelectPlayer={setSelectedPlayerId}
+                            />
+                        </div>
+                        <div className="shrink-0">
+                            <BenchSubstitution
+                                players={controlledRosterPlayers}
+                                activePlayerIds={controlledActiveIds}
+                                disabled={recordingBlockedReason !== null || clockState !== 'stopped'}
+                                onSubstitute={substitute}
+                            />
+                        </div>
                         <ApplyLineupConfirmModal
                             open={pendingLineupChange !== null}
                             onOpenChange={(open) => !open && setPendingLineupChange(null)}
@@ -560,20 +552,6 @@ export default function LiveGamesShow({
                             players={ownPlayers}
                             onConfirm={confirmLineupChange}
                         />
-                    </div>
-                    <div className="flex min-w-0 flex-col gap-4">
-                        <EventPad
-                            selectedPlayer={selectedPlayer}
-                            clockState={clockState}
-                            selectedPlayerPersonalFouls={selectedPlayerPersonalFouls}
-                            blockedReason={recordingBlockedReason}
-                            onRecord={record}
-                        />
-                        {padUnavailableReason && (
-                            <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                                {padUnavailableReason}
-                            </div>
-                        )}
                         <Timeline
                             events={snapshot.events}
                             players={allPlayers}
@@ -589,7 +567,21 @@ export default function LiveGamesShow({
                             onConfirm={confirmVoid}
                         />
                     </div>
-                    <aside className="min-w-0">
+                    <div className={`flex min-w-0 flex-col gap-3 ${isLiveConsole ? 'min-h-0' : ''}`}>
+                        <EventPad
+                            selectedPlayer={selectedPlayer}
+                            clockState={clockState}
+                            selectedPlayerPersonalFouls={selectedPlayerPersonalFouls}
+                            blockedReason={recordingBlockedReason}
+                            onRecord={record}
+                        />
+                        {padUnavailableReason && (
+                            <div className="shrink-0 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
+                                {padUnavailableReason}
+                            </div>
+                        )}
+                    </div>
+                    <aside className="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
                         <AlertsPanel
                             alerts={snapshot.alerts}
                             players={allPlayers}
@@ -597,7 +589,26 @@ export default function LiveGamesShow({
                             viewerSide={viewerSide}
                             homeTeamId={liveGame.home_team_id}
                             opponentTeamId={liveGame.opponent_team_id}
+                            className={isLiveConsole ? 'flex-[0.35]' : ''}
                         />
+                        {isLiveConsole && canRecord && (
+                            <SuggestedLineupPanel
+                                players={ownPlayers}
+                                activePlayerIds={ownActiveIds}
+                                stats={snapshot.stats}
+                                disabled={processing}
+                                applyBlockedReason={
+                                    clockState === 'stopped'
+                                        ? null
+                                        : clockState === 'expired'
+                                            ? `Q${displayedClock.period} has ended. Advance the period first.`
+                                            : 'Substitutions need the clock stopped. Stop the clock to apply a five.'
+                                }
+                                onRequest={requestSuggestion}
+                                onApply={requestLineupChange}
+                                className="flex-[0.65]"
+                            />
+                        )}
                     </aside>
                 </div>
             </div>
