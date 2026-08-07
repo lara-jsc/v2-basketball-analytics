@@ -530,8 +530,9 @@ export default function LiveGamesShow({
                     <div className={`flex flex-col gap-3 ${isLiveConsole ? 'min-h-0 overflow-hidden' : ''}`}>
                         <div className="shrink-0">
                             <ActiveLineup
-                                players={controlledRosterPlayers}
-                                activePlayerIds={controlledActiveIds}
+                                players={ownPlayers}
+                                activePlayerIds={ownActiveIds}
+                                controlledPlayerIds={controlled_player_ids}
                                 stats={snapshot.stats}
                                 selectedPlayerId={selectedPlayerId}
                                 onSelectPlayer={setSelectedPlayerId}
