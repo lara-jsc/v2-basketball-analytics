@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             TeamPlayersSeeder::class,
             DemoUserSeeder::class,
             AssistantCoachesSeeder::class,
+            ShotZoneProfileSeeder::class,
         ]);
     }
 }
