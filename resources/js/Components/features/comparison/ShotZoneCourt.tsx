@@ -14,8 +14,20 @@ interface ZoneData {
     has_enough_data: boolean;
 }
 
+/**
+ * The zone the player attempts from most often. Null until any shot is located.
+ */
+interface TopZone {
+    key: ShotZoneKey;
+    label: string;
+    attempt_share: number;
+    percentage: number;
+    has_enough_data: boolean;
+}
+
 export interface ShotZoneProfile {
     zones: Record<ShotZoneKey, ZoneData>;
+    top_zone: TopZone | null;
     located_shots: number;
     live_located_shots: number;
     live_total_shots: number;
@@ -76,6 +88,7 @@ export function ShotZoneCourt({ profile, playerName, className }: ShotZoneCourtP
                 {
                     fill,
                     label: <ZoneLabel zone={data} />,
+                    highlighted: profile.top_zone?.key === z.key,
                 },
             ];
         }),
@@ -85,6 +98,20 @@ export function ShotZoneCourt({ profile, playerName, className }: ShotZoneCourtP
         <div className={className}>
             {/* Player header */}
             <p className="mb-2 text-sm font-bold text-foreground">{playerName}</p>
+
+            {/* Shot tendency — the outlined zone on the court below */}
+            {hasAnyData && profile.top_zone && (
+                <p className="mb-2 text-xs font-semibold">
+                    <span className="uppercase tracking-wide text-muted-foreground">Usually shoots from</span>{' '}
+                    <span className="text-foreground">
+                        {profile.top_zone.label} · {profile.top_zone.attempt_share}% of shots ·{' '}
+                        {profile.top_zone.percentage}% make
+                    </span>
+                    {!profile.top_zone.has_enough_data && (
+                        <span className="font-normal text-muted-foreground"> · small sample</span>
+                    )}
+                </p>
+            )}
 
             {!hasAnyData ? (
                 <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/20 p-6 text-center">

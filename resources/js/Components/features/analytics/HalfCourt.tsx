@@ -5,6 +5,8 @@ export interface HalfCourtZoneState {
     fill: string;
     disabled?: boolean;
     label?: React.ReactNode;
+    /** Outlines the zone without touching its fill, so heat coloring stays readable. */
+    highlighted?: boolean;
 }
 
 export interface HalfCourtProps {
@@ -179,6 +181,17 @@ function ZonePath({
                 onKeyDown={handleKey}
                 className={isClickable ? 'cursor-pointer outline-none focus-visible:opacity-80' : undefined}
             />
+            {state?.highlighted && (
+                <path
+                    d={config.path}
+                    fill="none"
+                    fillRule="evenodd"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    strokeOpacity={0.55}
+                    style={{ pointerEvents: 'none' }}
+                />
+            )}
             {label && (
                 <text
                     x={config.labelX}

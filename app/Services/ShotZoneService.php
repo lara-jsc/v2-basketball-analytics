@@ -46,12 +46,52 @@ class ShotZoneService
 
         return [
             'zones' => $zones,
+            'top_zone' => $this->topZone($zones, $located),
             'located_shots' => $located,
             'live_located_shots' => $liveLocated,
             'live_total_shots' => $liveTotal,
             // Legacy key for early UI consumers — same as live_total_shots for now.
             'total_shots' => $liveTotal,
             'profile_vs_history_ok' => $this->repository->profileReconcilesWithHistory($playerId),
+        ];
+    }
+
+    /**
+     * The zone the player shoots from most often — the defensive key coaches read first.
+     * Ties resolve to the earlier ShotZone case so the callout never flickers between
+     * two equally-attempted zones.
+     *
+     * @param  array<string, array<string, mixed>>  $zones
+     * @return array<string, mixed>|null
+     */
+    private function topZone(array $zones, int $located): ?array
+    {
+        if ($located === 0) {
+            return null;
+        }
+
+        $topKey = null;
+        $topAttempts = 0;
+
+        foreach (ShotZone::cases() as $zone) {
+            $attempted = (int) $zones[$zone->value]['attempted'];
+
+            if ($attempted > $topAttempts) {
+                $topKey = $zone->value;
+                $topAttempts = $attempted;
+            }
+        }
+
+        if ($topKey === null) {
+            return null;
+        }
+
+        return [
+            'key' => $topKey,
+            'label' => $zones[$topKey]['label'],
+            'attempt_share' => (int) round($topAttempts / $located * 100),
+            'percentage' => $zones[$topKey]['percentage'],
+            'has_enough_data' => $zones[$topKey]['has_enough_data'],
         ];
     }
 }
