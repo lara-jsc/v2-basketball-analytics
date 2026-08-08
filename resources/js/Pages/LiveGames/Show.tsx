@@ -9,6 +9,7 @@ import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitu
 import { ClockActionConfirmModal, type ConfirmableClockAction } from '@/Components/features/live-game/ClockActionConfirmModal';
 import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
 import { GameScoreboard } from '@/Components/features/live-game/GameScoreboard';
+import { ShotZoneOverlay } from '@/Components/features/live-game/ShotZoneOverlay';
 import { Timeline } from '@/Components/features/live-game/Timeline';
 import { VoidEventConfirmModal } from '@/Components/features/live-game/VoidEventConfirmModal';
 import { clockBlockReason, type ClockState } from '@/Components/features/live-game/event-catalog';
@@ -84,6 +85,7 @@ export default function LiveGamesShow({
     const [pendingVoidEvent, setPendingVoidEvent] = useState<LiveGameEvent | null>(null);
     const [pendingClockAction, setPendingClockAction] = useState<ConfirmableClockAction | null>(null);
     const [pendingLineupChange, setPendingLineupChange] = useState<PendingLineupChange | null>(null);
+    const [zoneOverlay, setZoneOverlay] = useState<{ eventId: number; points: 2 | 3; contextLabel: string } | null>(null);
 
     const applySnapshot = useCallback((next: LiveGameSnapshot): void => {
         setSnapshot(next);
@@ -176,22 +178,39 @@ export default function LiveGamesShow({
             ? 'running'
             : 'stopped';
 
-    async function postSnapshot(url: string, data: object = {}): Promise<void> {
+    async function postSnapshot(url: string, data: object = {}): Promise<LiveGameSnapshot | null> {
         setProcessing(true);
         setError(null);
         try {
             const response = await axios.post<LiveGameSnapshot>(url, data);
             applySnapshot(response.data);
+            return response.data;
         } catch (requestError) {
             if (axios.isAxiosError(requestError) && requestError.response?.data?.message) setError(requestError.response.data.message as string);
             else setError('The game state could not be updated. Check the connection and try again.');
+            return null;
         } finally {
             setProcessing(false);
         }
     }
 
     function record(event: RecordableEvent): void {
-        void postSnapshot(route('live-games.events.store', { liveGame: liveGame.id }), event);
+        void (async () => {
+            const result = await postSnapshot(route('live-games.events.store', { liveGame: liveGame.id }), event);
+
+            if (result?.last_recorded_event_id && (event.type === 'shot_made' || event.type === 'shot_missed')) {
+                const points = (event.payload?.points as 2 | 3 | undefined) ?? 2;
+                const kind = event.type === 'shot_made' ? 'make' : 'miss';
+                const playerLabel = selectedPlayer
+                    ? `${selectedPlayer.first_name[0]}. ${selectedPlayer.last_name}`
+                    : 'Player';
+                setZoneOverlay({
+                    eventId: result.last_recorded_event_id,
+                    points,
+                    contextLabel: `${playerLabel} · ${points === 3 ? '3PT' : '2PT'} ${kind}`,
+                });
+            }
+        })();
     }
     function clockAction(action: 'start' | 'stop' | 'reset_period' | 'set_period', period?: number): void {
         void postSnapshot(route('live-games.clock.store', { liveGame: liveGame.id }), { action, ...(period ? { period } : {}) });
@@ -590,6 +609,15 @@ export default function LiveGamesShow({
                             blockedReason={recordingBlockedReason}
                             onRecord={record}
                         />
+                        {zoneOverlay && (
+                            <ShotZoneOverlay
+                                liveGameId={liveGame.id}
+                                eventId={zoneOverlay.eventId}
+                                points={zoneOverlay.points}
+                                contextLabel={zoneOverlay.contextLabel}
+                                onDone={() => setZoneOverlay(null)}
+                            />
+                        )}
                         {padUnavailableReason && (
                             <div className="shrink-0 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
                                 {padUnavailableReason}

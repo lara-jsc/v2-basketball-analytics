@@ -59,8 +59,8 @@ class TeamController extends Controller
     public function show(Team $team): Response
     {
         return Inertia::render('Teams/Show', [
-            'team'         => $team,
-            'players'      => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
+            'team' => $team,
+            'players' => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
             'latestImport' => fn () => $this->csvImportRepository->latestForTeam($team->id),
         ]);
     }

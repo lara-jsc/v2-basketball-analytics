@@ -8,7 +8,6 @@ use App\Repositories\CsvImportRepository;
 use App\Services\CsvTemplateService;
 use App\Services\WinProbabilityService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CsvController extends Controller
@@ -33,7 +32,7 @@ class CsvController extends Controller
             },
             'hoopsense-roster-template.csv',
             [
-                'Content-Type'        => 'text/csv',
+                'Content-Type' => 'text/csv',
                 'Content-Disposition' => 'attachment; filename="hoopsense-roster-template.csv"',
             ],
         );
@@ -46,7 +45,7 @@ class CsvController extends Controller
     public function upload(StoreCsvUploadRequest $request): RedirectResponse
     {
         $teamId = (int) $request->validated()['team_id'];
-        $file   = $request->file('file');
+        $file = $request->file('file');
 
         // Store the file at imports/{team_id}/{original_name} — not publicly accessible
         $storagePath = $file->storeAs(
@@ -55,9 +54,9 @@ class CsvController extends Controller
         );
 
         $import = $this->csvImportRepository->create([
-            'team_id'  => $teamId,
+            'team_id' => $teamId,
             'filename' => $storagePath,
-            'status'   => 'pending',
+            'status' => 'pending',
         ]);
 
         ProcessCsvImport::dispatch($import->id);

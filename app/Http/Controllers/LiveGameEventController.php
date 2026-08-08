@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ShotZone;
+use App\Http\Requests\AttachShotZoneRequest;
 use App\Models\LiveGame;
+use App\Models\LiveGameEvent;
 use App\Models\Player;
 use App\Models\User;
 use App\Services\LiveGame\LiveGameEventRecorder;
@@ -21,6 +24,20 @@ class LiveGameEventController extends Controller
         $validated = $this->validated($request, $liveGame, $user);
 
         return response()->json($recorder->record($liveGame, $user, $validated));
+    }
+
+    public function attachZone(
+        AttachShotZoneRequest $request,
+        LiveGame $liveGame,
+        LiveGameEvent $event,
+        LiveGameEventRecorder $recorder,
+    ): JsonResponse {
+        return response()->json($recorder->attachZone(
+            $liveGame,
+            $request->user(),
+            $event,
+            ShotZone::from($request->validated()['zone']),
+        ));
     }
 
     /** @return array<string, mixed> */
@@ -140,7 +157,12 @@ class LiveGameEventController extends Controller
                 }
 
                 if (in_array($type, $ownPlayerTypes, true) || $type === 'substitution') {
-                    if ($allowedTeamId === null || (int) $player->team_id !== (int) $allowedTeamId) {
+                    $isOpponentShot = in_array($type, ['shot_made', 'shot_missed'], true)
+                        && $allowedTeamId !== null
+                        && (int) $player->team_id !== (int) $allowedTeamId
+                        && in_array((int) $player->team_id, [(int) $game->home_team_id, (int) $game->opponent_team_id], true);
+
+                    if (! $isOpponentShot && ($allowedTeamId === null || (int) $player->team_id !== (int) $allowedTeamId)) {
                         $validator->errors()->add('player_id', 'You can only record events for your own team.');
                     }
                 }

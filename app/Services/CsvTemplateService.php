@@ -30,14 +30,14 @@ class CsvTemplateService
      */
     public function generateTemplateContent(): string
     {
-        return implode(',', self::HEADERS) . "\n";
+        return implode(',', self::HEADERS)."\n";
     }
 
     /**
      * Validates that an uploaded CSV's first row exactly matches HEADERS.
      * Returns true on match, false otherwise.
      *
-     * @param array<int, string> $uploadedHeaders
+     * @param  array<int, string>  $uploadedHeaders
      */
     public function headersMatch(array $uploadedHeaders): bool
     {

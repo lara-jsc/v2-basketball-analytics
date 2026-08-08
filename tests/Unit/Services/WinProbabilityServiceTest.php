@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Cache;
 describe('WinProbabilityService', function () {
 
     beforeEach(function () {
-        $this->service = new WinProbabilityService();
+        $this->service = new WinProbabilityService;
         Cache::flush();
     });
 
@@ -28,8 +28,8 @@ describe('WinProbabilityService', function () {
             $this->service->store(1, 2, [
                 'team_a_win_probability' => 0.62,
                 'team_b_win_probability' => 0.38,
-                'team_a_win_rate'        => 0.67,
-                'team_b_win_rate'        => 0.54,
+                'team_a_win_rate' => 0.67,
+                'team_b_win_rate' => 0.54,
             ]);
 
             $result = $this->service->getOrDispatch(1, 2);

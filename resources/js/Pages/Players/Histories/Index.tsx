@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PlayerHistoryImport } from '@/Components/features/players/PlayerHistoryImport';
+import { ShotZoneProfileImport } from '@/Components/features/players/ShotZoneProfileImport';
 import { PlayerHistoryTable } from '@/Components/features/players/PlayerHistoryTable';
 import type { PlayerHistoryIndexProps } from '@/types/PlayerHistory.types';
 import { Head, Link, usePage } from '@inertiajs/react';
@@ -89,6 +90,7 @@ export default function PlayerHistoriesIndex({
 
                 {/* ── CSV Import ────────────────────────────────────────── */}
                 <PlayerHistoryImport playerId={player.id} />
+                <ShotZoneProfileImport teamId={player.team_id} />
 
                 {/* ── History table ─────────────────────────────────────── */}
                 <div className="rounded-xl border border-border bg-card overflow-hidden">

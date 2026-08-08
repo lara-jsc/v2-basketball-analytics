@@ -16,6 +16,15 @@ class LiveGameDelegationWriter
      *
      * @param  list<int>  $playerIds
      */
+    /**
+     * Replace an assistant's exclusive player assignments for one live game.
+     *
+     * Players from either team roster (home or opponent) are delegatable.
+     * The shot-only restriction for opponent players is enforced in the event gates,
+     * not here.
+     *
+     * @param  list<int>  $playerIds
+     */
     public function write(
         LiveGame $liveGame,
         User $mainCoach,
@@ -49,15 +58,20 @@ class LiveGameDelegationWriter
             ]);
         }
 
+        $bothTeamIds = array_unique(array_filter([
+            (int) $liveGame->home_team_id,
+            (int) $liveGame->opponent_team_id,
+        ]));
+
         $validCount = Player::query()
-            ->where('team_id', $teamId)
+            ->whereIn('team_id', $bothTeamIds)
             ->where('is_active', true)
             ->whereIn('id', $playerIds)
             ->count();
 
         if ($validCount !== count($playerIds)) {
             throw ValidationException::withMessages([
-                'delegated_player_ids' => 'Delegated players must be active roster players on this team.',
+                'delegated_player_ids' => 'Delegated players must be active roster players in this game.',
             ]);
         }
 

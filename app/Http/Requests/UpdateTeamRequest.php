@@ -28,8 +28,8 @@ class UpdateTeamRequest extends FormRequest
         $teamId = $this->route('team');
 
         return [
-            'code'      => ['required', 'string', 'max:10', Rule::unique('teams', 'code')->ignore($teamId)],
-            'name'      => ['required', 'string', 'max:100'],
+            'code' => ['required', 'string', 'max:10', Rule::unique('teams', 'code')->ignore($teamId)],
+            'name' => ['required', 'string', 'max:100'],
             'is_active' => ['boolean'],
         ];
     }

@@ -5,6 +5,7 @@ use App\Models\Player;
 use App\Models\PlayerStat;
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 
@@ -20,7 +21,7 @@ describe('Player HTTP endpoints', function () {
     // Auth guard
     // ------------------------------------------------------------------
     it('redirects unauthenticated users away from player routes', function () {
-        $team   = Team::factory()->create();
+        $team = Team::factory()->create();
         $player = Player::factory()->forTeam($team)->create();
 
         $this->post(route('players.store', $team))->assertRedirect(route('login'));
@@ -34,21 +35,21 @@ describe('Player HTTP endpoints', function () {
     it('creates a player under a team and redirects back', function () {
         $this->actingAs($this->user)
             ->post(route('players.store', $this->team), [
-                'first_name'    => 'LeBron',
-                'last_name'     => 'James',
+                'first_name' => 'LeBron',
+                'last_name' => 'James',
                 'jersey_number' => 23,
-                'role'          => 'Small Forward',
-                'height_feet'   => 6.9,
-                'weight_kg'     => 113.0,
-                'is_active'     => true,
+                'role' => 'Small Forward',
+                'height_feet' => 6.9,
+                'weight_kg' => 113.0,
+                'is_active' => true,
             ])
             ->assertRedirect(route('teams.show', $this->team));
 
         $this->assertDatabaseHas('players', [
-            'first_name'    => 'LeBron',
-            'last_name'     => 'James',
+            'first_name' => 'LeBron',
+            'last_name' => 'James',
             'jersey_number' => 23,
-            'team_id'       => $this->team->id,
+            'team_id' => $this->team->id,
         ]);
     });
 
@@ -61,13 +62,13 @@ describe('Player HTTP endpoints', function () {
     it('dispatches ComputePlayerPlusMinus when stats are provided', function () {
         $this->actingAs($this->user)
             ->post(route('players.store', $this->team), [
-                'first_name'    => 'Anthony',
-                'last_name'     => 'Davis',
+                'first_name' => 'Anthony',
+                'last_name' => 'Davis',
                 'jersey_number' => 3,
-                'role'          => 'Center',
-                'is_active'     => true,
-                'pts'           => 26.1,
-                'min'           => 35.0,
+                'role' => 'Center',
+                'is_active' => true,
+                'pts' => 26.1,
+                'min' => 35.0,
             ]);
 
         Bus::assertDispatched(ComputePlayerPlusMinus::class);
@@ -81,10 +82,10 @@ describe('Player HTTP endpoints', function () {
 
         $this->actingAs($this->user)
             ->put(route('players.update', $player), [
-                'first_name'    => 'Updated',
-                'last_name'     => $player->last_name,
+                'first_name' => 'Updated',
+                'last_name' => $player->last_name,
                 'jersey_number' => $player->jersey_number,
-                'is_active'     => true,
+                'is_active' => true,
             ])
             ->assertRedirect(route('teams.show', $this->team));
 
@@ -143,7 +144,7 @@ describe('Player HTTP endpoints', function () {
     it('accepts a profile picture upload and updates the player', function () {
         Storage::fake('public');
         $player = Player::factory()->forTeam($this->team)->create();
-        $file   = \Illuminate\Http\UploadedFile::fake()->image('photo.jpg');
+        $file = UploadedFile::fake()->image('photo.jpg');
 
         $this->actingAs($this->user)
             ->post(route('players.uploadPicture', $player), ['picture' => $file])

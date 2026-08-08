@@ -30,7 +30,7 @@ class CsvImportRepository
     public function markCompleted(CsvImport $import, int $rowsImported): void
     {
         $import->update([
-            'status'        => CsvImport::STATUS_COMPLETED,
+            'status' => CsvImport::STATUS_COMPLETED,
             'rows_imported' => $rowsImported,
         ]);
     }
@@ -41,7 +41,7 @@ class CsvImportRepository
     public function markFailed(CsvImport $import, string $errorLog): void
     {
         $import->update([
-            'status'    => CsvImport::STATUS_FAILED,
+            'status' => CsvImport::STATUS_FAILED,
             'error_log' => $errorLog,
         ]);
     }

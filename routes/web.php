@@ -10,6 +10,7 @@ use App\Http\Controllers\LiveGameSuggestionController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShotZoneProfileController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +43,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
         ->can('record', 'liveGame')
         ->name('live-games.events.store');
+
+    Route::patch('/live-games/{liveGame}/events/{event}/zone', [LiveGameEventController::class, 'attachZone'])
+        ->can('record', 'liveGame')
+        ->name('live-games.events.zone');
 
     Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
         ->can('record', 'liveGame')
@@ -97,6 +102,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/player-histories/{history}/edit', [PlayerHistoryController::class, 'edit'])->name('player-histories.edit');
     Route::put('/player-histories/{history}', [PlayerHistoryController::class, 'update'])->name('player-histories.update');
     Route::delete('/player-histories/{history}', [PlayerHistoryController::class, 'destroy'])->name('player-histories.destroy');
+
+    // ── Shot Zone Profiles ────────────────────────────────────────────────
+    Route::get('/shot-zone-profiles/template', [ShotZoneProfileController::class, 'downloadTemplate'])->name('shot-zone-profiles.template');
+    Route::post('/teams/{team}/shot-zone-profiles/import', [ShotZoneProfileController::class, 'import'])->name('shot-zone-profiles.import');
 
     // ── Team Comparison (Phase 3) ─────────────────────────────────────────
     Route::get('/comparison', [ComparisonController::class, 'index'])->name('comparison.index');

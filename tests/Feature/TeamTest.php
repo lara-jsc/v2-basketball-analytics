@@ -2,6 +2,7 @@
 
 use App\Models\Team;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 
 describe('Team HTTP endpoints', function () {
 
@@ -122,7 +123,7 @@ describe('Team HTTP endpoints', function () {
     // ------------------------------------------------------------------
     it('accepts a logo upload and updates the team', function () {
         $team = Team::factory()->create();
-        $file = \Illuminate\Http\UploadedFile::fake()->image('logo.png');
+        $file = UploadedFile::fake()->image('logo.png');
 
         $this->actingAs($this->user)
             ->post(route('teams.uploadLogo', $team), ['logo' => $file])

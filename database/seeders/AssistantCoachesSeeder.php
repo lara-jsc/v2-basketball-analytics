@@ -38,4 +38,3 @@ class AssistantCoachesSeeder extends Seeder
         }
     }
 }
-

@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Storage;
 describe('PlayerService', function () {
 
     beforeEach(function () {
-        $this->service = new PlayerService(new PlayerRepository());
-        $this->team    = Team::factory()->create();
+        $this->service = new PlayerService(new PlayerRepository);
+        $this->team = Team::factory()->create();
         Bus::fake();
         Storage::fake('public');
     });
@@ -144,7 +144,7 @@ describe('PlayerService', function () {
     describe('updateProfilePicture', function () {
         it('stores the new picture and updates the player path', function () {
             $player = Player::factory()->forTeam($this->team)->create(['profile_picture_path' => null]);
-            $file   = UploadedFile::fake()->image('avatar.jpg');
+            $file = UploadedFile::fake()->image('avatar.jpg');
 
             $updated = $this->service->updateProfilePicture($player, $file);
 

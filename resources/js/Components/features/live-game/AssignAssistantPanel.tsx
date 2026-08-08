@@ -13,6 +13,8 @@ export type AssignAssistantValue = {
 type AssignAssistantPanelProps = {
     coaches: CoachOption[];
     players: Player[];
+    /** Opponent active players eligible for shot-only delegation. */
+    opponentPlayers?: Player[];
     value: AssignAssistantValue;
     onChange: (value: AssignAssistantValue) => void;
     visible: boolean;
@@ -27,6 +29,7 @@ type AssignAssistantPanelProps = {
 export function AssignAssistantPanel({
     coaches,
     players,
+    opponentPlayers,
     value,
     onChange,
     visible,
@@ -179,6 +182,60 @@ export function AssignAssistantPanel({
                             <p className="live-text-danger mt-2 text-xs">{errors.delegated_player_ids}</p>
                         )}
                     </div>
+
+                    {opponentPlayers && opponentPlayers.length > 0 && (
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                                Opponent — shots only
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Assistants assigned here can log shots only — not fouls or substitutions.
+                                Unassigned opponent players stay with the head coach for shots.
+                            </p>
+                            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                                {opponentPlayers.map((player) => {
+                                    const isAssistant = value.delegatedPlayerIds.includes(player.id);
+                                    return (
+                                        <li
+                                            key={player.id}
+                                            className="flex min-h-14 flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2"
+                                        >
+                                            <span className="live-text-warn font-mono">{player.jersey_number}</span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
+                                            </span>
+                                            <div className="flex rounded-md border border-border p-0.5" role="group" aria-label={`Owner for ${playerName(player)}`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOwner(player.id, 'you')}
+                                                    className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                                                        !isAssistant
+                                                            ? 'bg-amber-400 text-black'
+                                                            : 'text-muted-foreground hover:bg-muted/50'
+                                                    }`}
+                                                >
+                                                    You
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOwner(player.id, 'assistant')}
+                                                    disabled={value.assistantCoachUserId === null}
+                                                    className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
+                                                        isAssistant
+                                                            ? 'bg-cyan-100 text-cyan-900 dark:bg-cyan-300/20 dark:text-cyan-100'
+                                                            : 'text-muted-foreground hover:bg-muted/50'
+                                                    }`}
+                                                >
+                                                    Assistant
+                                                </button>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         {hasAssignment && (

@@ -26,9 +26,9 @@ class Player extends Model
 
     protected $casts = [
         'jersey_number' => 'integer',
-        'height_feet'   => 'float',
-        'weight_kg'     => 'float',
-        'is_active'     => 'boolean',
+        'height_feet' => 'float',
+        'weight_kg' => 'float',
+        'is_active' => 'boolean',
     ];
 
     /** @return BelongsTo<Team, Player> */
@@ -71,5 +71,11 @@ class Player extends Model
     public function liveGameAlerts(): HasMany
     {
         return $this->hasMany(LiveGameAlert::class);
+    }
+
+    /** @return HasOne<PlayerShotZoneProfile, Player> */
+    public function shotZoneProfile(): HasOne
+    {
+        return $this->hasOne(PlayerShotZoneProfile::class);
     }
 }

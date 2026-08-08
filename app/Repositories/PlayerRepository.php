@@ -87,6 +87,7 @@ class PlayerRepository
 
         if ($stat) {
             $stat->update($data);
+
             return $stat->fresh();
         }
 

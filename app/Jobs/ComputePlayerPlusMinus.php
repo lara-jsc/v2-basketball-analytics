@@ -35,21 +35,22 @@ class ComputePlayerPlusMinus implements ShouldQueue
 
         if ($stat === null) {
             Log::warning('ComputePlayerPlusMinus: PlayerStat not found', ['id' => $this->playerStatId]);
+
             return;
         }
 
         $payload = [
             'player_id' => $stat->player_id,
-            'stats'     => [
-                'pts'          => $stat->pts,
-                'ast'          => $stat->ast,
-                'reb'          => $stat->reb,
-                'fg_pct'       => $stat->fg_pct,
-                'three_p_pct'  => $stat->three_p_pct,
-                'blk'          => $stat->blk,
-                'stl'          => $stat->stl,
-                'to_per_game'  => $stat->to_per_game,
-                'min'          => $stat->min,
+            'stats' => [
+                'pts' => $stat->pts,
+                'ast' => $stat->ast,
+                'reb' => $stat->reb,
+                'fg_pct' => $stat->fg_pct,
+                'three_p_pct' => $stat->three_p_pct,
+                'blk' => $stat->blk,
+                'stl' => $stat->stl,
+                'to_per_game' => $stat->to_per_game,
+                'min' => $stat->min,
             ],
         ];
 
@@ -58,16 +59,18 @@ class ComputePlayerPlusMinus implements ShouldQueue
         } catch (RuntimeException $e) {
             Log::error('ComputePlayerPlusMinus: Python engine error', [
                 'playerStatId' => $this->playerStatId,
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return;
         }
 
         if (! isset($result['plus_minus'])) {
             Log::error('ComputePlayerPlusMinus: missing plus_minus in engine response', [
                 'playerStatId' => $this->playerStatId,
-                'response'     => $result,
+                'response' => $result,
             ]);
+
             return;
         }
 
@@ -78,7 +81,7 @@ class ComputePlayerPlusMinus implements ShouldQueue
     {
         Log::error('ComputePlayerPlusMinus job failed', [
             'playerStatId' => $this->playerStatId,
-            'error'        => $exception->getMessage(),
+            'error' => $exception->getMessage(),
         ]);
     }
 }

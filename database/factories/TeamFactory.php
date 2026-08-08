@@ -15,8 +15,8 @@ class TeamFactory extends Factory
     public function definition(): array
     {
         return [
-            'code'      => strtoupper(fake()->unique()->lexify('???')),
-            'name'      => fake()->city() . ' ' . fake()->word(),
+            'code' => strtoupper(fake()->unique()->lexify('???')),
+            'name' => fake()->city().' '.fake()->word(),
             'logo_path' => null,
             'is_active' => true,
         ];

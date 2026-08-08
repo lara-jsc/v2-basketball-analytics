@@ -2,6 +2,7 @@
 
 namespace App\Services\LiveGame;
 
+use App\Enums\ShotZone;
 use App\Events\LiveGameStateUpdated;
 use App\Models\LiveGame;
 use App\Models\LiveGameEvent;
@@ -39,7 +40,7 @@ class LiveGameEventRecorder
                     : (int) $game->home_team_id;
             }
 
-            LiveGameEvent::query()->create([
+            $event = LiveGameEvent::query()->create([
                 'live_game_id' => $game->id,
                 'sequence' => (int) $game->events()->max('sequence') + 1,
                 'type' => $input['type'],
@@ -62,6 +63,42 @@ class LiveGameEventRecorder
             } else {
                 $this->projectionService->rebuild($game);
             }
+
+            $snapshot = $this->stateBuilder->build($game);
+            // Expose the created event's id so the frontend can open the zone overlay
+            // immediately without guessing by max sequence.
+            $snapshot['last_recorded_event_id'] = $event->id;
+
+            return $snapshot;
+        });
+
+        event(new LiveGameStateUpdated($game->id, $snapshot));
+
+        return $snapshot;
+    }
+
+    /**
+     * Write-once attach of a shot location. The shot itself is already persisted;
+     * this only fills payload.zone when it is absent. Never overwrites, never
+     * deletes — corrections still go through voids_event_id.
+     *
+     * @return array<string, mixed>
+     */
+    public function attachZone(LiveGame $game, User $user, LiveGameEvent $event, ShotZone $zone): array
+    {
+        $snapshot = DB::transaction(function () use ($game, $event, $zone): array {
+            $game = LiveGame::query()->lockForUpdate()->findOrFail($game->id);
+            $event = LiveGameEvent::query()->lockForUpdate()->findOrFail($event->id);
+
+            $payload = is_array($event->payload) ? $event->payload : [];
+
+            if (($payload['zone'] ?? null) !== null) {
+                throw ValidationException::withMessages(['zone' => 'This shot already has a location.']);
+            }
+
+            $payload['zone'] = $zone->value;
+            $event->payload = $payload;
+            $event->save();
 
             return $this->stateBuilder->build($game);
         });
@@ -219,19 +256,40 @@ class LiveGameEventRecorder
         $ownPlayerEventTypes = [
             'shot_made', 'shot_missed', 'free_throw_made', 'free_throw_missed', 'rebound', 'assist', 'foul', 'turnover',
         ];
+        $shotTypes = ['shot_made', 'shot_missed'];
         if (($input['team_scope'] ?? null) === 'own' && in_array($type, $ownPlayerEventTypes, true)) {
             if ($side === null) {
                 $errors['game'][] = 'Only team coaches can record player events for this live game.';
             } else {
-                $activePlayerIds = $game->activePlayerIdsForSide($side);
                 $playerId = (int) ($input['player_id'] ?? 0);
+                $playerSide = $game->sideForPlayer($playerId);
 
-                if (! in_array($playerId, $activePlayerIds, true)) {
-                    $errors['player_id'][] = 'The player must be active to record this event.';
-                }
+                if ($playerSide === $side) {
+                    // Own-team player — standard active + control checks.
+                    $activePlayerIds = $game->activePlayerIdsForSide($side);
 
-                if (! in_array($playerId, $controlledPlayerIds, true)) {
-                    $errors['player_id'][] = 'You can only record events for players assigned to you.';
+                    if (! in_array($playerId, $activePlayerIds, true)) {
+                        $errors['player_id'][] = 'The player must be active to record this event.';
+                    }
+
+                    if (! in_array($playerId, $controlledPlayerIds, true)) {
+                        $errors['player_id'][] = 'You can only record events for players assigned to you.';
+                    }
+                } elseif (in_array($type, $shotTypes, true) && $playerSide !== null) {
+                    // Opponent player — shots only. Verify active on the opponent side and that the
+                    // recorder controls this player (head for undelegated, assistant via delegation).
+                    $activeOpponentIds = $game->activePlayerIdsForSide($playerSide);
+
+                    if (! in_array($playerId, $activeOpponentIds, true)) {
+                        $errors['player_id'][] = 'The player must be active to record this event.';
+                    }
+
+                    if (! $this->controlsOpponentPlayer($game, $user, $playerId)) {
+                        $errors['player_id'][] = 'You can only record events for players assigned to you.';
+                    }
+                } else {
+                    // Non-shot event on an opponent player — always refused.
+                    $errors['player_id'][] = 'You can only record events for your own team.';
                 }
             }
         }
@@ -239,5 +297,39 @@ class LiveGameEventRecorder
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * Whether the given user controls an opponent player for shot-recording purposes.
+     *
+     * Head coach controls all opponent players NOT exclusively delegated to an assistant.
+     * Assistants control only players with an explicit LiveGamePlayerDelegation row.
+     */
+    private function controlsOpponentPlayer(LiveGame $game, User $user, int $playerId): bool
+    {
+        $userSide = $game->sideFor($user);
+        if ($userSide === null) {
+            return false;
+        }
+
+        $mainCoachId = $userSide === LiveGame::SIDE_HOME
+            ? $game->home_main_coach_user_id
+            : $game->opponent_main_coach_user_id;
+
+        if ($mainCoachId !== null && (int) $mainCoachId === (int) $user->id) {
+            // Head coach controls undelegated opponent players.
+            return ! LiveGamePlayerDelegation::query()
+                ->where('live_game_id', $game->id)
+                ->where('player_id', $playerId)
+                ->where('coach_user_id', '!=', $user->id)
+                ->exists();
+        }
+
+        // Assistants need an explicit delegation row.
+        return LiveGamePlayerDelegation::query()
+            ->where('live_game_id', $game->id)
+            ->where('player_id', $playerId)
+            ->where('coach_user_id', $user->id)
+            ->exists();
     }
 }

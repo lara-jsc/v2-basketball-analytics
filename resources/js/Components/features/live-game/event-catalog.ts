@@ -82,6 +82,39 @@ export function clockBlockReason(clock: ClockRequirement, state: ClockState): st
         : 'Recorded with the clock stopped — stop the clock first.';
 }
 
+/**
+ * Mirror of App\Enums\ShotZone. Change both together.
+ * Slugs are written verbatim into live_game_events.payload.zone.
+ */
+export type ShotZoneKey =
+    | 'paint'
+    | 'mid_range'
+    | 'corner_3_left'
+    | 'corner_3_right'
+    | 'above_break_3';
+
+export interface ShotZoneMeta {
+    key: ShotZoneKey;
+    label: string;
+    points: 2 | 3;
+}
+
+export const SHOT_ZONES: ShotZoneMeta[] = [
+    { key: 'paint', label: 'Paint', points: 2 },
+    { key: 'mid_range', label: 'Mid-range', points: 2 },
+    { key: 'corner_3_left', label: 'Left corner 3', points: 3 },
+    { key: 'corner_3_right', label: 'Right corner 3', points: 3 },
+    { key: 'above_break_3', label: 'Above the break 3', points: 3 },
+];
+
+/** A zone is only tappable when its value matches the shot that was just recorded. */
+export function zonesForPoints(points: 2 | 3): ShotZoneMeta[] {
+    return SHOT_ZONES.filter((zone) => zone.points === points);
+}
+
+/** Attempts required in a zone before it earns any color. Below this it stays gray. */
+export const MIN_ZONE_ATTEMPTS = 5;
+
 /** The reason a single pad button is unavailable, or null when it is available. */
 export function padEventBlockReason(
     padEvent: PadEvent,

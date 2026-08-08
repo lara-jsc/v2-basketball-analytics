@@ -19,7 +19,7 @@ class StoreCsvUploadRequest extends FormRequest
     {
         return [
             'team_id' => ['required', 'integer', 'exists:teams,id'],
-            'file'    => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
         ];
     }
 
@@ -30,7 +30,7 @@ class StoreCsvUploadRequest extends FormRequest
     {
         return [
             'file.mimes' => 'The upload must be a CSV file.',
-            'file.max'   => 'The CSV file must not exceed 10MB.',
+            'file.max' => 'The CSV file must not exceed 10MB.',
         ];
     }
 }

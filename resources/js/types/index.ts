@@ -353,6 +353,8 @@ export interface LiveGameSnapshot {
   events: LiveGameEvent[];
   alerts: LiveGameAlert[];
   keys_to_win: KeysToWinSnapshot;
+  /** Set only on the response to a POST that creates a field-goal event. Used by ShotZoneOverlay. */
+  last_recorded_event_id?: number;
 }
 
 declare global {

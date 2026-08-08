@@ -20,7 +20,6 @@ use RuntimeException;
  */
 class CsvImportService
 {
-
     public function __construct(
         private readonly CsvImportRepository $csvImportRepository,
         private readonly PlayerRepository $playerRepository,
@@ -41,6 +40,7 @@ class CsvImportService
 
         if (! Storage::exists($storagePath)) {
             $this->csvImportRepository->markFailed($import, "Uploaded file not found: {$storagePath}");
+
             return;
         }
 
@@ -50,36 +50,38 @@ class CsvImportService
             [$rowsImported, $errors] = $this->parseAndImport($import, $filePath);
         } catch (RuntimeException $e) {
             $this->csvImportRepository->markFailed($import, $e->getMessage());
+
             return;
         }
 
         if ($rowsImported === 0 && $errors !== []) {
             $this->csvImportRepository->markFailed($import, implode("\n", $errors));
+
             return;
         }
 
         $errorLog = $errors !== [] ? implode("\n", $errors) : null;
 
         $import->update([
-            'status'        => CsvImport::STATUS_COMPLETED,
+            'status' => CsvImport::STATUS_COMPLETED,
             'rows_imported' => $rowsImported,
-            'error_log'     => $errorLog,
+            'error_log' => $errorLog,
         ]);
     }
 
     /**
      * Parse the CSV and import rows.
      *
-     * @return array{int, list<string>}  [rowsImported, errors]
+     * @return array{int, list<string>} [rowsImported, errors]
      *
-     * @throws RuntimeException  on header mismatch
+     * @throws RuntimeException on header mismatch
      */
     private function parseAndImport(CsvImport $import, string $filePath): array
     {
         $handle = fopen($filePath, 'r');
 
         if ($handle === false) {
-            throw new RuntimeException("Could not open CSV file for reading.");
+            throw new RuntimeException('Could not open CSV file for reading.');
         }
 
         try {
@@ -93,36 +95,37 @@ class CsvImportService
      * @param  resource  $handle
      * @return array{int, list<string>}
      *
-     * @throws RuntimeException  on header mismatch
+     * @throws RuntimeException on header mismatch
      */
     private function readRows(CsvImport $import, mixed $handle): array
     {
         $headerRow = fgetcsv($handle);
 
         if ($headerRow === false) {
-            throw new RuntimeException("CSV file is empty.");
+            throw new RuntimeException('CSV file is empty.');
         }
 
         // Strip BOM and trim whitespace from all header values
-        $headers = array_map(fn(string $h) => trim(ltrim($h, "\xEF\xBB\xBF")), $headerRow);
+        $headers = array_map(fn (string $h) => trim(ltrim($h, "\xEF\xBB\xBF")), $headerRow);
 
-        if (! (new CsvTemplateService())->headersMatch($headers)) {
+        if (! (new CsvTemplateService)->headersMatch($headers)) {
             throw new RuntimeException(
-                "CSV headers do not match the required template. "
-                . "Expected: " . implode(',', CsvTemplateService::HEADERS) . "\n"
-                . "Received: " . implode(',', $headers)
+                'CSV headers do not match the required template. '
+                .'Expected: '.implode(',', CsvTemplateService::HEADERS)."\n"
+                .'Received: '.implode(',', $headers)
             );
         }
 
         $rowsImported = 0;
-        $errors       = [];
-        $lineNumber   = 1;
+        $errors = [];
+        $lineNumber = 1;
 
         while (($row = fgetcsv($handle)) !== false) {
             $lineNumber++;
 
             if (count($row) !== count($headers)) {
-                $errors[] = "Line {$lineNumber}: column count mismatch (expected " . count($headers) . ", got " . count($row) . ")";
+                $errors[] = "Line {$lineNumber}: column count mismatch (expected ".count($headers).', got '.count($row).')';
+
                 continue;
             }
 
@@ -130,6 +133,7 @@ class CsvImportService
 
             if ($data === false) {
                 $errors[] = "Line {$lineNumber}: could not parse row.";
+
                 continue;
             }
 
@@ -161,12 +165,12 @@ class CsvImportService
                 teamId: $teamId,
                 jerseyNumber: $jerseyNumber,
                 playerData: [
-                    'first_name'   => $data['first_name'] ?? '',
-                    'last_name'    => $data['last_name'] ?? '',
-                    'role'         => $data['role'] !== '' ? $data['role'] : null,
-                    'height_feet'  => $data['height_feet'] !== '' ? (float) $data['height_feet'] : null,
-                    'weight_kg'    => $data['weight_kg'] !== '' ? (float) $data['weight_kg'] : null,
-                    'is_active'    => $this->parseBool($data['is_active'] ?? '1'),
+                    'first_name' => $data['first_name'] ?? '',
+                    'last_name' => $data['last_name'] ?? '',
+                    'role' => $data['role'] !== '' ? $data['role'] : null,
+                    'height_feet' => $data['height_feet'] !== '' ? (float) $data['height_feet'] : null,
+                    'weight_kg' => $data['weight_kg'] !== '' ? (float) $data['weight_kg'] : null,
+                    'is_active' => $this->parseBool($data['is_active'] ?? '1'),
                 ],
             );
         });

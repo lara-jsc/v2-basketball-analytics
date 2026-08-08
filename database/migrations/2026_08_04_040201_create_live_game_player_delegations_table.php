@@ -12,6 +12,7 @@ return new class extends Migration
         if (Schema::hasTable('live_game_player_delegations')) {
             $this->ensureUniqueIndex('lgpd_triplet_u', ['live_game_id', 'coach_user_id', 'player_id']);
             $this->ensureUniqueIndex('lgpd_player_u', ['live_game_id', 'player_id']);
+
             return;
         }
 
@@ -44,11 +45,11 @@ return new class extends Migration
     private function indexExists(string $indexName): bool
     {
         $row = DB::selectOne(
-            "SELECT COUNT(*) AS cnt
+            'SELECT COUNT(*) AS cnt
              FROM information_schema.statistics
              WHERE table_schema = DATABASE()
                AND table_name = ?
-               AND index_name = ?",
+               AND index_name = ?',
             ['live_game_player_delegations', $indexName],
         );
 
@@ -60,4 +61,3 @@ return new class extends Migration
         Schema::dropIfExists('live_game_player_delegations');
     }
 };
-

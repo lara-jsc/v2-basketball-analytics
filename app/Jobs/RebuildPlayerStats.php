@@ -50,7 +50,7 @@ class RebuildPlayerStats implements ShouldQueue
     {
         Log::error('RebuildPlayerStats job failed', [
             'playerId' => $this->playerId,
-            'error'    => $exception->getMessage(),
+            'error' => $exception->getMessage(),
         ]);
     }
 }

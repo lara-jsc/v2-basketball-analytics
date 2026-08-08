@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 describe('ComparisonAggregatorService', function () {
 
     beforeEach(function () {
-        $this->service = new ComparisonAggregatorService();
+        $this->service = new ComparisonAggregatorService;
     });
 
     // ------------------------------------------------------------------
@@ -23,15 +23,15 @@ describe('ComparisonAggregatorService', function () {
     function makePlayerWithStat(array $statOverrides = []): Player
     {
         $stat = new PlayerStat(array_merge([
-            'pts'         => 10.0,
-            'reb'         => 5.0,
-            'ast'         => 3.0,
-            'fg_pct'      => 0.50,
-            'blk'         => 1.0,
-            'stl'         => 1.0,
+            'pts' => 10.0,
+            'reb' => 5.0,
+            'ast' => 3.0,
+            'fg_pct' => 0.50,
+            'blk' => 1.0,
+            'stl' => 1.0,
             'to_per_game' => 2.0,
-            'min'         => 30.0,
-            'plus_minus'  => 5.0,
+            'min' => 30.0,
+            'plus_minus' => 5.0,
         ], $statOverrides));
 
         // Force a non-empty stats relation
@@ -47,21 +47,21 @@ describe('ComparisonAggregatorService', function () {
     // ------------------------------------------------------------------
     describe('aggregateStats', function () {
         it('returns all zeros when collection is empty', function () {
-            $result = $this->service->aggregateStats(new Collection());
+            $result = $this->service->aggregateStats(new Collection);
 
             expect($result)->toMatchArray([
-                'avg_pts'         => 0.0,
-                'avg_reb'         => 0.0,
-                'avg_ast'         => 0.0,
-                'avg_fg_pct'      => 0.0,
-                'avg_blk'         => 0.0,
-                'avg_stl'         => 0.0,
+                'avg_pts' => 0.0,
+                'avg_reb' => 0.0,
+                'avg_ast' => 0.0,
+                'avg_fg_pct' => 0.0,
+                'avg_blk' => 0.0,
+                'avg_stl' => 0.0,
                 'avg_to_per_game' => 0.0,
             ]);
         });
 
         it('returns all zeros when players have no stats relation', function () {
-            $player = new Player();
+            $player = new Player;
             $player->setRelation('stats', collect());
 
             $result = $this->service->aggregateStats(new Collection([$player]));
@@ -95,7 +95,7 @@ describe('ComparisonAggregatorService', function () {
     // ------------------------------------------------------------------
     describe('teamPlusMinus', function () {
         it('returns null for an empty collection', function () {
-            expect($this->service->teamPlusMinus(new Collection()))->toBeNull();
+            expect($this->service->teamPlusMinus(new Collection))->toBeNull();
         });
 
         it('returns null when all players have null plus_minus', function () {
@@ -122,7 +122,7 @@ describe('ComparisonAggregatorService', function () {
         });
 
         it('ignores players without plus_minus when computing the average', function () {
-            $withPm    = makePlayerWithStat(['plus_minus' => 8.0, 'min' => 30.0]);
+            $withPm = makePlayerWithStat(['plus_minus' => 8.0, 'min' => 30.0]);
             $withoutPm = makePlayerWithStat(['plus_minus' => null, 'min' => 30.0]);
 
             $result = $this->service->teamPlusMinus(new Collection([$withPm, $withoutPm]));
@@ -136,23 +136,23 @@ describe('ComparisonAggregatorService', function () {
     // ------------------------------------------------------------------
     describe('toEnginePayload', function () {
         it('serializes player data in the engine contract format', function () {
-            $player              = makePlayerWithStat(['pts' => 22.4, 'plus_minus' => 7.4]);
-            $player->first_name  = 'John';
-            $player->last_name   = 'Doe';
+            $player = makePlayerWithStat(['pts' => 22.4, 'plus_minus' => 7.4]);
+            $player->first_name = 'John';
+            $player->last_name = 'Doe';
 
             $payload = $this->service->toEnginePayload(new Collection([$player]));
 
             expect($payload)->toHaveCount(1);
             expect($payload[0])->toMatchArray([
-                'player_id'  => 1,
-                'name'       => 'John Doe',
-                'pts'        => 22.4,
+                'player_id' => 1,
+                'name' => 'John Doe',
+                'pts' => 22.4,
                 'plus_minus' => 7.4,
             ]);
         });
 
         it('returns an empty array for an empty collection', function () {
-            expect($this->service->toEnginePayload(new Collection()))->toBe([]);
+            expect($this->service->toEnginePayload(new Collection))->toBe([]);
         });
 
         it('uses 0 for null stat values', function () {

@@ -12,39 +12,39 @@ use Illuminate\Database\Eloquent\Collection;
 function makeHistory(array $attrs): PlayerHistory
 {
     return new PlayerHistory(array_merge([
-        'player_id'               => 1,
-        'playing_team_id'         => 1,
-        'opponent_team_id'        => 2,
-        'game_date'               => '2024-01-01',
-        'position_played'         => 'PG',
-        'minutes_played'          => 30,
-        'points'                  => 0,
-        'field_goals_made'        => 0,
-        'field_goals_attempted'   => 0,
-        'three_pointers_made'     => 0,
-        'three_pointers_attempted'=> 0,
-        'free_throws_made'        => 0,
-        'free_throws_attempted'   => 0,
-        'rebounds'                => 0,
-        'offensive_rebounds'      => 0,
-        'defensive_rebounds'      => 0,
-        'assists'                 => 0,
-        'steals'                  => 0,
-        'blocks'                  => 0,
-        'turnovers'               => 0,
-        'personal_fouls'          => 0,
-        'flagrant_fouls'          => 0,
-        'technical_fouls'         => 0,
-        'ejections'               => 0,
-        'disqualifications'       => 0,
-        'is_started'              => false,
+        'player_id' => 1,
+        'playing_team_id' => 1,
+        'opponent_team_id' => 2,
+        'game_date' => '2024-01-01',
+        'position_played' => 'PG',
+        'minutes_played' => 30,
+        'points' => 0,
+        'field_goals_made' => 0,
+        'field_goals_attempted' => 0,
+        'three_pointers_made' => 0,
+        'three_pointers_attempted' => 0,
+        'free_throws_made' => 0,
+        'free_throws_attempted' => 0,
+        'rebounds' => 0,
+        'offensive_rebounds' => 0,
+        'defensive_rebounds' => 0,
+        'assists' => 0,
+        'steals' => 0,
+        'blocks' => 0,
+        'turnovers' => 0,
+        'personal_fouls' => 0,
+        'flagrant_fouls' => 0,
+        'technical_fouls' => 0,
+        'ejections' => 0,
+        'disqualifications' => 0,
+        'is_started' => false,
     ], $attrs));
 }
 
 describe('PlayerStatsAggregator', function () {
 
     beforeEach(function () {
-        $this->agg = new PlayerStatsAggregator();
+        $this->agg = new PlayerStatsAggregator;
     });
 
     // ------------------------------------------------------------------
@@ -52,7 +52,7 @@ describe('PlayerStatsAggregator', function () {
     // ------------------------------------------------------------------
     describe('empty collection', function () {
         it('returns zeroed stats when no history rows exist', function () {
-            $result = $this->agg->compute(1, new Collection());
+            $result = $this->agg->compute(1, new Collection);
 
             expect($result['gp'])->toBe(0);
             expect($result['gs'])->toBe(0);
@@ -229,16 +229,16 @@ describe('PlayerStatsAggregator', function () {
             // EFF = 20+8+5+2+1 - 7 - 1 - 3 = 25
             $histories = new Collection([
                 makeHistory([
-                    'points'                 => 20,
-                    'rebounds'               => 8,
-                    'assists'                => 5,
-                    'steals'                 => 2,
-                    'blocks'                 => 1,
-                    'field_goals_made'       => 8,
-                    'field_goals_attempted'  => 15,
-                    'free_throws_made'       => 4,
-                    'free_throws_attempted'  => 5,
-                    'turnovers'              => 3,
+                    'points' => 20,
+                    'rebounds' => 8,
+                    'assists' => 5,
+                    'steals' => 2,
+                    'blocks' => 1,
+                    'field_goals_made' => 8,
+                    'field_goals_attempted' => 15,
+                    'free_throws_made' => 4,
+                    'free_throws_attempted' => 5,
+                    'turnovers' => 3,
                 ]),
             ]);
 
@@ -251,10 +251,10 @@ describe('PlayerStatsAggregator', function () {
             // FGM=8, 3PM=3, FGA=15 → (8 + 1.5) / 15 = 0.6333
             $histories = new Collection([
                 makeHistory([
-                    'field_goals_made'        => 8,
-                    'field_goals_attempted'   => 15,
-                    'three_pointers_made'     => 3,
-                    'three_pointers_attempted'=> 6,
+                    'field_goals_made' => 8,
+                    'field_goals_attempted' => 15,
+                    'three_pointers_made' => 3,
+                    'three_pointers_attempted' => 6,
                 ]),
             ]);
 
@@ -269,9 +269,9 @@ describe('PlayerStatsAggregator', function () {
             // TS% = 20 / 34.4 = 0.5814
             $histories = new Collection([
                 makeHistory([
-                    'points'               => 20,
-                    'field_goals_attempted'=> 15,
-                    'free_throws_attempted'=> 5,
+                    'points' => 20,
+                    'field_goals_attempted' => 15,
+                    'free_throws_attempted' => 5,
                 ]),
             ]);
 
@@ -296,8 +296,8 @@ describe('PlayerStatsAggregator', function () {
             // pts_avg=20, fga_total=15 (1 game) → sc_eff = 20/15 = 1.33
             $histories = new Collection([
                 makeHistory([
-                    'points'              => 20,
-                    'field_goals_attempted'=> 15,
+                    'points' => 20,
+                    'field_goals_attempted' => 15,
                 ]),
             ]);
 
@@ -311,10 +311,10 @@ describe('PlayerStatsAggregator', function () {
             // (8 + 1.5 + 1.76 - 15) / 15 = -3.74/15 = -0.2493
             $histories = new Collection([
                 makeHistory([
-                    'field_goals_made'        => 8,
-                    'field_goals_attempted'   => 15,
-                    'three_pointers_made'     => 3,
-                    'free_throws_made'        => 4,
+                    'field_goals_made' => 8,
+                    'field_goals_attempted' => 15,
+                    'three_pointers_made' => 3,
+                    'free_throws_made' => 4,
                 ]),
             ]);
 

@@ -131,6 +131,22 @@ class LiveGame extends Model
         return null;
     }
 
+    /** @return self::SIDE_HOME|self::SIDE_OPPONENT|null */
+    public function sideForPlayer(int $playerId): ?string
+    {
+        $teamId = (int) (Player::query()->whereKey($playerId)->value('team_id') ?? 0);
+
+        if ($teamId === (int) $this->home_team_id) {
+            return self::SIDE_HOME;
+        }
+
+        if ($teamId === (int) $this->opponent_team_id) {
+            return self::SIDE_OPPONENT;
+        }
+
+        return null;
+    }
+
     /** @return list<int> */
     public function startingPlayerIdsForSide(string $side): array
     {

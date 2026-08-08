@@ -27,11 +27,11 @@ class RecommendLineup implements ShouldQueue
         PythonEngineService $engine,
         LineupService $lineupService,
     ): void {
-        $homePlayers     = $compRepo->activPlayersWithStats($this->homeTeamId);
+        $homePlayers = $compRepo->activPlayersWithStats($this->homeTeamId);
         $opponentPlayers = $compRepo->activPlayersWithStats($this->opponentTeamId);
 
         $payload = [
-            'home_team_players'     => $aggregator->toEnginePayload($homePlayers),
+            'home_team_players' => $aggregator->toEnginePayload($homePlayers),
             'opponent_team_players' => $aggregator->toEnginePayload($opponentPlayers),
         ];
 
@@ -39,10 +39,11 @@ class RecommendLineup implements ShouldQueue
             $result = $engine->call('lineup', $payload);
         } catch (RuntimeException $e) {
             Log::error('RecommendLineup: engine error', [
-                'home'     => $this->homeTeamId,
+                'home' => $this->homeTeamId,
                 'opponent' => $this->opponentTeamId,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return;
         }
 
@@ -52,9 +53,9 @@ class RecommendLineup implements ShouldQueue
     public function failed(Throwable $e): void
     {
         Log::error('RecommendLineup job failed', [
-            'home'     => $this->homeTeamId,
+            'home' => $this->homeTeamId,
             'opponent' => $this->opponentTeamId,
-            'error'    => $e->getMessage(),
+            'error' => $e->getMessage(),
         ]);
     }
 }

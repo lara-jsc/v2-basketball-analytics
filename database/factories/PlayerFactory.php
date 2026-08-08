@@ -16,15 +16,15 @@ class PlayerFactory extends Factory
     public function definition(): array
     {
         return [
-            'team_id'              => Team::factory(),
-            'first_name'           => fake()->firstName(),
-            'last_name'            => fake()->lastName(),
-            'jersey_number'        => fake()->unique()->numberBetween(0, 99),
-            'role'                 => fake()->randomElement(['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center']),
-            'height_feet'          => fake()->randomFloat(2, 5.5, 7.5),
-            'weight_kg'            => fake()->randomFloat(2, 70, 130),
+            'team_id' => Team::factory(),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'jersey_number' => fake()->unique()->numberBetween(0, 99),
+            'role' => fake()->randomElement(['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center']),
+            'height_feet' => fake()->randomFloat(2, 5.5, 7.5),
+            'weight_kg' => fake()->randomFloat(2, 70, 130),
             'profile_picture_path' => null,
-            'is_active'            => true,
+            'is_active' => true,
         ];
     }
 

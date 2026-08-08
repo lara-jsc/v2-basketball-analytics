@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 describe('TeamService', function () {
 
     beforeEach(function () {
-        $this->service = new TeamService(new TeamRepository());
+        $this->service = new TeamService(new TeamRepository);
         Storage::fake('public');
     });
 

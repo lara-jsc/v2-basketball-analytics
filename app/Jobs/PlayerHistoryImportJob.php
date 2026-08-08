@@ -67,6 +67,7 @@ class PlayerHistoryImportJob implements ShouldQueue
 
         if (! Storage::exists($import->filename)) {
             $csvImportRepository->markFailed($import, "Uploaded file not found: {$import->filename}");
+
             return;
         }
 
@@ -77,6 +78,7 @@ class PlayerHistoryImportJob implements ShouldQueue
         } catch (RuntimeException $e) {
             // Header mismatch or unreadable file — fatal
             $csvImportRepository->markFailed($import, $e->getMessage());
+
             return;
         }
 
@@ -84,20 +86,21 @@ class PlayerHistoryImportJob implements ShouldQueue
 
         if ($rowsImported === 0 && $errors !== []) {
             $csvImportRepository->markFailed($import, implode("\n", $errors));
+
             return;
         }
 
         $import->update([
-            'status'        => CsvImport::STATUS_COMPLETED,
+            'status' => CsvImport::STATUS_COMPLETED,
             'rows_imported' => $rowsImported,
-            'error_log'     => $errors !== [] ? implode("\n", $errors) : null,
+            'error_log' => $errors !== [] ? implode("\n", $errors) : null,
         ]);
     }
 
     /**
-     * @return array{int, list<string>}  [rowsImported, errors]
+     * @return array{int, list<string>} [rowsImported, errors]
      *
-     * @throws RuntimeException  on header mismatch or unreadable file
+     * @throws RuntimeException on header mismatch or unreadable file
      */
     private function processRows(string $filePath, UpsertPlayerHistoryAction $upsertAction): array
     {
@@ -114,11 +117,11 @@ class PlayerHistoryImportJob implements ShouldQueue
         $playingTeamId = (int) DB::table('players')->where('id', $this->playerId)->value('team_id');
 
         $rowsImported = 0;
-        $errors       = [];
-        $highestRow   = $sheet->getHighestDataRow();
+        $errors = [];
+        $highestRow = $sheet->getHighestDataRow();
 
         for ($rowIndex = 2; $rowIndex <= $highestRow; $rowIndex++) {
-            $rowData                    = $this->readRow($sheet, $rowIndex);
+            $rowData = $this->readRow($sheet, $rowIndex);
             $rowData['playing_team_id'] = $playingTeamId;
 
             // Skip completely empty rows
@@ -160,8 +163,8 @@ class PlayerHistoryImportJob implements ShouldQueue
         if ($actual !== self::HEADERS) {
             throw new RuntimeException(
                 "Excel headers do not match the required template.\n"
-                . "Expected: " . implode(', ', self::HEADERS) . "\n"
-                . "Received: " . implode(', ', $actual)
+                .'Expected: '.implode(', ', self::HEADERS)."\n"
+                .'Received: '.implode(', ', $actual)
             );
         }
     }
@@ -179,13 +182,13 @@ class PlayerHistoryImportJob implements ShouldQueue
         $data = [];
 
         foreach (self::HEADERS as $colIndex => $header) {
-            $col  = $colIndex + 1;
+            $col = $colIndex + 1;
             $cell = $sheet->getCell([$col, $rowIndex]);
 
             $value = match ($col) {
                 self::OPPONENT_TEAM_COL => $this->extractTeamId($cell->getValue()),
-                self::GAME_DATE_COL     => $this->resolveDate($cell),
-                default                 => $cell->getValue(),
+                self::GAME_DATE_COL => $this->resolveDate($cell),
+                default => $cell->getValue(),
             };
 
             $data[$header] = $value;
@@ -230,6 +233,7 @@ class PlayerHistoryImportJob implements ShouldQueue
         if (is_numeric($raw)) {
             try {
                 $dt = SpreadsheetDate::excelToDateTimeObject((float) $raw);
+
                 return $dt->format('Y-m-d');
             } catch (Throwable) {
                 return (string) $raw;
@@ -259,7 +263,7 @@ class PlayerHistoryImportJob implements ShouldQueue
     {
         Log::error('PlayerHistoryImportJob failed', [
             'csvImportId' => $this->csvImportId,
-            'error'       => $exception->getMessage(),
+            'error' => $exception->getMessage(),
         ]);
     }
 }

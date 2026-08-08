@@ -36,8 +36,8 @@ class PlayerHistoryImportRequest extends FormRequest
     {
         return [
             'file.required' => 'An Excel (.xlsx) file is required.',
-            'file.mimes'    => 'The upload must be an Excel (.xlsx) file.',
-            'file.max'      => 'The file must not exceed 10MB.',
+            'file.mimes' => 'The upload must be an Excel (.xlsx) file.',
+            'file.max' => 'The file must not exceed 10MB.',
         ];
     }
 
@@ -64,8 +64,8 @@ class PlayerHistoryImportRequest extends FormRequest
 
         if ($headerRow !== PlayerHistoryImportJob::HEADERS) {
             return "Excel headers do not match the required template.\n"
-                . "Expected: " . implode(', ', PlayerHistoryImportJob::HEADERS) . "\n"
-                . "Received: " . implode(', ', $headerRow);
+                .'Expected: '.implode(', ', PlayerHistoryImportJob::HEADERS)."\n"
+                .'Received: '.implode(', ', $headerRow);
         }
 
         return null;
