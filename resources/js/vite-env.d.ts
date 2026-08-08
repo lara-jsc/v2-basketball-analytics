@@ -1,3 +1,3 @@
 /// <reference types="vite/client" />
 
-declare function route(name: string, params?: Record<string, unknown>, absolute?: boolean): string;
+declare function route(name: string, params?: Record<string, unknown> | number, absolute?: boolean): string;

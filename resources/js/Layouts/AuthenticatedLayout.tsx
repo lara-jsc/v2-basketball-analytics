@@ -1,8 +1,11 @@
 import { useSidebar } from '@/hooks/useSidebar';
 import { useAppearance } from '@/hooks/useAppearance';
+import { LiveGameInviteBanner } from '@/Components/features/live-game/LiveGameInviteBanner';
+import type { LiveGameInviteBanner as InvitePayload, PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    Radio,
     ChevronLeft,
     ChevronRight,
     LayoutDashboard,
@@ -13,17 +16,73 @@ import {
     Swords,
     Users2,
 } from 'lucide-react';
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 interface AuthenticatedLayoutProps {
     children: ReactNode;
     header?: ReactNode;
+    /** Overrides main scroll/padding — e.g. viewport-locked live console. */
+    mainClassName?: string;
+    /** Collapse sidebar to icon rail while this layout is mounted (restores on unmount). */
+    preferCollapsedSidebar?: boolean;
 }
 
-export default function AuthenticatedLayout({ children, header }: AuthenticatedLayoutProps) {
-    const { isCollapsed, toggle } = useSidebar();
+function userInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+        return '?';
+    }
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
+
+export default function AuthenticatedLayout({ children, header, mainClassName, preferCollapsedSidebar = false }: AuthenticatedLayoutProps) {
+    const { isCollapsed, toggle, setCollapsed } = useSidebar();
     const { theme, toggleTheme } = useAppearance();
     const isDark = theme === 'dark';
+    const page = usePage<PageProps>();
+    const { auth, liveGameInvite: sharedInvite } = page.props;
+    const user = auth.user;
+    const [liveInvite, setLiveInvite] = useState<InvitePayload | null>(sharedInvite ?? null);
+
+    useEffect(() => {
+        setLiveInvite(sharedInvite ?? null);
+    }, [sharedInvite]);
+
+    useEffect(() => {
+        if (!preferCollapsedSidebar) {
+            return;
+        }
+
+        const previous = localStorage.getItem('hoopsense-sidebar-collapsed') === 'true';
+        setCollapsed(true);
+
+        return () => setCollapsed(previous);
+    }, [preferCollapsedSidebar, setCollapsed]);
+
+    useEffect(() => {
+        if (!user?.id || !window.Echo) {
+            return;
+        }
+
+        const channelName = `App.Models.User.${user.id}`;
+        const channel = window.Echo.private(channelName);
+        channel.notification((notification) => {
+            if (notification.type !== 'live-game.invite') {
+                return;
+            }
+            router.reload({ only: ['liveGameInvite'] });
+        });
+
+        return () => {
+            window.Echo?.leave(channelName);
+        };
+    }, [user?.id]);
+
+    const onInviteGamePage = liveInvite !== null && page.url.startsWith(`/live-games/${liveInvite.live_game_id}`);
+    const showInvite = liveInvite !== null && !onInviteGamePage;
 
     function handleLogout() {
         router.post(route('logout'));
@@ -94,11 +153,36 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                     <NavItem href={route('teams.index')}      icon={<Users2 size={20} />}          label="Teams & Players" isCollapsed={isCollapsed} />
                     <NavItem href={route('comparison.index')} icon={<Swords size={20} />}          label="Team Comparison" isCollapsed={isCollapsed} />
                     <NavItem href={route('comparison.index')} icon={<BarChart3 size={20} />}        label="Player Matchup"  isCollapsed={isCollapsed} />
+                    <NavItem href={route('live-games.index')}  icon={<Radio size={20} />}            label="Live Games"      isCollapsed={isCollapsed} />
                 </nav>
 
                 {/* ── Bottom ── */}
                 <div className="relative z-10 flex flex-col gap-1 px-2 py-3 shrink-0"
                      style={{ borderTop: '1px solid hsl(var(--border))' }}>
+                    {user && (
+                        <div
+                            className="mb-1 flex h-11 w-full items-center gap-3 rounded-xl px-3"
+                            title={isCollapsed ? `${user.name}${user.team ? ` · ${user.team.name}` : ''}` : undefined}
+                            aria-label={`Signed in as ${user.name}${user.team ? `, ${user.team.name}` : ''}`}
+                        >
+                            <span
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold tracking-wide text-black"
+                                style={{ background: 'linear-gradient(135deg, #FF8C00, #FFD700)' }}
+                            >
+                                {userInitials(user.name)}
+                            </span>
+                            <span
+                                className="min-w-0 overflow-hidden transition-all duration-300"
+                                style={{ opacity: isCollapsed ? 0 : 1, width: isCollapsed ? 0 : 'auto' }}
+                            >
+                                <span className="block truncate text-sm font-semibold text-foreground">{user.name}</span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                    {user.team?.name ?? 'No team'}
+                                </span>
+                            </span>
+                        </div>
+                    )}
+
                     <NavItem href="#" icon={<Settings size={20} />} label="Settings" isCollapsed={isCollapsed} />
 
                     <button
@@ -133,6 +217,7 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
 
             {/* ── CONTENT AREA ─────────────────────────────────────────────── */}
             <div className="flex flex-1 flex-col overflow-hidden relative">
+                {showInvite && liveInvite && <LiveGameInviteBanner invite={liveInvite} />}
                 {/* Arena background */}
                 <div className="absolute inset-0 z-0">
                     <img
@@ -158,7 +243,7 @@ export default function AuthenticatedLayout({ children, header }: AuthenticatedL
                 )}
 
                 {/* Page content */}
-                <main className="relative z-10 flex-1 overflow-y-auto px-5 py-6">
+                <main className={`relative z-10 flex-1 px-5 py-6 ${mainClassName ?? 'overflow-y-auto'}`}>
                     {children}
                 </main>
             </div>
@@ -187,10 +272,9 @@ function NavItem({ href, icon, label, isCollapsed }: NavItemProps) {
             className="relative flex h-11 w-full items-center gap-3 rounded-xl px-3 transition-all duration-150 overflow-hidden"
             style={isActive ? {
                 background: 'linear-gradient(90deg, rgba(255,140,0,0.18) 0%, rgba(255,140,0,0.04) 100%)',
-                borderLeft: '3px solid #FF8C00',
-                boxShadow: '0 0 20px rgba(255,140,0,0.08)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,140,0,0.35), 0 0 20px rgba(255,140,0,0.08)',
             } : {
-                borderLeft: '3px solid transparent',
+                boxShadow: 'none',
             }}
         >
             {/* Active glow */}

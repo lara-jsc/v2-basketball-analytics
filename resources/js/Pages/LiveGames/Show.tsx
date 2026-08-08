@@ -1,0 +1,639 @@
+import { ActiveLineup } from '@/Components/features/live-game/ActiveLineup';
+import { AlertsPanel } from '@/Components/features/live-game/AlertsPanel';
+import { KeysToWinPanel } from '@/Components/features/live-game/KeysToWinPanel';
+import { ApplyLineupConfirmModal, type PendingLineupChange } from '@/Components/features/live-game/ApplyLineupConfirmModal';
+import { AssignAssistantPanel } from '@/Components/features/live-game/AssignAssistantPanel';
+import { LineupConfirmModal } from '@/Components/features/live-game/LineupConfirmModal';
+import { SuggestedLineupPanel } from '@/Components/features/live-game/SuggestedLineupPanel';
+import { BenchSubstitution } from '@/Components/features/live-game/BenchSubstitution';
+import { ClockActionConfirmModal, type ConfirmableClockAction } from '@/Components/features/live-game/ClockActionConfirmModal';
+import { EventPad, type RecordableEvent } from '@/Components/features/live-game/EventPad';
+import { GameScoreboard } from '@/Components/features/live-game/GameScoreboard';
+import { Timeline } from '@/Components/features/live-game/Timeline';
+import { VoidEventConfirmModal } from '@/Components/features/live-game/VoidEventConfirmModal';
+import { clockBlockReason, type ClockState } from '@/Components/features/live-game/event-catalog';
+import { eventLabel, playerName } from '@/Components/features/live-game/live-game-utils';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import type {
+    LiveGame,
+    LiveGameEvent,
+    LiveGameSnapshot,
+    LiveLineupSuggestionResponse,
+    PageProps,
+    Player,
+    Team,
+} from '@/types';
+import axios from 'axios';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { AlertTriangle, Check, ChevronLeft, CircleStop, Copy, Link2, Play, Radio, UsersRound } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+
+interface LiveGameShowProps extends PageProps {
+    liveGame: LiveGame;
+    snapshot: LiveGameSnapshot;
+    teams: Team[];
+    homePlayers: Player[];
+    opponentPlayers: Player[];
+    players: Player[];
+    viewerSide: 'home' | 'opponent' | null;
+    isCreator: boolean;
+    can_control_clock: boolean;
+    clock_shared: boolean;
+    controlled_player_ids: number[];
+    is_main_coach: boolean;
+    team_coaches: Array<{ id: number; name: string }>;
+    errors?: { game?: string };
+}
+
+export default function LiveGamesShow({
+    liveGame,
+    snapshot: initialSnapshot,
+    teams,
+    homePlayers,
+    opponentPlayers,
+    players,
+    viewerSide,
+    isCreator,
+    can_control_clock,
+    clock_shared,
+    controlled_player_ids,
+    team_coaches,
+    auth,
+    errors = {},
+}: LiveGameShowProps) {
+    const ownPlayers = viewerSide === 'opponent' ? opponentPlayers : viewerSide === 'home' ? homePlayers : players;
+    const [snapshot, setSnapshot] = useState(initialSnapshot);
+    const [snapshotReceivedAt, setSnapshotReceivedAt] = useState(() => Date.now());
+
+    const controlledPlayerIdsSet = useMemo(() => new Set(controlled_player_ids), [controlled_player_ids]);
+    const ownActiveIds = viewerSide === 'opponent'
+        ? (snapshot.opponent_active_player_ids ?? [])
+        : (snapshot.active_player_ids ?? []);
+
+    const controlledActiveIds = ownActiveIds.filter((id) => controlledPlayerIdsSet.has(id));
+    const controlledRosterPlayers = ownPlayers.filter((player) => controlledPlayerIdsSet.has(player.id));
+
+    const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(controlledActiveIds[0] ?? null);
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+    const [clockTick, setClockTick] = useState(() => Date.now());
+    const [confirmLineupOpen, setConfirmLineupOpen] = useState(false);
+    const [assignPanelVisible, setAssignPanelVisible] = useState(false);
+    const [assignExpanded, setAssignExpanded] = useState(false);
+    const [pendingVoidEvent, setPendingVoidEvent] = useState<LiveGameEvent | null>(null);
+    const [pendingClockAction, setPendingClockAction] = useState<ConfirmableClockAction | null>(null);
+    const [pendingLineupChange, setPendingLineupChange] = useState<PendingLineupChange | null>(null);
+
+    const applySnapshot = useCallback((next: LiveGameSnapshot): void => {
+        setSnapshot(next);
+        setSnapshotReceivedAt(Date.now());
+        setClockTick(Date.now());
+    }, []);
+    const homeTeam = teams.find((team) => team.id === liveGame.home_team_id) ?? liveGame.home_team;
+    const opponentTeam = teams.find((team) => team.id === liveGame.opponent_team_id) ?? liveGame.opponent_team;
+    // Resolved from active ∩ controlled, not the roster — a benched player must never
+    // leave the pad enabled for an action the server would reject.
+    const selectedPlayer = controlledRosterPlayers.find(
+        (player) => player.id === selectedPlayerId && controlledActiveIds.includes(player.id),
+    );
+    const selectedPlayerPersonalFouls = selectedPlayer
+        ? (snapshot.stats.find((stat) => stat.player_id === selectedPlayer.id)?.personal_fouls ?? 0)
+        : 0;
+    const canRecord = viewerSide !== null;
+    const isSetup = snapshot.liveGame.status === 'setup';
+    const ownLineupReady = viewerSide === 'opponent'
+        ? snapshot.opponent_lineup_ready
+        : viewerSide === 'home'
+            ? snapshot.home_lineup_ready
+            : false;
+    const waitingForOther = isSetup && ownLineupReady && !snapshot.both_lineups_ready;
+    const waitingTeamName = snapshot.home_lineup_ready
+        ? (opponentTeam?.name ?? 'opponent')
+        : (homeTeam?.name ?? 'home team');
+
+    const lineupForm = useForm({
+        starting_player_ids: ownPlayers.slice(0, 5).map((player) => player.id),
+        assistant_coach_user_id: null as number | null,
+        delegated_player_ids: [] as number[],
+    });
+
+    const viewerTeamName = viewerSide === 'opponent'
+        ? (opponentTeam?.name ?? 'Opponent')
+        : viewerSide === 'home'
+            ? (homeTeam?.name ?? 'Home')
+            : null;
+
+    const assistantCoachOptions = useMemo(
+        () => team_coaches.filter((coach) => coach.id !== auth.user?.id),
+        [team_coaches, auth.user?.id],
+    );
+
+    useEffect(() => {
+        applySnapshot(initialSnapshot);
+    }, [initialSnapshot, applySnapshot]);
+
+    useEffect(() => {
+        const channel = `live-game.${liveGame.id}`;
+        window.Echo?.private(channel).listen('LiveGameStateUpdated', applySnapshot);
+
+        return () => window.Echo?.leave(channel);
+    }, [liveGame.id, applySnapshot]);
+
+    // One place clamps the selection to a player who is both controlled and on court —
+    // every snapshot source (initial, Echo, own request) flows through this.
+    const controlledActiveKey = controlledActiveIds.join(',');
+
+    useEffect(() => {
+        setSelectedPlayerId((current) =>
+            current !== null && controlledActiveIds.includes(current)
+                ? current
+                : controlledActiveIds[0] ?? null,
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [controlledActiveKey]);
+
+    useEffect(() => {
+        if (!snapshot.clock.running) return;
+        const interval = window.setInterval(() => setClockTick(Date.now()), 1000);
+        return () => window.clearInterval(interval);
+    }, [snapshot.clock.running]);
+
+    const displayedClock = useMemo(() => {
+        if (!snapshot.clock.running) return snapshot.clock;
+
+        // seconds_remaining already accounts for server-side elapsed time, so measure from
+        // when this snapshot arrived. Never compare Date.now() to server_now — a device with
+        // a skewed wall clock would show a wildly wrong clock.
+        const elapsed = Math.max(0, Math.floor((clockTick - snapshotReceivedAt) / 1000));
+
+        return { ...snapshot.clock, seconds_remaining: Math.max(0, snapshot.clock.seconds_remaining - elapsed) };
+    }, [clockTick, snapshot.clock, snapshotReceivedAt]);
+
+    const clockState: ClockState = displayedClock.seconds_remaining === 0
+        ? 'expired'
+        : displayedClock.running
+            ? 'running'
+            : 'stopped';
+
+    async function postSnapshot(url: string, data: object = {}): Promise<void> {
+        setProcessing(true);
+        setError(null);
+        try {
+            const response = await axios.post<LiveGameSnapshot>(url, data);
+            applySnapshot(response.data);
+        } catch (requestError) {
+            if (axios.isAxiosError(requestError) && requestError.response?.data?.message) setError(requestError.response.data.message as string);
+            else setError('The game state could not be updated. Check the connection and try again.');
+        } finally {
+            setProcessing(false);
+        }
+    }
+
+    function record(event: RecordableEvent): void {
+        void postSnapshot(route('live-games.events.store', { liveGame: liveGame.id }), event);
+    }
+    function clockAction(action: 'start' | 'stop' | 'reset_period' | 'set_period', period?: number): void {
+        void postSnapshot(route('live-games.clock.store', { liveGame: liveGame.id }), { action, ...(period ? { period } : {}) });
+    }
+    function confirmClockAction(): void {
+        const action = pendingClockAction;
+        setPendingClockAction(null);
+
+        if (action === 'set_period') {
+            clockAction('set_period', displayedClock.period + 1);
+        } else if (action === 'reset_period') {
+            clockAction('reset_period');
+        }
+    }
+    function substitute(playerOutId: number, playerInId: number): void {
+        record({ type: 'substitution', team_scope: 'game', payload: { player_out_id: playerOutId, player_in_id: playerInId } });
+    }
+    const requestSuggestion = useCallback(async (): Promise<LiveLineupSuggestionResponse | null> => {
+        const response = await axios.post<LiveLineupSuggestionResponse>(
+            route('live-games.suggested-lineup', { liveGame: liveGame.id }),
+        );
+
+        return response.data;
+    }, [liveGame.id]);
+
+    /**
+     * Applying a five is up to five substitutions, so it goes through a confirm step like
+     * every other multi-effect action in this console.
+     */
+    function requestLineupChange(source: 'season' | 'tonight', playerIds: number[]): void {
+        const outs = ownActiveIds.filter((id) => !playerIds.includes(id));
+        const ins = playerIds.filter((id) => !ownActiveIds.includes(id));
+
+        // The sheet already disables Apply when there is nothing to change, so this is only
+        // a guard against a stale snapshot — not a state worth shouting about.
+        if (outs.length === 0) return;
+
+        setPendingLineupChange({ source, playerIds, outs, ins });
+    }
+
+    function confirmLineupChange(): void {
+        const change = pendingLineupChange;
+        setPendingLineupChange(null);
+
+        if (change === null) return;
+
+        // This endpoint answers { applied, snapshot } rather than a bare snapshot, so it
+        // cannot go through postSnapshot.
+        void (async () => {
+            setProcessing(true);
+            setError(null);
+            try {
+                const response = await axios.post<{ applied: unknown[]; snapshot: LiveGameSnapshot }>(
+                    route('live-games.suggested-lineup.apply', { liveGame: liveGame.id }),
+                    { player_ids: change.playerIds },
+                );
+                applySnapshot(response.data.snapshot);
+            } catch (requestError) {
+                if (axios.isAxiosError(requestError) && requestError.response?.data?.message) {
+                    setError(requestError.response.data.message as string);
+                } else {
+                    setError('The lineup could not be applied. Check the connection and try again.');
+                }
+            } finally {
+                setProcessing(false);
+            }
+        })();
+    }
+
+    function confirmVoid(): void {
+        const target = pendingVoidEvent;
+        setPendingVoidEvent(null);
+
+        if (target !== null) {
+            void postSnapshot(route('live-games.correction', { liveGame: liveGame.id }), { voids_event_id: target.id });
+        }
+    }
+    function startGame(): void { router.post(route('live-games.start', { liveGame: liveGame.id })); }
+    function finishGame(): void {
+        if (window.confirm('Finish this live game? The game will be marked finished.')) {
+            router.post(route('live-games.finish', { liveGame: liveGame.id }));
+        }
+    }
+
+    async function copyLink(): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            setCopyFeedback('Link copied — send it to the opponent coach.');
+        } catch {
+            setCopyFeedback(window.location.href);
+        }
+    }
+
+    function toggleLineupPlayer(playerId: number): void {
+        const selected = lineupForm.data.starting_player_ids;
+        lineupForm.setData(
+            'starting_player_ids',
+            selected.includes(playerId)
+                ? selected.filter((id) => id !== playerId)
+                : selected.length < 5
+                    ? [...selected, playerId]
+                    : selected,
+        );
+    }
+
+    function postLineup(clearAssistant = false): void {
+        setConfirmLineupOpen(false);
+        if (clearAssistant) {
+            lineupForm.setData({
+                starting_player_ids: lineupForm.data.starting_player_ids,
+                assistant_coach_user_id: null,
+                delegated_player_ids: [],
+            });
+        }
+        lineupForm.post(route('live-games.lineup', { liveGame: liveGame.id }));
+    }
+
+    function submitLineup(event: FormEvent<HTMLFormElement>): void {
+        event.preventDefault();
+        if (!lineupReady) {
+            return;
+        }
+        if (assistantCoachOptions.length === 0) {
+            postLineup();
+            return;
+        }
+        setConfirmLineupOpen(true);
+    }
+
+    const selectedAssistantName =
+        assistantCoachOptions.find((coach) => coach.id === lineupForm.data.assistant_coach_user_id)?.name ?? null;
+    const hasAssistantAssignment =
+        selectedAssistantName !== null && lineupForm.data.delegated_player_ids.length > 0;
+
+    // One reason string covers every non-clock block; the pad adds per-button clock reasons.
+    const recordingBlockedReason = !canRecord
+        ? 'You are viewing this game. Only coaches tied to the home or opponent team can record events.'
+        : snapshot.liveGame.status === 'setup'
+            ? (snapshot.both_lineups_ready
+                ? 'Start the game to enable event recording and substitutions.'
+                : 'Both coaches must submit a starting five before the game can start.')
+            : snapshot.liveGame.status === 'finished'
+                ? 'This game is finished. Existing events can still be voided from the timeline.'
+                : controlledActiveIds.length === 0
+                    ? 'None of the players assigned to you are on court.'
+                    : processing
+                        ? 'Recording…'
+                        : null;
+
+    const padUnavailableReason = recordingBlockedReason ?? clockBlockReason('running', clockState);
+    const allPlayers = [...homePlayers, ...opponentPlayers];
+    const lineupReady = lineupForm.data.starting_player_ids.length === 5;
+    const viewerKeys = viewerSide === 'opponent'
+        ? (snapshot.keys_to_win?.opponent.keys ?? [])
+        : (snapshot.keys_to_win?.home.keys ?? []);
+
+    const isLiveConsole = snapshot.liveGame.status === 'live';
+
+    const lineupKey = useMemo(
+        () => [...ownActiveIds].sort((a, b) => a - b).join(','),
+        [ownActiveIds],
+    );
+
+    return (
+        <AuthenticatedLayout
+            preferCollapsedSidebar={isLiveConsole}
+            mainClassName={isLiveConsole ? 'flex min-h-0 flex-col overflow-y-auto py-3 lg:overflow-hidden' : undefined}
+        >
+            <Head title={`${homeTeam?.name ?? 'Live game'} vs ${opponentTeam?.name ?? 'Opponent'}`} />
+            <div className={`-mx-5 -my-6 flex flex-col overflow-x-hidden ${isLiveConsole ? 'min-h-full overflow-y-auto lg:h-full lg:min-h-0 lg:overflow-hidden' : 'min-h-full'}`}>
+                <div className={isLiveConsole ? 'shrink-0' : undefined}>
+                <GameScoreboard
+                    status={snapshot.liveGame.status}
+                    clock={displayedClock}
+                    homeTeam={homeTeam}
+                    opponentTeam={opponentTeam}
+                    score={snapshot.score}
+                    processing={processing}
+                    canControlClock={can_control_clock && snapshot.both_lineups_ready}
+                    clockShared={clock_shared}
+                    viewerSide={viewerSide}
+                    onClockAction={clockAction}
+                    onClockActionRequest={setPendingClockAction}
+                />
+                </div>
+                <ClockActionConfirmModal
+                    open={pendingClockAction !== null}
+                    onOpenChange={(open) => !open && setPendingClockAction(null)}
+                    action={pendingClockAction}
+                    period={displayedClock.period}
+                    onConfirm={confirmClockAction}
+                />
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/75 px-4 py-2 sm:px-5 ${isLiveConsole ? 'shrink-0' : ''}`}>
+                    <Link href={route('live-games.index')} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+                        <ChevronLeft size={15} /> Live games
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {isSetup && (
+                            <button
+                                type="button"
+                                onClick={() => void copyLink()}
+                                className="live-badge-info flex h-11 min-w-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-cyan-300/20"
+                            >
+                                <Copy size={14} /> Copy link
+                            </button>
+                        )}
+                        {isSetup && isCreator && (
+                            <button
+                                type="button"
+                                onClick={startGame}
+                                disabled={!snapshot.both_lineups_ready}
+                                className="flex h-11 items-center gap-2 rounded-md bg-amber-400 px-3 text-xs font-bold uppercase tracking-wide text-black hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                <Play size={14} /> Start game
+                            </button>
+                        )}
+                        {snapshot.liveGame.status === 'live' && isCreator && (
+                            <button type="button" onClick={finishGame} className="live-badge-danger flex h-11 items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-red-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-red-400/20">
+                                <CircleStop size={14} /> Finish
+                            </button>
+                        )}
+                        <span className={`flex h-11 max-w-full items-center gap-2 rounded-md px-3 text-xs font-bold uppercase tracking-wide ${snapshot.liveGame.status === 'live' ? 'live-badge-info' : 'bg-muted/50 text-muted-foreground'}`}>
+                            <Radio size={14} className="shrink-0" /> {snapshot.liveGame.status}
+                            {viewerTeamName ? (
+                                <span className="truncate">
+                                    {' · '}
+                                    {viewerTeamName}
+                                </span>
+                            ) : null}
+                        </span>
+                    </div>
+                </div>
+                {copyFeedback && (
+                    <div className="live-badge-info mx-4 mt-4 flex items-center gap-2 rounded-md px-4 py-3 text-sm sm:mx-5">
+                        <Link2 size={16} /> {copyFeedback}
+                    </div>
+                )}
+                {(error || errors.game) && (
+                    <div role="alert" className="live-badge-danger mx-4 mt-4 flex items-center gap-2 rounded-md px-4 py-3 text-sm sm:mx-5">
+                        <AlertTriangle size={16} /> {error ?? errors.game}
+                    </div>
+                )}
+
+                {isSetup && viewerSide && !ownLineupReady && (
+                    <form onSubmit={submitLineup} className="mx-4 mt-4 space-y-4 sm:mx-5">
+                        <div className="rounded-lg border border-border bg-card p-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-foreground">Submit your starting five</h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">Select five active players from your roster.</p>
+                                </div>
+                                <span className={`rounded px-2 py-1 text-xs font-bold uppercase tracking-wide ${lineupReady ? 'live-badge-info' : 'live-badge-warn'}`}>
+                                    {lineupForm.data.starting_player_ids.length}/5 selected
+                                </span>
+                            </div>
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                {ownPlayers.map((player) => {
+                                    const selected = lineupForm.data.starting_player_ids.includes(player.id);
+                                    return (
+                                        <label
+                                            key={player.id}
+                                            className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-md border px-3 transition-colors ${selected ? 'border-amber-300/60 bg-amber-300/10' : 'border-border hover:bg-muted/40'}`}
+                                        >
+                                            <input type="checkbox" checked={selected} onChange={() => toggleLineupPlayer(player.id)} className="h-4 w-4 accent-amber-400" />
+                                            <span className="live-text-warn font-mono">{player.jersey_number}</span>
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
+                                                <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
+                                            </span>
+                                            {selected && <Check size={15} className="live-text-info ml-auto" />}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            {lineupForm.errors.starting_player_ids && (
+                                <p className="live-text-danger mt-3 text-xs">{lineupForm.errors.starting_player_ids}</p>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={lineupForm.processing || !lineupReady}
+                                className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-amber-400 px-4 text-sm font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                            >
+                                <UsersRound size={16} /> Submit lineup
+                            </button>
+                        </div>
+
+                        <AssignAssistantPanel
+                            coaches={assistantCoachOptions}
+                            players={ownPlayers}
+                            visible={assignPanelVisible && lineupReady}
+                            expanded={assignExpanded}
+                            onExpandedChange={setAssignExpanded}
+                            value={{
+                                assistantCoachUserId: lineupForm.data.assistant_coach_user_id,
+                                delegatedPlayerIds: lineupForm.data.delegated_player_ids,
+                            }}
+                            onChange={(next) => {
+                                lineupForm.setData({
+                                    ...lineupForm.data,
+                                    assistant_coach_user_id: next.assistantCoachUserId,
+                                    delegated_player_ids: next.delegatedPlayerIds,
+                                });
+                            }}
+                            errors={{
+                                assistant_coach_user_id: lineupForm.errors.assistant_coach_user_id,
+                                delegated_player_ids: lineupForm.errors.delegated_player_ids,
+                            }}
+                        />
+                    </form>
+                )}
+
+                <LineupConfirmModal
+                    open={confirmLineupOpen}
+                    onOpenChange={setConfirmLineupOpen}
+                    assistantName={selectedAssistantName}
+                    hasAssignment={hasAssistantAssignment}
+                    onConfirmLineup={() => postLineup(true)}
+                    onConfirmWithAssistant={() => postLineup(false)}
+                    onAssignAssistant={() => {
+                        setConfirmLineupOpen(false);
+                        setAssignPanelVisible(true);
+                        setAssignExpanded(true);
+                    }}
+                />
+
+                {waitingForOther && (
+                    <div className="mx-4 mt-4 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-10 text-center sm:mx-5">
+                        <UsersRound size={28} className="mx-auto text-muted-foreground" />
+                        <h2 className="mt-3 text-sm font-bold uppercase tracking-[0.1em] text-foreground">Waiting for {waitingTeamName} lineup</h2>
+                        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            Share the game link so their coach can open this page and submit their starting five. Start unlocks when both sides are ready.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => void copyLink()}
+                            className="live-badge-info mx-auto mt-5 flex h-11 items-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-cyan-300/20"
+                        >
+                            <Copy size={14} /> Copy link
+                        </button>
+                    </div>
+                )}
+
+                {isSetup && snapshot.both_lineups_ready && (
+                    <div className="live-badge-info mx-4 mt-4 rounded-lg px-4 py-4 text-sm sm:mx-5">
+                        Both starting fives are ready{can_control_clock ? '. Start the clock to begin the game.' : '. Waiting for a main coach to start the clock.'}
+                    </div>
+                )}
+
+                <div className={`grid gap-3 p-3 sm:p-4 lg:grid-cols-[minmax(240px,0.85fr)_minmax(400px,1.5fr)_minmax(240px,0.8fr)] ${isLiveConsole ? 'lg:min-h-0 lg:flex-1' : ''}`}>
+                    <div className={`order-2 flex flex-col gap-3 lg:order-none ${isLiveConsole ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}>
+                        <div className="shrink-0">
+                            <ActiveLineup
+                                players={ownPlayers}
+                                activePlayerIds={ownActiveIds}
+                                controlledPlayerIds={controlled_player_ids}
+                                stats={snapshot.stats}
+                                selectedPlayerId={selectedPlayerId}
+                                onSelectPlayer={setSelectedPlayerId}
+                            />
+                        </div>
+                        <div className="shrink-0">
+                            <BenchSubstitution
+                                players={controlledRosterPlayers}
+                                activePlayerIds={controlledActiveIds}
+                                disabled={recordingBlockedReason !== null || clockState !== 'stopped'}
+                                onSubstitute={substitute}
+                            />
+                        </div>
+                        <ApplyLineupConfirmModal
+                            open={pendingLineupChange !== null}
+                            onOpenChange={(open) => !open && setPendingLineupChange(null)}
+                            change={pendingLineupChange}
+                            players={ownPlayers}
+                            onConfirm={confirmLineupChange}
+                        />
+                        <Timeline
+                            events={snapshot.events}
+                            players={allPlayers}
+                            teams={teams}
+                            disabled={processing}
+                            onRequestVoid={setPendingVoidEvent}
+                        />
+                        <VoidEventConfirmModal
+                            open={pendingVoidEvent !== null}
+                            onOpenChange={(open) => !open && setPendingVoidEvent(null)}
+                            label={pendingVoidEvent ? eventLabel(pendingVoidEvent, allPlayers, teams) : null}
+                            isSubstitution={pendingVoidEvent?.type === 'substitution'}
+                            onConfirm={confirmVoid}
+                        />
+                    </div>
+                    <div className={`order-1 flex min-w-0 flex-col gap-3 lg:order-none ${isLiveConsole ? 'lg:min-h-0' : ''}`}>
+                        <EventPad
+                            selectedPlayer={selectedPlayer}
+                            clockState={clockState}
+                            selectedPlayerPersonalFouls={selectedPlayerPersonalFouls}
+                            blockedReason={recordingBlockedReason}
+                            onRecord={record}
+                        />
+                        {padUnavailableReason && (
+                            <div className="shrink-0 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-2 text-sm text-muted-foreground">
+                                {padUnavailableReason}
+                            </div>
+                        )}
+                    </div>
+                    <aside className="order-3 flex min-w-0 flex-col gap-3 lg:order-none lg:min-h-0 lg:overflow-hidden">
+                        <KeysToWinPanel
+                            keys={viewerKeys}
+                            players={allPlayers}
+                            controlledPlayerIds={controlled_player_ids}
+                            className={isLiveConsole ? 'lg:flex-[0.25]' : ''}
+                        />
+                        <AlertsPanel
+                            alerts={snapshot.alerts}
+                            players={allPlayers}
+                            teams={teams}
+                            viewerSide={viewerSide}
+                            homeTeamId={liveGame.home_team_id}
+                            opponentTeamId={liveGame.opponent_team_id}
+                            className={isLiveConsole ? 'lg:flex-[0.30]' : ''}
+                        />
+                        {isLiveConsole && canRecord && (
+                            <SuggestedLineupPanel
+                                lineupKey={lineupKey}
+                                players={ownPlayers}
+                                activePlayerIds={ownActiveIds}
+                                stats={snapshot.stats}
+                                disabled={processing}
+                                applyBlockedReason={
+                                    clockState === 'stopped'
+                                        ? null
+                                        : clockState === 'expired'
+                                            ? `Q${displayedClock.period} has ended. Advance the period first.`
+                                            : 'Substitutions need the clock stopped. Stop the clock to apply a five.'
+                                }
+                                onRequest={requestSuggestion}
+                                onApply={requestLineupChange}
+                                className="lg:flex-[0.45]"
+                            />
+                        )}
+                    </aside>
+                </div>
+            </div>
+        </AuthenticatedLayout>
+    );
+}

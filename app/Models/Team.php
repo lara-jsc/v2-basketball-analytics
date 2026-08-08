@@ -32,4 +32,16 @@ class Team extends Model
     {
         return $this->hasMany(CsvImport::class);
     }
+
+    /** @return HasMany<LiveGame, Team> */
+    public function liveGamesAsHome(): HasMany
+    {
+        return $this->hasMany(LiveGame::class, 'home_team_id');
+    }
+
+    /** @return HasMany<LiveGame, Team> */
+    public function liveGamesAsOpponent(): HasMany
+    {
+        return $this->hasMany(LiveGame::class, 'opponent_team_id');
+    }
 }

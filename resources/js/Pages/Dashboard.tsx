@@ -35,7 +35,7 @@ export default function Dashboard({ auth }: PageProps) {
                         </h1>
                         <p className="mt-1 text-sm" style={{ fontFamily: 'Rajdhani, sans-serif', color: 'hsl(var(--muted-foreground))', fontWeight: 600 }}>
                             Welcome back,{' '}
-                            <span style={{ color: '#F9A01B', fontWeight: 700 }}>{auth.user.name}</span>
+                            <span style={{ color: '#F9A01B', fontWeight: 700 }}>{auth.user?.name}</span>
                         </p>
                     </div>
                     <div className="flex items-center gap-2 rounded-full px-4 py-1.5"

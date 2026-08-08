@@ -145,12 +145,46 @@ export interface TeamAggregateStats {
 export interface LineupPlayer {
   player_id: number;
   name: string;
-  plus_minus_score: number;
+  /** Null for a player drafted in to fill a short lineup — they were never ranked. */
+  plus_minus_score: number | null;
 }
 
 export interface LineupRecommendation {
   recommended_lineup: LineupPlayer[];
   confidence: number;
+}
+
+/** Why the live feed held a player back. Mirrors LiveLineupEligibilityFilter's constants. */
+export type LiveLineupReason =
+  | 'disqualified'
+  | 'foul_trouble'
+  | 'cold_player'
+  | 'inactive'
+  | 'assigned_to_assistant';
+
+/**
+ * The two rankings are deliberately NOT merged: one is a 20-game rating, the other an
+ * 8-minute sample, and adding them would need an exchange rate the data can't justify.
+ * The coach is the merge function.
+ */
+export interface LiveLineupSuggestion {
+  season: LineupRecommendation;
+  tonight: LineupRecommendation;
+}
+
+export interface LiveLineupSuggestionResponse {
+  pending: boolean;
+  team_id: number;
+  suggestion: LiveLineupSuggestion | null;
+  reasons: {
+    season: Record<string, LiveLineupReason>;
+    tonight: Record<string, LiveLineupReason>;
+  };
+  /** On court but assigned to another coach: they hold a place in the five and cannot be moved. */
+  fixed_player_ids: number[];
+  /** How many of the five this coach may fill. 5 when no assistant is assigned. */
+  slot_count: number;
+  controlled_player_ids: number[];
 }
 
 export interface WinProbabilityResult {
@@ -175,12 +209,162 @@ export interface PageProps {
       id: number;
       name: string;
       email: string;
-    };
+      team_id: number | null;
+      team: { id: number; name: string } | null;
+    } | null;
   };
   flash?: {
     success?: string;
     error?: string;
   };
+  liveGameInvite?: LiveGameInviteBanner | null;
   /** Required by Inertia's PageProps constraint. */
   [key: string]: unknown;
+}
+
+export type LiveGameInviteKind = 'opponent_setup' | 'home_assigned' | 'home_team';
+
+export interface LiveGameInviteBanner {
+  id: string;
+  live_game_id: number;
+  kind: LiveGameInviteKind;
+  title: string;
+  body: string;
+  home_team_name: string;
+  opponent_team_name: string;
+}
+
+export type LiveGameStatus = 'setup' | 'live' | 'finished';
+
+export interface LiveGame {
+  id: number;
+  home_team_id: number;
+  opponent_team_id: number;
+  created_by_user_id: number | null;
+  status: LiveGameStatus;
+  game_date: string | null;
+  period_length_seconds: number;
+  current_period: number;
+  clock_seconds_remaining: number;
+  clock_running: boolean;
+  home_score: number;
+  opponent_score: number;
+  starting_player_ids: number[] | null;
+  active_player_ids: number[] | null;
+  opponent_starting_player_ids: number[] | null;
+  opponent_active_player_ids: number[] | null;
+  started_at: string | null;
+  finished_at: string | null;
+  home_team?: Team;
+  opponent_team?: Team;
+}
+
+export interface LiveGameClock {
+  period: number;
+  period_length_seconds: number;
+  seconds_remaining: number;
+  running: boolean;
+  server_now: string;
+}
+
+export interface LiveGamePlayerStat {
+  player_id: number;
+  is_starter: boolean;
+  is_active: boolean;
+  minutes_seconds: number;
+  plus_minus: number;
+  points: number;
+  field_goals_made: number;
+  field_goals_attempted: number;
+  three_pointers_made: number;
+  three_pointers_attempted: number;
+  free_throws_made: number;
+  free_throws_attempted: number;
+  offensive_rebounds: number;
+  defensive_rebounds: number;
+  rebounds: number;
+  assists: number;
+  steals: number;
+  blocks: number;
+  turnovers: number;
+  personal_fouls: number;
+  flagrant_fouls: number;
+  technical_fouls: number;
+}
+
+export interface LiveGameEvent {
+  id: number;
+  sequence: number;
+  type: string;
+  team_scope: 'own' | 'opponent' | 'game';
+  player_id: number | null;
+  period: number;
+  clock_seconds_remaining: number;
+  occurred_at: string;
+  payload: Record<string, unknown>;
+  voids_event_id: number | null;
+  recorded_by_user_id: number | null;
+}
+
+export interface LiveGameAlert {
+  id: number;
+  player_id: number | null;
+  team_id: number | null;
+  type: string;
+  severity: string;
+  period: number;
+  clock_seconds_remaining: number;
+  message: string;
+  context: Record<string, unknown>;
+  triggered_at: string | null;
+  resolved_at: string | null;
+}
+
+export interface KeyToWin {
+  opponent_player_id: number;
+  strength_tag: string;
+  threat_score: number;
+  live_status: 'season' | 'confirmed' | 'fading';
+  defense_key: string;
+  counter_player_id: number | null;
+  context: Record<string, unknown>;
+}
+
+export interface KeysToWinSide {
+  team_id: number;
+  keys: KeyToWin[];
+}
+
+export interface KeysToWinSnapshot {
+  home: KeysToWinSide;
+  opponent: KeysToWinSide;
+}
+
+export interface LiveGameSnapshot {
+  liveGame: Pick<LiveGame, 'id' | 'home_team_id' | 'opponent_team_id' | 'status' | 'game_date' | 'period_length_seconds' | 'current_period'>;
+  score: { home: number; opponent: number };
+  clock: LiveGameClock;
+  active_player_ids: number[];
+  opponent_active_player_ids: number[];
+  home_lineup_ready: boolean;
+  opponent_lineup_ready: boolean;
+  both_lineups_ready: boolean;
+  stats: LiveGamePlayerStat[];
+  events: LiveGameEvent[];
+  alerts: LiveGameAlert[];
+  keys_to_win: KeysToWinSnapshot;
+}
+
+declare global {
+  interface Window {
+    Echo?: {
+      private(channel: string): {
+        // Echo payloads vary by event; callers narrow.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        listen(event: string, callback: (payload: any) => void): unknown;
+        notification(callback: (notification: Record<string, unknown>) => void): unknown;
+      };
+      leave(channel: string): void;
+    };
+  }
 }

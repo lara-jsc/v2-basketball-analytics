@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -15,7 +16,35 @@ class DemoUserSeeder extends Seeder
                 'name' => 'Demo Admin',
                 'password' => 'password123',
                 'email_verified_at' => now(),
+                'team_id' => null,
             ],
         );
+
+        $warriors = Team::query()->where('code', 'GSW')->first();
+        $lakers = Team::query()->where('code', 'LAK')->first();
+
+        if ($warriors !== null) {
+            User::updateOrCreate(
+                ['email' => 'warriors@email.com'],
+                [
+                    'name' => 'Warriors Coach',
+                    'password' => 'password123',
+                    'email_verified_at' => now(),
+                    'team_id' => $warriors->id,
+                ],
+            );
+        }
+
+        if ($lakers !== null) {
+            User::updateOrCreate(
+                ['email' => 'lakers@email.com'],
+                [
+                    'name' => 'Lakers Coach',
+                    'password' => 'password123',
+                    'email_verified_at' => now(),
+                    'team_id' => $lakers->id,
+                ],
+            );
+        }
     }
 }

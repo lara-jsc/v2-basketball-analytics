@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\LiveGame\LiveGameInviteReader;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,11 +30,32 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
+        if ($user !== null) {
+            $user->loadMissing('team:id,name');
+        }
+
+        $liveGameInvite = null;
+        if ($user !== null) {
+            $liveGameInvite = app(LiveGameInviteReader::class)->activeBannerFor($user);
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user === null ? null : [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'team_id' => $user->team_id,
+                    'team' => $user->team === null ? null : [
+                        'id' => $user->team->id,
+                        'name' => $user->team->name,
+                    ],
+                ],
             ],
+            'liveGameInvite' => $liveGameInvite,
         ];
     }
 }
