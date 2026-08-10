@@ -1,8 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { TeamStatsPanel } from '@/Components/features/comparison/TeamStatsPanel';
-import { WinProbabilityBar } from '@/Components/features/comparison/WinProbabilityBar';
 import { PlayerMatchupTable } from '@/Components/features/comparison/PlayerMatchupTable';
-import { ShotZoneCourt, type ShotZoneProfile } from '@/Components/features/comparison/ShotZoneCourt';
+import { type ShotZoneProfile } from '@/Components/features/comparison/ShotZoneCourt';
 import { LineupModal } from '@/Components/features/lineup/LineupModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import {
@@ -302,31 +301,14 @@ export default function ComparisonShow({
             </div>
 
             {selectedPlayerA && selectedPlayerB ? (
-              <>
-                <PlayerMatchupTable
+              <PlayerMatchupTable
                   playerA={selectedPlayerA}
                   playerB={selectedPlayerB}
                   matchup={matchup}
                   isPending={isPendingMatchup}
+                  playerAShotZones={playerAShotZones}
+                  playerBShotZones={playerBShotZones}
                 />
-
-                {(playerAShotZones || playerBShotZones) && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {playerAShotZones && (
-                      <ShotZoneCourt
-                        profile={playerAShotZones}
-                        playerName={`${selectedPlayerA.first_name} ${selectedPlayerA.last_name}`}
-                      />
-                    )}
-                    {playerBShotZones && (
-                      <ShotZoneCourt
-                        profile={playerBShotZones}
-                        playerName={`${selectedPlayerB.first_name} ${selectedPlayerB.last_name}`}
-                      />
-                    )}
-                  </div>
-                )}
-              </>
             ) : (
               <div className="flex items-center justify-center rounded-2xl py-14 text-center bg-card"
                 style={{ border: '1px dashed hsl(var(--border))' }}>

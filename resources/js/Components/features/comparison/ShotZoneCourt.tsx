@@ -39,6 +39,7 @@ interface ShotZoneCourtProps {
     profile: ShotZoneProfile;
     playerName: string;
     className?: string;
+    compact?: boolean;
 }
 
 /**
@@ -71,7 +72,7 @@ function ZoneLabel({ zone }: { zone: ZoneData }) {
     );
 }
 
-export function ShotZoneCourt({ profile, playerName, className }: ShotZoneCourtProps) {
+export function ShotZoneCourt({ profile, playerName, className, compact = false }: ShotZoneCourtProps) {
     const hasAnyData = profile.located_shots > 0;
 
     const zones: Partial<Record<ShotZoneKey, HalfCourtZoneState>> = Object.fromEntries(
@@ -97,11 +98,13 @@ export function ShotZoneCourt({ profile, playerName, className }: ShotZoneCourtP
     return (
         <div className={className}>
             {/* Player header */}
-            <p className="mb-2 text-sm font-bold text-foreground">{playerName}</p>
+            <p className={compact ? 'mb-1 text-xs font-bold text-foreground' : 'mb-2 text-sm font-bold text-foreground'}>
+                {playerName}
+            </p>
 
             {/* Shot tendency — the outlined zone on the court below */}
             {hasAnyData && profile.top_zone && (
-                <p className="mb-2 text-xs font-semibold">
+                <p className={compact ? 'mb-2 text-[11px] leading-5 font-semibold' : 'mb-2 text-xs font-semibold'}>
                     <span className="uppercase tracking-wide text-muted-foreground">Usually shoots from</span>{' '}
                     <span className="text-foreground">
                         {profile.top_zone.label} · {profile.top_zone.attempt_share}% of shots ·{' '}
@@ -114,18 +117,18 @@ export function ShotZoneCourt({ profile, playerName, className }: ShotZoneCourtP
             )}
 
             {!hasAnyData ? (
-                <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/20 p-6 text-center">
-                    <HalfCourt zones={{}} className="max-h-48 w-full opacity-30" />
+                <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-muted/20 p-3 text-center">
+                    <HalfCourt zones={{}} className={compact ? 'w-full max-w-[280px] opacity-30' : 'max-h-48 w-full opacity-30'} />
                     <p className="text-xs text-muted-foreground">No shot locations recorded yet</p>
                 </div>
             ) : (
-                <div className="rounded-lg border border-border bg-muted/20 p-2">
-                    <HalfCourt zones={zones} className="w-full" />
+                <div className={compact ? 'rounded-lg border border-border bg-muted/20 p-2' : 'rounded-lg border border-border bg-muted/20 p-2'}>
+                    <HalfCourt zones={zones} className={compact ? 'mx-auto w-full max-w-[280px]' : 'w-full'} />
                 </div>
             )}
 
             {/* PPS color scale legend */}
-            {hasAnyData && (
+            {hasAnyData && !compact && (
                 <div className="mt-2 flex items-center justify-between gap-2 px-1">
                     <span className="text-xs text-muted-foreground">0.7 PPS</span>
                     <div
@@ -140,14 +143,14 @@ export function ShotZoneCourt({ profile, playerName, className }: ShotZoneCourtP
             )}
 
             {/* Coverage footer */}
-            {hasAnyData && profile.live_total_shots > 0 && (
+            {hasAnyData && profile.live_total_shots > 0 && !compact && (
                 <p className="mt-1 text-xs text-muted-foreground">
                     {profile.live_located_shots} of {profile.live_total_shots} live shots located
                 </p>
             )}
 
             {/* Profile mismatch warning */}
-            {!profile.profile_vs_history_ok && (
+            {!profile.profile_vs_history_ok && !compact && (
                 <div className="mt-2 flex items-start gap-1.5 rounded-md border border-amber-400/40 bg-amber-50 px-3 py-2 dark:bg-amber-400/10">
                     <AlertTriangle size={13} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
                     <p className="text-xs text-amber-700 dark:text-amber-300">
