@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTeamRequest;
 use App\Http\Requests\UpdateTeamRequest;
+use App\Http\Requests\UpdateTeamStaffingRequest;
 use App\Http\Requests\UploadTeamLogoRequest;
 use App\Models\Team;
+use App\Models\User;
 use App\Repositories\CsvImportRepository;
 use App\Repositories\PlayerRepository;
 use App\Repositories\TeamRepository;
 use App\Services\CsvTemplateService;
 use App\Services\TeamService;
+use App\Services\TeamStaffingService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,11 +64,25 @@ class TeamController extends Controller
      */
     public function show(Team $team): Response
     {
+        $team->load([
+            'mainCoach:id,name,email',
+            'assistantCoaches:id,name,email',
+        ]);
+
+        $coachOptions = User::query()
+            ->where('team_id', $team->id)
+            ->whereNotNull('email_verified_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
         return Inertia::render('Teams/Show', [
             'team' => $team,
             'players' => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
             'latestImport' => fn () => $this->csvImportRepository->latestForTeam($team->id),
             'playersExportUrl' => route('teams.players.export', $team),
+            'coachOptions' => $coachOptions,
+            'mainCoach' => $team->mainCoach,
+            'assistantCoaches' => $team->assistantCoaches,
         ]);
     }
 
@@ -117,6 +134,24 @@ class TeamController extends Controller
         return redirect()
             ->route('teams.show', $team->id)
             ->with('success', 'Team updated successfully.');
+    }
+
+    public function updateStaffing(
+        UpdateTeamStaffingRequest $request,
+        Team $team,
+        TeamStaffingService $teamStaffingService,
+    ): RedirectResponse {
+        $payload = $request->staffingPayload();
+
+        $teamStaffingService->update(
+            $team,
+            $payload['main_coach_user_id'],
+            $payload['assistant_coach_user_ids'],
+        );
+
+        return redirect()
+            ->route('teams.show', $team->id)
+            ->with('success', 'Coach staffing updated.');
     }
 
     /**

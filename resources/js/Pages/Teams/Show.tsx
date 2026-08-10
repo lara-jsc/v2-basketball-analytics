@@ -2,9 +2,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { CsvUploadForm } from '@/Components/features/csv/CsvUploadForm';
 import { ImportStatus } from '@/Components/features/csv/ImportStatus';
 import { PlayerFormSheet } from '@/Components/features/players/PlayerFormSheet';
+import { TeamCoachStaffingCard } from '@/Components/features/teams/TeamCoachStaffingCard';
 import { PlayersTable } from '@/Components/features/players/PlayersTable';
 import { TeamFormSheet } from '@/Components/features/teams/TeamFormSheet';
-import { type CsvImport, type PageProps, type PlayerWithStats, type Team } from '@/types';
+import { type CoachOption, type CsvImport, type PageProps, type PlayerWithStats, type Team, type TeamCoachSummary } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -22,6 +23,9 @@ interface TeamsShowProps extends PageProps {
     players: PlayerWithStats[];
     latestImport: CsvImport | null;
     playersExportUrl: string;
+    coachOptions: CoachOption[];
+    mainCoach: TeamCoachSummary | null;
+    assistantCoaches: TeamCoachSummary[];
 }
 
 /**
@@ -35,7 +39,15 @@ interface TeamsShowProps extends PageProps {
  *   5. Footer bar: computed team plus-minus + active player count
  *   6. Field legend: ? button → inline popover (no fixed sidebar)
  */
-export default function TeamsShow({ team, players, latestImport, playersExportUrl }: TeamsShowProps) {
+export default function TeamsShow({
+    team,
+    players,
+    latestImport,
+    playersExportUrl,
+    coachOptions,
+    mainCoach,
+    assistantCoaches,
+}: TeamsShowProps) {
     const { flash } = usePage<TeamsShowProps>().props;
     const [addPlayerOpen, setAddPlayerOpen] = useState(false);
     const [editTeamOpen, setEditTeamOpen] = useState(false);
@@ -126,6 +138,13 @@ export default function TeamsShow({ team, players, latestImport, playersExportUr
 
                 {/* ── Import status ──────────────────────────────────────── */}
                 <ImportStatus latestImport={latestImport} />
+
+                <TeamCoachStaffingCard
+                    team={team}
+                    coachOptions={coachOptions}
+                    mainCoach={mainCoach}
+                    assistantCoaches={assistantCoaches}
+                />
 
                 {/* ── Players section ────────────────────────────────────── */}
                 <div className="flex flex-col gap-2">

@@ -16,6 +16,7 @@ interface LiveGameCreateProps extends PageProps {
     preselectedPlayerIds: number[];
     preselectedOpponentTeamId: number | null;
     assistantCoachOptions: Array<{ id: number; name: string }>;
+    defaultAssistantCoachUserId: number | null;
 }
 
 export default function LiveGamesCreate({
@@ -24,13 +25,14 @@ export default function LiveGamesCreate({
     preselectedPlayerIds,
     preselectedOpponentTeamId,
     assistantCoachOptions,
+    defaultAssistantCoachUserId,
 }: LiveGameCreateProps) {
     const [initialized, setInitialized] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
         opponent_team_id: preselectedOpponentTeamId ? String(preselectedOpponentTeamId) : '',
         period_length_seconds: 600,
         starting_player_ids: [] as number[],
-        assistant_coach_user_id: null as number | null,
+        assistant_coach_user_id: defaultAssistantCoachUserId,
         delegated_player_ids: [] as number[],
     });
 

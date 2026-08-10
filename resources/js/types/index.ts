@@ -17,6 +17,18 @@ export interface Team {
   updated_at: string;
 }
 
+export interface CoachOption {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface TeamCoachSummary {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export interface Player {
   id: number;
   team_id: number;

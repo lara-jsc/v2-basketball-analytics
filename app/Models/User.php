@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -43,6 +44,19 @@ class User extends Authenticatable implements MustVerifyEmail
     public function createdLiveGames(): HasMany
     {
         return $this->hasMany(LiveGame::class, 'created_by_user_id');
+    }
+
+    /** @return HasMany<Team, User> */
+    public function mainCoachedTeams(): HasMany
+    {
+        return $this->hasMany(Team::class, 'main_coach_user_id');
+    }
+
+    /** @return BelongsToMany<Team, User> */
+    public function assistantCoachedTeams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'team_assistant_coaches')
+            ->withTimestamps();
     }
 
     /** @return HasMany<LiveGameEvent, User> */

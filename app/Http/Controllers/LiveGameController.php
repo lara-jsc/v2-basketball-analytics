@@ -46,7 +46,10 @@ class LiveGameController extends Controller
             $homeTeam = Team::query()
                 ->where('id', $user->team_id)
                 ->where('is_active', true)
-                ->with(['players' => fn ($query) => $query->where('is_active', true)->orderBy('jersey_number')])
+                ->with([
+                    'players' => fn ($query) => $query->where('is_active', true)->orderBy('jersey_number'),
+                    'assistantCoaches:id,name',
+                ])
                 ->first();
         }
 
@@ -67,6 +70,7 @@ class LiveGameController extends Controller
         );
 
         $assistantCoachOptions = [];
+        $defaultAssistantCoachUserId = null;
         if ($user->team_id !== null) {
             $assistantCoachOptions = User::query()
                 ->where('team_id', $user->team_id)
@@ -75,6 +79,10 @@ class LiveGameController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->all();
+
+            if ($homeTeam !== null && $homeTeam->assistantCoaches->count() === 1) {
+                $defaultAssistantCoachUserId = (int) $homeTeam->assistantCoaches->first()->id;
+            }
         }
 
         return Inertia::render('LiveGames/Create', [
@@ -83,6 +91,7 @@ class LiveGameController extends Controller
             'preselectedPlayerIds' => $preselectedPlayerIds,
             'preselectedOpponentTeamId' => $preselectedOpponentTeamId,
             'assistantCoachOptions' => $assistantCoachOptions,
+            'defaultAssistantCoachUserId' => $defaultAssistantCoachUserId,
         ]);
     }
 
