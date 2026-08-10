@@ -8,6 +8,7 @@ import { PlayerHistorySheet } from './PlayerHistorySheet';
 interface PlayerHistoryTableProps {
     playerId: number;
     playerName: string;
+    playingTeam: Pick<Team, 'id' | 'code' | 'name'>;
     histories: PlayerHistory[];
     teams: Pick<Team, 'id' | 'code' | 'name'>[];
     filters: PlayerHistoryFilters;
@@ -34,6 +35,7 @@ function fmtShortDate(iso: string): string {
 export function PlayerHistoryTable({
     playerId,
     playerName,
+    playingTeam,
     histories,
     teams,
     filters,
@@ -325,6 +327,7 @@ export function PlayerHistoryTable({
                 onOpenChange={setSheetOpen}
                 playerId={playerId}
                 playerName={playerName}
+                playingTeam={playingTeam}
                 teams={teams}
                 history={editingHistory}
             />

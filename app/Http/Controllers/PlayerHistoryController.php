@@ -10,6 +10,7 @@ use App\Models\CsvImport;
 use App\Models\Player;
 use App\Models\PlayerHistory;
 use App\Models\Team;
+use App\Services\PlayerHistoryCsvService;
 use App\Services\PlayerHistoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -25,6 +26,7 @@ class PlayerHistoryController extends Controller
 {
     public function __construct(
         private readonly PlayerHistoryService $historyService,
+        private readonly PlayerHistoryCsvService $playerHistoryCsvService,
     ) {}
 
     /**
@@ -46,6 +48,7 @@ class PlayerHistoryController extends Controller
             'histories' => $histories,
             'teams' => Team::select('id', 'code', 'name')->orderBy('name')->get(),
             'filters' => $filters,
+            'exportUrl' => route('player-histories.export', ['player' => $player, ...$filters]),
         ]);
     }
 
@@ -56,7 +59,11 @@ class PlayerHistoryController extends Controller
     {
         return Inertia::render('Players/Histories/Create', [
             'player' => $player->load('team:id,code,name'),
-            'teams' => Team::select('id', 'code', 'name')->orderBy('name')->get(),
+            'playingTeam' => $player->team()->select('id', 'code', 'name')->first(),
+            'opponentTeams' => Team::select('id', 'code', 'name')
+                ->where('id', '!=', $player->team_id)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -80,13 +87,19 @@ class PlayerHistoryController extends Controller
      */
     public function edit(PlayerHistory $history): InertiaResponse
     {
+        $history->load([
+            'player.team:id,code,name',
+            'playingTeam:id,code,name',
+            'opponentTeam:id,code,name',
+        ]);
+
         return Inertia::render('Players/Histories/Edit', [
-            'history' => $history->load([
-                'player.team:id,code,name',
-                'playingTeam:id,code,name',
-                'opponentTeam:id,code,name',
-            ]),
-            'teams' => Team::select('id', 'code', 'name')->orderBy('name')->get(),
+            'history' => $history,
+            'playingTeam' => $history->player->team,
+            'opponentTeams' => Team::select('id', 'code', 'name')
+                ->where('id', '!=', $history->player->team_id)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -118,11 +131,14 @@ class PlayerHistoryController extends Controller
 
     /**
      * Stream an Excel (.xlsx) template with headers, one example row,
-     * and dropdown data validation on playing_team_id and opponent_team_id columns.
+     * and dropdown data validation on the opponent_team_id column scoped to a player.
      */
-    public function downloadTemplate(): Response
+    public function downloadTemplate(Player $player): Response
     {
-        $teams = Team::select('id', 'code', 'name')->orderBy('name')->get();
+        $teams = Team::select('id', 'code', 'name')
+            ->where('id', '!=', $player->team_id)
+            ->orderBy('name')
+            ->get();
 
         $spreadsheet = new Spreadsheet;
 
@@ -198,9 +214,9 @@ class PlayerHistoryController extends Controller
             'B' => [
                 'formula1' => $teamListSource,
                 'promptTitle' => 'Opponent Team',
-                'prompt' => 'Select a team from the dropdown list.',
+                'prompt' => 'Select a team from the valid opponents dropdown list. Your player current team is excluded.',
                 'errorTitle' => 'Invalid team',
-                'error' => 'Please select a team from the dropdown list.',
+                'error' => 'Please select a valid opponent from the dropdown list.',
             ],
             'C' => [
                 'formula1' => '"PG,SG,SF,PF,C,G,F"',
@@ -224,7 +240,7 @@ class PlayerHistoryController extends Controller
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
-            $validation->setShowDropDown(false);
+            $validation->setShowDropDown(true);
             $validation->setShowInputMessage(true);
             $validation->setPromptTitle($config['promptTitle']);
             $validation->setPrompt($config['prompt']);
@@ -254,6 +270,33 @@ class PlayerHistoryController extends Controller
         ]);
     }
 
+    public function export(Player $player): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $filters = array_filter([
+            'from' => request('from'),
+            'to' => request('to'),
+            'playing_team_id' => request()->integer('playing_team_id') ?: null,
+            'opponent_team_id' => request()->integer('opponent_team_id') ?: null,
+        ]);
+
+        $content = $this->playerHistoryCsvService->generateExportContent(
+            $this->historyService->listForPlayer($player, $filters),
+        );
+        $filename = sprintf(
+            '%s-%s-histories.csv',
+            strtolower($player->first_name),
+            strtolower($player->last_name),
+        );
+
+        return response()->streamDownload(
+            static function () use ($content): void {
+                echo $content;
+            },
+            $filename,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
+    }
+
     /**
      * Accept a xlsx upload scoped to a player, validate headers, create a
      * CsvImport record, and run the PlayerHistoryImportJob synchronously so the
@@ -261,7 +304,7 @@ class PlayerHistoryController extends Controller
      */
     public function import(PlayerHistoryImportRequest $request, Player $player): RedirectResponse
     {
-        $headerError = $request->validateXlsxHeaders();
+        $headerError = $request->validateHeaders();
 
         if ($headerError !== null) {
             return back()->withErrors(['file' => $headerError]);

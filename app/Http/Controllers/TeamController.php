@@ -9,10 +9,12 @@ use App\Models\Team;
 use App\Repositories\CsvImportRepository;
 use App\Repositories\PlayerRepository;
 use App\Repositories\TeamRepository;
+use App\Services\CsvTemplateService;
 use App\Services\TeamService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TeamController extends Controller
 {
@@ -21,6 +23,7 @@ class TeamController extends Controller
         private readonly PlayerRepository $playerRepository,
         private readonly CsvImportRepository $csvImportRepository,
         private readonly TeamService $teamService,
+        private readonly CsvTemplateService $csvTemplateService,
     ) {}
 
     /**
@@ -62,7 +65,36 @@ class TeamController extends Controller
             'team' => $team,
             'players' => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
             'latestImport' => fn () => $this->csvImportRepository->latestForTeam($team->id),
+            'playersExportUrl' => route('teams.players.export', $team),
         ]);
+    }
+
+    public function exportPlayers(Team $team): StreamedResponse
+    {
+        $search = trim((string) request('search', ''));
+        $players = $this->playerRepository->forTeam($team->id)
+            ->filter(function ($player) use ($search): bool {
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(
+                    strtolower("{$player->first_name} {$player->last_name}"),
+                    strtolower($search),
+                );
+            })
+            ->values();
+
+        $content = $this->csvTemplateService->generateRosterExportContent($players);
+        $filename = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $team->code ?: $team->name) ?: 'team');
+
+        return response()->streamDownload(
+            static function () use ($content): void {
+                echo $content;
+            },
+            "{$filename}-players.csv",
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
     }
 
     /**

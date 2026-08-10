@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePlayerHistoryRequest extends FormRequest
 {
@@ -26,8 +27,15 @@ class StorePlayerHistoryRequest extends FormRequest
      */
     public function rules(): array
     {
+        $player = $this->route('player');
+
         return [
-            'opponent_team_id' => ['required', 'integer', 'exists:teams,id'],
+            'opponent_team_id' => [
+                'required',
+                'integer',
+                'exists:teams,id',
+                Rule::notIn([$player?->team_id]),
+            ],
             'game_date' => ['required', 'date_format:Y-m-d'],
             'position_played' => ['nullable', 'string', 'max:50'],
             'minutes_played' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
@@ -60,6 +68,8 @@ class StorePlayerHistoryRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [];
+        return [
+            'opponent_team_id.not_in' => 'Opponent team must differ from the player current team.',
+        ];
     }
 }

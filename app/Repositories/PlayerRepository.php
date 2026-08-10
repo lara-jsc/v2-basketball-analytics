@@ -25,6 +25,18 @@ class PlayerRepository
     }
 
     /**
+     * All players for a team ordered by jersey number, without stats eager loads.
+     *
+     * @return Collection<int, Player>
+     */
+    public function forTeam(int $teamId): Collection
+    {
+        return Player::where('team_id', $teamId)
+            ->orderBy('jersey_number')
+            ->get();
+    }
+
+    /**
      * Create a new player record.
      *
      * @param  array<string, mixed>  $data

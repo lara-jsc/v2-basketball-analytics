@@ -4,13 +4,14 @@ import { ShotZoneProfileImport } from '@/Components/features/players/ShotZonePro
 import { PlayerHistoryTable } from '@/Components/features/players/PlayerHistoryTable';
 import type { PlayerHistoryIndexProps } from '@/types/PlayerHistory.types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Download } from 'lucide-react';
 
 export default function PlayerHistoriesIndex({
     player,
     histories,
     teams,
     filters,
+    exportUrl,
 }: PlayerHistoryIndexProps) {
     const { flash } = usePage<PlayerHistoryIndexProps>().props;
 
@@ -103,12 +104,22 @@ export default function PlayerHistoriesIndex({
                                 {histories.length} game{histories.length !== 1 ? 's' : ''} recorded
                             </p>
                         </div>
+                        <a
+                            href={exportUrl}
+                            download
+                            title="Download current game log CSV"
+                            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <Download size={13} />
+                            Export CSV
+                        </a>
                     </div>
                     <div className="px-5 py-4">
 
                     <PlayerHistoryTable
                         playerId={player.id}
                         playerName={`${player.first_name} ${player.last_name}`}
+                        playingTeam={player.team}
                         histories={histories}
                         teams={teams}
                         filters={filters}

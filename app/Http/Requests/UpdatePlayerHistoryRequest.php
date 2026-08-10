@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePlayerHistoryRequest extends FormRequest
 {
@@ -23,14 +24,20 @@ class UpdatePlayerHistoryRequest extends FormRequest
 
     /**
      * All fields are optional on update — only validated when present.
-     * playing_team_id/opponent_team_id are re-validated together when either changes.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
+        $history = $this->route('history');
+
         return [
-            'opponent_team_id' => ['sometimes', 'integer', 'exists:teams,id'],
+            'opponent_team_id' => [
+                'sometimes',
+                'integer',
+                'exists:teams,id',
+                Rule::notIn([$history?->player?->team_id]),
+            ],
             'game_date' => ['sometimes', 'date_format:Y-m-d'],
             'position_played' => ['sometimes', 'nullable', 'string', 'max:50'],
             'minutes_played' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999.99'],
@@ -63,6 +70,8 @@ class UpdatePlayerHistoryRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [];
+        return [
+            'opponent_team_id.not_in' => 'Opponent team must differ from the player current team.',
+        ];
     }
 }

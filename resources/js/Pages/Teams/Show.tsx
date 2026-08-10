@@ -21,6 +21,7 @@ interface TeamsShowProps extends PageProps {
     team: Team;
     players: PlayerWithStats[];
     latestImport: CsvImport | null;
+    playersExportUrl: string;
 }
 
 /**
@@ -34,7 +35,7 @@ interface TeamsShowProps extends PageProps {
  *   5. Footer bar: computed team plus-minus + active player count
  *   6. Field legend: ? button → inline popover (no fixed sidebar)
  */
-export default function TeamsShow({ team, players, latestImport }: TeamsShowProps) {
+export default function TeamsShow({ team, players, latestImport, playersExportUrl }: TeamsShowProps) {
     const { flash } = usePage<TeamsShowProps>().props;
     const [addPlayerOpen, setAddPlayerOpen] = useState(false);
     const [editTeamOpen, setEditTeamOpen] = useState(false);
@@ -162,7 +163,7 @@ export default function TeamsShow({ team, players, latestImport }: TeamsShowProp
                     )}
 
                     {/* Players table */}
-                    <PlayersTable players={players} team={team} />
+                    <PlayersTable players={players} team={team} exportUrl={playersExportUrl} />
                 </div>
 
                 {/* ── Footer bar ─────────────────────────────────────────── */}

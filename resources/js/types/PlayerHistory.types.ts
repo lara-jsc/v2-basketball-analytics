@@ -66,10 +66,9 @@ export interface PlayerHistory {
 
 /**
  * Shape of data submitted from PlayerHistoryForm for both store and update.
- * All stat fields are optional (nullable) — only game_date and team IDs are required on create.
+ * All stat fields are optional (nullable) — only game_date and opponent_team_id are required on create.
  */
 export interface PlayerHistoryFormData {
-  playing_team_id: number | '';
   opponent_team_id: number | '';
   game_date: string;
   position_played: string;
@@ -113,11 +112,13 @@ export interface PlayerHistoryIndexProps extends PageProps {
   histories: PlayerHistory[];
   teams: Pick<Team, 'id' | 'code' | 'name'>[];
   filters: PlayerHistoryFilters;
+  exportUrl: string;
 }
 
 export interface PlayerHistoryCreateProps extends PageProps {
   player: Player & { team: Team };
-  teams: Pick<Team, 'id' | 'code' | 'name'>[];
+  playingTeam: Pick<Team, 'id' | 'code' | 'name'>;
+  opponentTeams: Pick<Team, 'id' | 'code' | 'name'>[];
 }
 
 export interface PlayerHistoryEditProps extends PageProps {
@@ -126,5 +127,6 @@ export interface PlayerHistoryEditProps extends PageProps {
     playing_team: Team;
     opponent_team: Team;
   };
-  teams: Pick<Team, 'id' | 'code' | 'name'>[];
+  playingTeam: Pick<Team, 'id' | 'code' | 'name'>;
+  opponentTeams: Pick<Team, 'id' | 'code' | 'name'>[];
 }

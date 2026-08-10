@@ -61,6 +61,36 @@ function storeHistoryImport(Team $team, string $content): CsvImport
     ]);
 }
 
+function storeHistoryCsvImport(Team $team, string $content): CsvImport
+{
+    $path = "player-history-imports/test-{$team->id}.csv";
+    Storage::put($path, $content);
+
+    return CsvImport::create([
+        'team_id' => $team->id,
+        'filename' => $path,
+        'status' => CsvImport::STATUS_PENDING,
+    ]);
+}
+
+function buildHistoryCsvJob(array $rows = [], ?array $headers = null): string
+{
+    $stream = fopen('php://temp', 'r+');
+    $headerRow = $headers ?? PlayerHistoryImportJob::HEADERS;
+
+    fputcsv($stream, $headerRow);
+
+    foreach ($rows as $row) {
+        fputcsv($stream, $row);
+    }
+
+    rewind($stream);
+    $content = stream_get_contents($stream);
+    fclose($stream);
+
+    return $content === false ? '' : $content;
+}
+
 /**
  * Return a valid data row array matching HEADERS (without playing_team_id).
  * opponent_team_id is required as a parameter since it must be a real team id.
@@ -148,6 +178,27 @@ describe('PlayerHistoryImportJob', function () {
         expect(PlayerHistory::where('player_id', $player->id)->count())->toBe(2);
     });
 
+    it('imports a csv file using the same header contract as xlsx', function () {
+        $playingTeam = Team::factory()->create();
+        $opponentTeam = Team::factory()->create();
+        $player = Player::factory()->for($playingTeam)->create();
+
+        $csv = buildHistoryCsvJob([validRow($opponentTeam->id)]);
+        $import = storeHistoryCsvImport($playingTeam, $csv);
+
+        PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
+
+        expect($import->fresh()->status)->toBe(CsvImport::STATUS_COMPLETED);
+        expect($import->fresh()->rows_imported)->toBe(1);
+
+        $this->assertDatabaseHas('player_histories', [
+            'player_id' => $player->id,
+            'playing_team_id' => $playingTeam->id,
+            'opponent_team_id' => $opponentTeam->id,
+            'points' => 22,
+        ]);
+    });
+
     it('skips the example row that starts with DELETE THIS ROW', function () {
         $playingTeam = Team::factory()->create();
         $opponentTeam = Team::factory()->create();
@@ -206,6 +257,19 @@ describe('PlayerHistoryImportJob', function () {
 
         $xlsx = buildHistoryXlsx([], ['wrong_col', 'another_col']);
         $import = storeHistoryImport($team, $xlsx);
+
+        PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
+
+        expect($import->fresh()->status)->toBe(CsvImport::STATUS_FAILED);
+        expect($import->fresh()->error_log)->toContain('headers do not match');
+    });
+
+    it('marks csv imports as failed when headers do not match', function () {
+        $team = Team::factory()->create();
+        $player = Player::factory()->for($team)->create();
+
+        $csv = buildHistoryCsvJob([], ['wrong_col', 'another_col']);
+        $import = storeHistoryCsvImport($team, $csv);
 
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
 

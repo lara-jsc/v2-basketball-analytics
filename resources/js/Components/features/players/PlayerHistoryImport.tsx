@@ -12,7 +12,7 @@ interface ImportFormData {
 }
 
 /**
- * Player history xlsx import panel.
+ * Player history csv/xlsx import panel.
  *
  * - Template Download button: amber outlined, icon: download arrow
  * - Import History button: amber filled CTA
@@ -41,13 +41,13 @@ export function PlayerHistoryImport({ playerId }: PlayerHistoryImportProps) {
                         Import Game History
                     </h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                        Upload the filled Excel template (.xlsx) to import multiple game entries at once.
+                        Upload the filled CSV or Excel template to import multiple game entries at once.
                     </p>
                 </div>
 
                 {/* Template Download — amber outlined */}
                 <a
-                    href={route('player-histories.template')}
+                    href={route('player-histories.template', { player: playerId })}
                     download
                     className="flex shrink-0 items-center gap-1.5 rounded-lg border border-accent px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-accent transition-colors hover:bg-accent/10"
                 >
@@ -64,7 +64,7 @@ export function PlayerHistoryImport({ playerId }: PlayerHistoryImportProps) {
                         ref={fileInputRef}
                         id="history-xlsx-file"
                         type="file"
-                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                        accept=".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                         disabled={processing}
                         className="sr-only"
                         onChange={(e) => setData('file', e.target.files?.[0] ?? null)}
@@ -113,7 +113,7 @@ export function PlayerHistoryImport({ playerId }: PlayerHistoryImportProps) {
                 )}
 
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                    Use the downloaded template — select teams from the dropdown cells. Delete the example row before uploading.
+                    Use the downloaded template. CSV exports from this page can be uploaded directly, and the Excel template keeps the valid-opponent dropdowns.
                 </p>
             </form>
         </div>

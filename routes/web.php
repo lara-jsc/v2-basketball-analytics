@@ -77,6 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/teams/create', [TeamController::class, 'create'])->name('teams.create');
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+    Route::get('/teams/{team}/players/export', [TeamController::class, 'exportPlayers'])->name('teams.players.export');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
     Route::put('/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
     Route::patch('/teams/{team}/toggle-active', [TeamController::class, 'toggleActive'])->name('teams.toggleActive');
@@ -94,7 +95,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/csv/upload', [CsvController::class, 'upload'])->name('csv.upload');
 
     // ── Player Histories ──────────────────────────────────────────────────
-    Route::get('/player-histories/template/download', [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
+    Route::get('/players/{player}/histories/template', [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
+    Route::get('/players/{player}/histories/export', [PlayerHistoryController::class, 'export'])->name('player-histories.export');
     Route::post('/players/{player}/histories/import', [PlayerHistoryController::class, 'import'])->name('player-histories.import');
     Route::get('/players/{player}/histories', [PlayerHistoryController::class, 'index'])->name('player-histories.index');
     Route::get('/players/{player}/histories/create', [PlayerHistoryController::class, 'create'])->name('player-histories.create');

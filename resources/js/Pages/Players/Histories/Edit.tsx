@@ -4,7 +4,7 @@ import type { PlayerHistoryEditProps } from '@/types/PlayerHistory.types';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 
-export default function PlayerHistoriesEdit({ history, teams }: PlayerHistoryEditProps) {
+export default function PlayerHistoriesEdit({ history, playingTeam, opponentTeams }: PlayerHistoryEditProps) {
     const player = history.player;
 
     return (
@@ -66,7 +66,8 @@ export default function PlayerHistoriesEdit({ history, teams }: PlayerHistoryEdi
                         <PlayerHistoryForm
                             action={route('player-histories.update', history.id)}
                             method="put"
-                            teams={teams}
+                            playingTeam={playingTeam}
+                            opponentTeams={opponentTeams}
                             history={history}
                             onSuccess={() => router.visit(route('player-histories.index', player.id))}
                         />

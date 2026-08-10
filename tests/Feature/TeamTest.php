@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\Player;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Inertia\Testing\AssertableInertia;
 
 describe('Team HTTP endpoints', function () {
 
@@ -67,7 +69,102 @@ describe('Team HTTP endpoints', function () {
         $this->actingAs($this->user)
             ->get(route('teams.show', $team))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Teams/Show'));
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Teams/Show')
+                ->where('playersExportUrl', route('teams.players.export', $team)));
+    });
+
+    it('exports the visible roster subset as an import-safe csv', function () {
+        $team = Team::factory()->create();
+        $keep = Player::factory()->for($team)->create([
+            'first_name' => 'Alex',
+            'last_name' => 'Stone',
+            'jersey_number' => 7,
+            'role' => 'Guard',
+            'height_feet' => 6.1,
+            'weight_kg' => 83.5,
+            'is_active' => true,
+        ]);
+        Player::factory()->for($team)->create([
+            'first_name' => 'Brian',
+            'last_name' => 'Mills',
+            'jersey_number' => 12,
+            'role' => 'Forward',
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('teams.players.export', ['team' => $team, 'search' => 'alex']));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+        $rows = array_map(
+            static fn (string $line): array => str_getcsv($line),
+            preg_split('/\r\n|\r|\n/', trim($response->streamedContent())) ?: [],
+        );
+
+        expect($rows[0])->toBe(\App\Services\CsvTemplateService::HEADERS);
+        expect($rows)->toHaveCount(2);
+        expect($rows[1])->toBe([
+            $keep->first_name,
+            $keep->last_name,
+            (string) $keep->jersey_number,
+            $keep->role,
+            (string) $keep->height_feet,
+            (string) $keep->weight_kg,
+            '1',
+        ]);
+    });
+
+    it('allows an exported roster csv to be uploaded through the existing import route', function () {
+        $sourceTeam = Team::factory()->create();
+        $targetTeam = Team::factory()->create();
+
+        Player::factory()->for($sourceTeam)->create([
+            'first_name' => 'Maya',
+            'last_name' => 'Lane',
+            'jersey_number' => 4,
+            'role' => 'Point Guard',
+            'height_feet' => 5.9,
+            'weight_kg' => 70.2,
+            'is_active' => true,
+        ]);
+        Player::factory()->for($sourceTeam)->create([
+            'first_name' => 'Tori',
+            'last_name' => 'Banks',
+            'jersey_number' => 15,
+            'role' => 'Center',
+            'height_feet' => 6.4,
+            'weight_kg' => 91.3,
+            'is_active' => false,
+        ]);
+
+        $export = $this->actingAs($this->user)
+            ->get(route('teams.players.export', $sourceTeam))
+            ->streamedContent();
+
+        $upload = UploadedFile::fake()->createWithContent('roster.csv', $export);
+
+        $this->actingAs($this->user)
+            ->post(route('csv.upload'), [
+                'team_id' => $targetTeam->id,
+                'file' => $upload,
+            ])
+            ->assertRedirect(route('teams.show', $targetTeam));
+
+        $this->assertDatabaseHas('players', [
+            'team_id' => $targetTeam->id,
+            'first_name' => 'Maya',
+            'last_name' => 'Lane',
+            'jersey_number' => 4,
+        ]);
+        $this->assertDatabaseHas('players', [
+            'team_id' => $targetTeam->id,
+            'first_name' => 'Tori',
+            'last_name' => 'Banks',
+            'jersey_number' => 15,
+            'is_active' => false,
+        ]);
     });
 
     // ------------------------------------------------------------------

@@ -4,7 +4,7 @@ import type { PlayerHistoryCreateProps } from '@/types/PlayerHistory.types';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 
-export default function PlayerHistoriesCreate({ player, teams }: PlayerHistoryCreateProps) {
+export default function PlayerHistoriesCreate({ player, playingTeam, opponentTeams }: PlayerHistoryCreateProps) {
     return (
         <AuthenticatedLayout>
             <Head title={`Add Game — ${player.first_name} ${player.last_name}`} />
@@ -50,7 +50,8 @@ export default function PlayerHistoriesCreate({ player, teams }: PlayerHistoryCr
                     <PlayerHistoryForm
                         action={route('player-histories.store', player.id)}
                         method="post"
-                        teams={teams}
+                        playingTeam={playingTeam}
+                        opponentTeams={opponentTeams}
                         onSuccess={() => router.visit(route('player-histories.index', player.id))}
                     />
                     </div>
