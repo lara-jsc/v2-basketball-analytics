@@ -23,18 +23,28 @@ class LiveGameInviteTest extends TestCase
         $opponent = Team::factory()->create(['name' => 'Away Squad']);
 
         $creator = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
-        $homeAssistant = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
+        $homeAssistantA = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
+        $homeAssistantB = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
         $homeOther = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
         $oppCoach = User::factory()->forTeam($opponent)->create(['email_verified_at' => now()]);
 
         $starters = Player::factory()->count(5)->for($home)->create(['is_active' => true]);
+        $bench = Player::factory()->count(2)->for($home)->create(['is_active' => true]);
 
         $this->actingAs($creator)->post(route('live-games.store'), [
             'opponent_team_id' => $opponent->id,
             'period_length_seconds' => 600,
             'starting_player_ids' => $starters->pluck('id')->all(),
-            'assistant_coach_user_id' => $homeAssistant->id,
-            'delegated_player_ids' => [$starters[0]->id],
+            'assistant_assignments' => [
+                [
+                    'coach_user_id' => $homeAssistantA->id,
+                    'player_ids' => [$starters[0]->id, $bench[0]->id],
+                ],
+                [
+                    'coach_user_id' => $homeAssistantB->id,
+                    'player_ids' => [$starters[1]->id, $bench[1]->id],
+                ],
+            ],
         ])->assertRedirect();
 
         Notification::assertNotSentTo($creator, LiveGameInviteNotification::class);
@@ -43,7 +53,11 @@ class LiveGameInviteTest extends TestCase
             return $notification->kind === LiveGameInviteNotification::KIND_OPPONENT_SETUP;
         });
 
-        Notification::assertSentTo($homeAssistant, LiveGameInviteNotification::class, function (LiveGameInviteNotification $notification): bool {
+        Notification::assertSentTo($homeAssistantA, LiveGameInviteNotification::class, function (LiveGameInviteNotification $notification): bool {
+            return $notification->kind === LiveGameInviteNotification::KIND_HOME_ASSIGNED;
+        });
+
+        Notification::assertSentTo($homeAssistantB, LiveGameInviteNotification::class, function (LiveGameInviteNotification $notification): bool {
             return $notification->kind === LiveGameInviteNotification::KIND_HOME_ASSIGNED;
         });
 

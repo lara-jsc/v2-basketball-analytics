@@ -127,11 +127,12 @@ class LiveGameEventRecorderTest extends TestCase
         ]);
     }
 
-    public function test_it_rejects_recording_own_events_for_players_delegated_to_an_assistant(): void
+    public function test_it_enforces_player_specific_control_boundaries_across_multiple_assistants(): void
     {
         [$game, $starterA, $mainCoach] = $this->gameWithStarter(LiveGame::STATUS_LIVE);
         $starterB = Player::factory()->for($game->homeTeam)->create();
-        $assistant = User::factory()->forTeam($game->homeTeam)->create();
+        $assistantA = User::factory()->forTeam($game->homeTeam)->create();
+        $assistantB = User::factory()->forTeam($game->homeTeam)->create();
 
         $game->forceFill([
             'starting_player_ids' => [$starterA->id, $starterB->id],
@@ -142,27 +143,45 @@ class LiveGameEventRecorderTest extends TestCase
 
         LiveGamePlayerDelegation::query()->create([
             'live_game_id' => $game->id,
-            'coach_user_id' => $assistant->id,
+            'coach_user_id' => $assistantA->id,
             'player_id' => $starterA->id,
         ]);
+        LiveGamePlayerDelegation::query()->create([
+            'live_game_id' => $game->id,
+            'coach_user_id' => $assistantB->id,
+            'player_id' => $starterB->id,
+        ]);
 
-        // Main coach cannot record for delegated-away players.
         $this->assertValidationException(
             fn (): array => $this->record($game, $mainCoach, $this->ownEvent($starterA)),
             'player_id',
         );
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $mainCoach, $this->ownEvent($starterB)),
+            'player_id',
+        );
 
-        // Assistant can record only for their delegated players.
-        $this->record($game, $assistant, $this->ownEvent($starterA));
+        $this->record($game, $assistantA, $this->ownEvent($starterA));
         $this->assertDatabaseHas('live_game_events', [
             'live_game_id' => $game->id,
             'type' => 'shot_made',
             'player_id' => $starterA->id,
-            'recorded_by_user_id' => $assistant->id,
+            'recorded_by_user_id' => $assistantA->id,
+        ]);
+        $this->record($game, $assistantB, $this->ownEvent($starterB));
+        $this->assertDatabaseHas('live_game_events', [
+            'live_game_id' => $game->id,
+            'type' => 'shot_made',
+            'player_id' => $starterB->id,
+            'recorded_by_user_id' => $assistantB->id,
         ]);
 
         $this->assertValidationException(
-            fn (): array => $this->record($game, $assistant, $this->ownEvent($starterB)),
+            fn (): array => $this->record($game, $assistantA, $this->ownEvent($starterB)),
+            'player_id',
+        );
+        $this->assertValidationException(
+            fn (): array => $this->record($game, $assistantB, $this->ownEvent($starterA)),
             'player_id',
         );
     }

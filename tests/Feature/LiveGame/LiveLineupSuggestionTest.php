@@ -275,12 +275,39 @@ class LiveLineupSuggestionTest extends TestCase
         $this->assertNotContains($delegated->id, $assistantFixed);
     }
 
+    public function test_split_assistants_each_only_hold_their_own_players(): void
+    {
+        $this->fakeEngine();
+        [$game, $coach] = $this->liveGame();
+        $delegatedA = Player::query()->findOrFail($game->starting_player_ids[0]);
+        $delegatedB = Player::query()->findOrFail($game->starting_player_ids[1]);
+        $assistantA = $this->delegate($game, $delegatedA);
+        $assistantB = User::factory()->forTeam($game->homeTeam)->create(['email_verified_at' => now()]);
+
+        LiveGamePlayerDelegation::query()->create([
+            'live_game_id' => $game->id,
+            'coach_user_id' => $assistantB->id,
+            'player_id' => $delegatedB->id,
+        ]);
+
+        $mainFixed = $this->suggestion($game, $coach)->json('fixed_player_ids');
+        $assistantAFixed = $this->suggestion($game, $assistantA)->json('fixed_player_ids');
+        $assistantBFixed = $this->suggestion($game, $assistantB)->json('fixed_player_ids');
+
+        $this->assertEqualsCanonicalizing([$delegatedA->id, $delegatedB->id], $mainFixed);
+        $this->assertContains($delegatedB->id, $assistantAFixed);
+        $this->assertNotContains($delegatedA->id, $assistantAFixed);
+        $this->assertContains($delegatedA->id, $assistantBFixed);
+        $this->assertNotContains($delegatedB->id, $assistantBFixed);
+    }
+
     public function test_a_cold_shooter_is_held_back_from_tonight_but_not_season(): void
     {
         $this->fakeEngine();
         [$game, $coach, $players] = $this->liveGameWithFullRoster();
 
         $cold = $players[0];
+        $cold->forceFill(['jersey_number' => 0])->save();
         foreach ($game->activePlayerIdsForSide(LiveGame::SIDE_HOME) as $playerId) {
             $this->liveStat($game, Player::query()->findOrFail($playerId), [
                 'minutes_seconds' => 1080,

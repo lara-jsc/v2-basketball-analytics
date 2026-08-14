@@ -11,8 +11,8 @@ import { UserRound, UsersRound } from 'lucide-react';
 type LineupConfirmModalProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    assistantName: string | null;
     hasAssignment: boolean;
+    assignedPlayerCount: number;
     onConfirmLineup: () => void;
     onConfirmWithAssistant: () => void;
     onAssignAssistant: () => void;
@@ -21,8 +21,8 @@ type LineupConfirmModalProps = {
 export function LineupConfirmModal({
     open,
     onOpenChange,
-    assistantName,
     hasAssignment,
+    assignedPlayerCount,
     onConfirmLineup,
     onConfirmWithAssistant,
     onAssignAssistant,
@@ -35,19 +35,19 @@ export function LineupConfirmModal({
                         Confirm lineup?
                     </DialogTitle>
                     <DialogDescription className="text-sm text-muted-foreground">
-                        {hasAssignment && assistantName
-                            ? `Submit with ${assistantName} controlling the players you assigned, or change the assignment.`
-                            : 'Submit your starting five now, or optionally assign players to an assistant coach first.'}
+                        {hasAssignment
+                            ? `Submit with assistant assignments for ${assignedPlayerCount} player${assignedPlayerCount === 1 ? '' : 's'}, or change them first.`
+                            : 'Submit your starting five now, or optionally assign players to assistant coaches first.'}
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex flex-col gap-2 sm:flex-col sm:space-x-0">
-                    {hasAssignment && assistantName ? (
+                    {hasAssignment ? (
                         <button
                             type="button"
                             onClick={onConfirmWithAssistant}
                             className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-amber-400 px-4 text-xs font-bold uppercase tracking-wide text-black transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
                         >
-                            <UsersRound size={16} /> Confirm with {assistantName}
+                            <UsersRound size={16} /> Confirm with assistant assignments
                         </button>
                     ) : (
                         <button
@@ -63,7 +63,7 @@ export function LineupConfirmModal({
                         onClick={onAssignAssistant}
                         className="live-badge-info flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-cyan-200/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 dark:hover:bg-cyan-300/20"
                     >
-                        <UserRound size={16} /> Assign assistant
+                        <UserRound size={16} /> Assign assistants
                     </button>
                     {hasAssignment && (
                         <button

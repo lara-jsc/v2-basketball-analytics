@@ -12,86 +12,95 @@ use Illuminate\Validation\ValidationException;
 class LiveGameDelegationWriter
 {
     /**
-     * Replace an assistant's exclusive player assignments for one live game.
+     * Replace all delegated player assignments for one team-side in one live game.
      *
-     * @param  list<int>  $playerIds
+     * @param  list<array{coach_user_id:int, player_ids:list<int>}>  $assignments
      */
-    /**
-     * Replace an assistant's exclusive player assignments for one live game.
-     *
-     * Players from either team roster (home or opponent) are delegatable.
-     * The shot-only restriction for opponent players is enforced in the event gates,
-     * not here.
-     *
-     * @param  list<int>  $playerIds
-     */
-    public function write(
+    public function writeAssignments(
         LiveGame $liveGame,
         User $mainCoach,
         int $teamId,
-        int $assistantCoachUserId,
-        array $playerIds,
+        array $assignments,
     ): void {
-        if ($assistantCoachUserId === (int) $mainCoach->id) {
+        $assistantCoachIds = collect($assignments)
+            ->pluck('coach_user_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (in_array((int) $mainCoach->id, $assistantCoachIds, true)) {
             throw ValidationException::withMessages([
-                'assistant_coach_user_id' => 'Assistant coach must differ from the main coach.',
+                'assistant_assignments' => 'Assistant coach must differ from the main coach.',
             ]);
         }
 
-        $assistant = User::query()
-            ->where('id', $assistantCoachUserId)
+        $verifiedAssistantIds = User::query()
+            ->whereIn('id', $assistantCoachIds)
             ->where('team_id', $teamId)
             ->whereNotNull('email_verified_at')
-            ->first();
+            ->pluck('id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
 
-        if ($assistant === null) {
+        sort($assistantCoachIds);
+        $sortedVerifiedAssistantIds = $verifiedAssistantIds;
+        sort($sortedVerifiedAssistantIds);
+
+        if ($assistantCoachIds !== $sortedVerifiedAssistantIds) {
             throw ValidationException::withMessages([
-                'assistant_coach_user_id' => 'Assistant coach must be an email-verified coach on this team.',
+                'assistant_assignments' => 'Assistant coaches must be email-verified coaches on this team.',
             ]);
         }
 
-        $playerIds = array_values(array_unique(array_map(static fn (mixed $id): int => (int) $id, $playerIds)));
-
-        if ($playerIds === []) {
-            throw ValidationException::withMessages([
-                'delegated_player_ids' => 'Select at least one player for the assistant.',
-            ]);
-        }
-
-        $bothTeamIds = array_unique(array_filter([
-            (int) $liveGame->home_team_id,
-            (int) $liveGame->opponent_team_id,
-        ]));
-
-        $validCount = Player::query()
-            ->whereIn('team_id', $bothTeamIds)
+        $teamPlayerIds = Player::query()
+            ->where('team_id', $teamId)
             ->where('is_active', true)
-            ->whereIn('id', $playerIds)
-            ->count();
+            ->pluck('id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
 
-        if ($validCount !== count($playerIds)) {
+        $allPlayerIds = collect($assignments)
+            ->pluck('player_ids')
+            ->flatten()
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
+
+        if (array_values(array_unique($allPlayerIds)) !== $allPlayerIds) {
             throw ValidationException::withMessages([
-                'delegated_player_ids' => 'Delegated players must be active roster players in this game.',
+                'assistant_assignments' => 'A player can be assigned to only one assistant coach.',
             ]);
         }
 
-        DB::transaction(function () use ($liveGame, $assistantCoachUserId, $playerIds): void {
-            LiveGamePlayerDelegation::query()
-                ->where('live_game_id', $liveGame->id)
-                ->whereIn('player_id', $playerIds)
-                ->delete();
-
-            LiveGamePlayerDelegation::query()
-                ->where('live_game_id', $liveGame->id)
-                ->where('coach_user_id', $assistantCoachUserId)
-                ->delete();
-
-            foreach ($playerIds as $playerId) {
-                LiveGamePlayerDelegation::query()->create([
-                    'live_game_id' => $liveGame->id,
-                    'coach_user_id' => $assistantCoachUserId,
-                    'player_id' => $playerId,
+        $teamPlayerLookup = array_flip($teamPlayerIds);
+        foreach ($allPlayerIds as $playerId) {
+            if (! isset($teamPlayerLookup[$playerId])) {
+                throw ValidationException::withMessages([
+                    'assistant_assignments' => 'Delegated players must be active roster players on this team.',
                 ]);
+            }
+        }
+
+        $rows = [];
+        foreach ($assignments as $assignment) {
+            foreach ($assignment['player_ids'] as $playerId) {
+                $rows[] = [
+                    'live_game_id' => $liveGame->id,
+                    'coach_user_id' => $assignment['coach_user_id'],
+                    'player_id' => $playerId,
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($liveGame, $teamPlayerIds, $rows): void {
+            LiveGamePlayerDelegation::query()
+                ->where('live_game_id', $liveGame->id)
+                ->whereIn('player_id', $teamPlayerIds)
+                ->delete();
+
+            foreach ($rows as $row) {
+                LiveGamePlayerDelegation::query()->create($row);
             }
         });
     }

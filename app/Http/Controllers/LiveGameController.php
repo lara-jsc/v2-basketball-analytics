@@ -118,12 +118,18 @@ class LiveGameController extends Controller
             'period_length_seconds' => ['required', 'integer', 'between:60,1200'],
             'starting_player_ids' => ['required', 'array', 'size:5'],
             'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
-            'assistant_coach_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('team_id', $homeTeamId)],
-            'delegated_player_ids' => ['nullable', 'array'],
-            'delegated_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+            'assistant_assignments' => ['nullable', 'array'],
+            'assistant_assignments.*.coach_user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where('team_id', $homeTeamId),
+            ],
+            'assistant_assignments.*.player_ids' => ['required', 'array', 'min:1'],
+            'assistant_assignments.*.player_ids.*' => ['integer', Rule::exists('players', 'id')],
         ])->validate();
 
-        $this->assertDelegationPair($validated);
+        $assistantAssignments = $this->normalizedAssistantAssignments($validated);
+        $this->assertAssistantAssignments($assistantAssignments);
 
         $homePlayerCount = Player::query()
             ->where('team_id', $homeTeamId)
@@ -151,19 +157,12 @@ class LiveGameController extends Controller
             'opponent_main_coach_user_id' => null,
         ]);
 
-        if (! empty($validated['assistant_coach_user_id'])) {
-            /** @var list<int> $delegatedPlayerIds */
-            $delegatedPlayerIds = array_values(array_map(
-                static fn (mixed $id): int => (int) $id,
-                $validated['delegated_player_ids'] ?? [],
-            ));
-
-            $delegationWriter->write(
+        if ($assistantAssignments !== []) {
+            $delegationWriter->writeAssignments(
                 $game,
                 $user,
                 $homeTeamId,
-                (int) $validated['assistant_coach_user_id'],
-                $delegatedPlayerIds,
+                $assistantAssignments,
             );
         }
 
@@ -260,12 +259,18 @@ class LiveGameController extends Controller
         $validated = Validator::make($request->all(), [
             'starting_player_ids' => ['required', 'array', 'size:5'],
             'starting_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
-            'assistant_coach_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('team_id', $teamId)],
-            'delegated_player_ids' => ['nullable', 'array'],
-            'delegated_player_ids.*' => ['integer', 'distinct', Rule::exists('players', 'id')],
+            'assistant_assignments' => ['nullable', 'array'],
+            'assistant_assignments.*.coach_user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where('team_id', $teamId),
+            ],
+            'assistant_assignments.*.player_ids' => ['required', 'array', 'min:1'],
+            'assistant_assignments.*.player_ids.*' => ['integer', Rule::exists('players', 'id')],
         ])->validate();
 
-        $this->assertDelegationPair($validated);
+        $assistantAssignments = $this->normalizedAssistantAssignments($validated);
+        $this->assertAssistantAssignments($assistantAssignments);
 
         $playerCount = Player::query()
             ->where('team_id', $teamId)
@@ -302,21 +307,14 @@ class LiveGameController extends Controller
             : (int) $liveGame->home_main_coach_user_id;
 
         $canWriteDelegation = $mainCoachUserId === (int) $user->id
-            && ! empty($validated['assistant_coach_user_id']);
+            && $assistantAssignments !== [];
 
         if ($canWriteDelegation) {
-            /** @var list<int> $delegatedPlayerIds */
-            $delegatedPlayerIds = array_values(array_map(
-                static fn (mixed $id): int => (int) $id,
-                $validated['delegated_player_ids'] ?? [],
-            ));
-
-            $delegationWriter->write(
+            $delegationWriter->writeAssignments(
                 $liveGame,
                 $user,
                 $teamId,
-                (int) $validated['assistant_coach_user_id'],
-                $delegatedPlayerIds,
+                $assistantAssignments,
             );
         }
 
@@ -384,22 +382,51 @@ class LiveGameController extends Controller
 
     /**
      * @param  array<string, mixed>  $validated
+     * @return list<array{coach_user_id:int, player_ids:list<int>}>
      */
-    private function assertDelegationPair(array $validated): void
+    private function normalizedAssistantAssignments(array $validated): array
     {
-        $hasAssistant = ! empty($validated['assistant_coach_user_id']);
-        $hasPlayers = ! empty($validated['delegated_player_ids']);
+        return collect($validated['assistant_assignments'] ?? [])
+            ->map(function (array $assignment): array {
+                return [
+                    'coach_user_id' => (int) $assignment['coach_user_id'],
+                    'player_ids' => array_values(array_unique(array_map(
+                        static fn (mixed $id): int => (int) $id,
+                        $assignment['player_ids'] ?? [],
+                    ))),
+                ];
+            })
+            ->filter(fn (array $assignment): bool => $assignment['player_ids'] !== [])
+            ->values()
+            ->all();
+    }
 
-        if ($hasAssistant && ! $hasPlayers) {
-            throw ValidationException::withMessages([
-                'delegated_player_ids' => 'Select at least one player for the assistant.',
-            ]);
-        }
+    /**
+     * @param  list<array{coach_user_id:int, player_ids:list<int>}>  $assignments
+     */
+    private function assertAssistantAssignments(array $assignments): void
+    {
+        $coachIds = [];
+        $playerIds = [];
 
-        if ($hasPlayers && ! $hasAssistant) {
-            throw ValidationException::withMessages([
-                'assistant_coach_user_id' => 'Select an assistant coach for the delegated players.',
-            ]);
+        foreach ($assignments as $assignment) {
+            if (in_array($assignment['coach_user_id'], $coachIds, true)) {
+                throw ValidationException::withMessages([
+                    'assistant_assignments' => 'Each assistant coach may appear only once.',
+                ]);
+            }
+
+            $coachIds[] = $assignment['coach_user_id'];
+
+            foreach ($assignment['player_ids'] as $playerId) {
+                if (in_array($playerId, $playerIds, true)) {
+                    throw ValidationException::withMessages([
+                        'assistant_assignments' => 'A player can be assigned to only one assistant coach.',
+                    ]);
+                }
+
+                $playerIds[] = $playerId;
+            }
         }
     }
 

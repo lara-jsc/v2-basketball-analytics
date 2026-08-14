@@ -5,31 +5,31 @@ import { useState } from 'react';
 
 export type CoachOption = { id: number; name: string };
 
+export type AssistantAssignment = {
+    coachUserId: number;
+    playerIds: number[];
+};
+
 export type AssignAssistantValue = {
-    assistantCoachUserId: number | null;
-    delegatedPlayerIds: number[];
+    assistantAssignments: AssistantAssignment[];
 };
 
 type AssignAssistantPanelProps = {
     coaches: CoachOption[];
     players: Player[];
-    /** Opponent active players eligible for shot-only delegation. */
-    opponentPlayers?: Player[];
     value: AssignAssistantValue;
     onChange: (value: AssignAssistantValue) => void;
     visible: boolean;
     expanded?: boolean;
     onExpandedChange?: (expanded: boolean) => void;
     errors?: {
-        assistant_coach_user_id?: string;
-        delegated_player_ids?: string;
+        assistant_assignments?: string;
     };
 };
 
 export function AssignAssistantPanel({
     coaches,
     players,
-    opponentPlayers,
     value,
     onChange,
     visible,
@@ -40,6 +40,11 @@ export function AssignAssistantPanel({
     const [internalExpanded, setInternalExpanded] = useState(false);
     const isControlled = expandedProp !== undefined;
     const expanded = isControlled ? expandedProp : internalExpanded;
+    const assignedPlayerCount = value.assistantAssignments.reduce(
+        (count, assignment) => count + assignment.playerIds.length,
+        0,
+    );
+    const hasAssignment = assignedPlayerCount > 0;
 
     function setExpanded(next: boolean): void {
         onExpandedChange?.(next);
@@ -52,33 +57,76 @@ export function AssignAssistantPanel({
         return null;
     }
 
-    const selectedCoach = coaches.find((coach) => coach.id === value.assistantCoachUserId) ?? null;
-    const delegatedCount = value.delegatedPlayerIds.length;
-    const hasAssignment = selectedCoach !== null && delegatedCount > 0;
-
-    function selectCoach(coachId: number): void {
-        onChange({
-            assistantCoachUserId: coachId,
-            delegatedPlayerIds: value.delegatedPlayerIds,
-        });
+    function normalizeAssignments(assignments: AssistantAssignment[]): AssistantAssignment[] {
+        return assignments
+            .map((assignment) => ({
+                coachUserId: assignment.coachUserId,
+                playerIds: Array.from(new Set(assignment.playerIds)),
+            }))
+            .filter((assignment) => assignment.playerIds.length > 0);
     }
 
-    function setOwner(playerId: number, owner: 'you' | 'assistant'): void {
-        const next = new Set(value.delegatedPlayerIds);
-        if (owner === 'assistant') {
-            next.add(playerId);
-        } else {
-            next.delete(playerId);
+    function ownerForPlayer(playerId: number): number | 'you' {
+        for (const assignment of value.assistantAssignments) {
+            if (assignment.playerIds.includes(playerId)) {
+                return assignment.coachUserId;
+            }
         }
+
+        return 'you';
+    }
+
+    function setPlayerOwner(playerId: number, owner: 'you' | number): void {
+        const nextAssignments = value.assistantAssignments.map((assignment) => ({
+            ...assignment,
+            playerIds: assignment.playerIds.filter((id) => id !== playerId),
+        }));
+
+        if (owner !== 'you') {
+            const target = nextAssignments.find((assignment) => assignment.coachUserId === owner);
+
+            if (target) {
+                target.playerIds = [...target.playerIds, playerId];
+            } else {
+                nextAssignments.push({ coachUserId: owner, playerIds: [playerId] });
+            }
+        }
+
         onChange({
-            assistantCoachUserId: value.assistantCoachUserId,
-            delegatedPlayerIds: Array.from(next),
+            assistantAssignments: normalizeAssignments(nextAssignments),
         });
     }
 
-    function removeAssistant(): void {
-        onChange({ assistantCoachUserId: null, delegatedPlayerIds: [] });
-        setExpanded(false);
+    function clearAssignments(): void {
+        onChange({ assistantAssignments: [] });
+    }
+
+    const assignedSummaries = value.assistantAssignments
+        .map((assignment) => {
+            const coach = coaches.find((candidate) => candidate.id === assignment.coachUserId);
+
+            if (!coach) {
+                return null;
+            }
+
+            return {
+                id: coach.id,
+                label: `${coach.name} · ${assignment.playerIds.length} player${assignment.playerIds.length === 1 ? '' : 's'}`,
+            };
+        })
+        .filter((summary): summary is { id: number; label: string } => summary !== null);
+    const assistantCount = assignedSummaries.length;
+
+    const buttonLabel = hasAssignment
+        ? `${assistantCount} assistant${assistantCount === 1 ? '' : 's'} · ${assignedPlayerCount} player${assignedPlayerCount === 1 ? '' : 's'}`
+        : 'Assign assistants';
+
+    function ownerSelectId(playerId: number): string {
+        return `owner-player-${playerId}`;
+    }
+
+    function ownerLabel(player: Player): string {
+        return `Owner for ${playerName(player)}`;
     }
 
     return (
@@ -91,9 +139,7 @@ export function AssignAssistantPanel({
             >
                 <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
                     <UserRound size={16} className="live-text-info" />
-                    {hasAssignment
-                        ? `${selectedCoach.name} · ${delegatedCount} player${delegatedCount === 1 ? '' : 's'}`
-                        : 'Assign an assistant'}
+                    {buttonLabel}
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     {expanded ? 'Hide' : 'Show'}
@@ -103,42 +149,33 @@ export function AssignAssistantPanel({
             {expanded && (
                 <div className="mt-4 space-y-4">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Assistant coach</p>
-                        <ul className="mt-2 grid gap-2" role="listbox" aria-label="Assistant coach">
-                            {coaches.map((coach) => {
-                                const selected = value.assistantCoachUserId === coach.id;
-                                return (
-                                    <li key={coach.id}>
-                                        <button
-                                            type="button"
-                                            role="option"
-                                            aria-selected={selected}
-                                            onClick={() => selectCoach(coach.id)}
-                                            className={`flex min-h-11 w-full cursor-pointer items-center rounded-md border px-3 text-left text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
-                                                selected
-                                                    ? 'live-badge-info'
-                                                    : 'border-border text-foreground hover:bg-muted/40'
-                                            }`}
-                                        >
-                                            {coach.name}
-                                        </button>
+                        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Assistant summary</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Assign each player to yourself or one assistant coach.
+                        </p>
+                        {assignedSummaries.length > 0 ? (
+                            <ul className="mt-3 flex flex-wrap gap-2">
+                                {assignedSummaries.map((summary) => (
+                                    <li key={summary.id} className="live-badge-info rounded-md px-3 py-1 text-xs font-bold">
+                                        {summary.label}
                                     </li>
-                                );
-                            })}
-                        </ul>
-                        {errors?.assistant_coach_user_id && (
-                            <p className="live-text-danger mt-2 text-xs">{errors.assistant_coach_user_id}</p>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="mt-3 rounded-md border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
+                                No players are delegated yet.
+                            </p>
                         )}
                     </div>
 
                     <div>
                         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Who controls each player</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Players marked Assistant are recorded by that coach. Everyone else stays with you.
+                            Choosing You keeps the player with the main coach. Choosing an assistant assigns that player only to them.
                         </p>
                         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                             {players.map((player) => {
-                                const isAssistant = value.delegatedPlayerIds.includes(player.id);
+                                const owner = ownerForPlayer(player.id);
                                 return (
                                     <li
                                         key={player.id}
@@ -149,102 +186,45 @@ export function AssignAssistantPanel({
                                             <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
                                             <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
                                         </span>
-                                        <div className="flex rounded-md border border-border p-0.5" role="group" aria-label={`Owner for ${playerName(player)}`}>
-                                            <button
-                                                type="button"
-                                                onClick={() => setOwner(player.id, 'you')}
-                                                className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
-                                                    !isAssistant
-                                                        ? 'bg-amber-400 text-black'
-                                                        : 'text-muted-foreground hover:bg-muted/50'
-                                                }`}
-                                            >
-                                                You
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setOwner(player.id, 'assistant')}
-                                                disabled={value.assistantCoachUserId === null}
-                                                className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
-                                                    isAssistant
-                                                        ? 'bg-cyan-100 text-cyan-900 dark:bg-cyan-300/20 dark:text-cyan-100'
-                                                        : 'text-muted-foreground hover:bg-muted/50'
-                                                }`}
-                                            >
-                                                Assistant
-                                            </button>
-                                        </div>
+                                        <label htmlFor={ownerSelectId(player.id)} className="sr-only">
+                                            {ownerLabel(player)}
+                                        </label>
+                                        <select
+                                            id={ownerSelectId(player.id)}
+                                            aria-label={ownerLabel(player)}
+                                            value={owner === 'you' ? 'you' : String(owner)}
+                                            onChange={(event) =>
+                                                setPlayerOwner(
+                                                    player.id,
+                                                    event.target.value === 'you' ? 'you' : Number(event.target.value),
+                                                )
+                                            }
+                                            className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+                                        >
+                                            <option value="you">You</option>
+                                            {coaches.map((coach) => (
+                                                <option key={coach.id} value={coach.id}>
+                                                    {coach.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </li>
                                 );
                             })}
                         </ul>
-                        {errors?.delegated_player_ids && (
-                            <p className="live-text-danger mt-2 text-xs">{errors.delegated_player_ids}</p>
+                        {errors?.assistant_assignments && (
+                            <p className="live-text-danger mt-2 text-xs">{errors.assistant_assignments}</p>
                         )}
                     </div>
-
-                    {opponentPlayers && opponentPlayers.length > 0 && (
-                        <div>
-                            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                                Opponent — shots only
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                Assistants assigned here can log shots only — not fouls or substitutions.
-                                Unassigned opponent players stay with the head coach for shots.
-                            </p>
-                            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                                {opponentPlayers.map((player) => {
-                                    const isAssistant = value.delegatedPlayerIds.includes(player.id);
-                                    return (
-                                        <li
-                                            key={player.id}
-                                            className="flex min-h-14 flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2"
-                                        >
-                                            <span className="live-text-warn font-mono">{player.jersey_number}</span>
-                                            <span className="min-w-0 flex-1">
-                                                <span className="block truncate text-sm font-semibold text-foreground">{playerName(player)}</span>
-                                                <span className="block truncate text-xs text-muted-foreground">{player.role ?? 'Player'}</span>
-                                            </span>
-                                            <div className="flex rounded-md border border-border p-0.5" role="group" aria-label={`Owner for ${playerName(player)}`}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setOwner(player.id, 'you')}
-                                                    className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
-                                                        !isAssistant
-                                                            ? 'bg-amber-400 text-black'
-                                                            : 'text-muted-foreground hover:bg-muted/50'
-                                                    }`}
-                                                >
-                                                    You
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setOwner(player.id, 'assistant')}
-                                                    disabled={value.assistantCoachUserId === null}
-                                                    className={`min-h-10 cursor-pointer rounded px-2.5 text-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
-                                                        isAssistant
-                                                            ? 'bg-cyan-100 text-cyan-900 dark:bg-cyan-300/20 dark:text-cyan-100'
-                                                            : 'text-muted-foreground hover:bg-muted/50'
-                                                    }`}
-                                                >
-                                                    Assistant
-                                                </button>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-                    )}
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         {hasAssignment && (
                             <button
                                 type="button"
-                                onClick={removeAssistant}
+                                onClick={clearAssignments}
                                 className="flex min-h-11 cursor-pointer items-center rounded-md border border-border px-4 text-xs font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
                             >
-                                Remove assistant
+                                Clear assignments
                             </button>
                         )}
                         <button

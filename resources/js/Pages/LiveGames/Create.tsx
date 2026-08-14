@@ -32,8 +32,7 @@ export default function LiveGamesCreate({
         opponent_team_id: preselectedOpponentTeamId ? String(preselectedOpponentTeamId) : '',
         period_length_seconds: 600,
         starting_player_ids: [] as number[],
-        assistant_coach_user_id: defaultAssistantCoachUserId,
-        delegated_player_ids: [] as number[],
+        assistant_assignments: [] as Array<{ coach_user_id: number; player_ids: number[] }>,
     });
 
     useEffect(() => {
@@ -68,6 +67,8 @@ export default function LiveGamesCreate({
     }
 
     const lineupReady = data.starting_player_ids.length === 5 && data.opponent_team_id !== '';
+    const assistantAssignmentError = Object.entries(errors as Record<string, string | undefined>)
+        .find(([key]) => key.startsWith('assistant_assignments'))?.[1];
 
     return (
         <AuthenticatedLayout>
@@ -180,19 +181,24 @@ export default function LiveGamesCreate({
                                 players={homeTeam.players}
                                 visible={lineupReady}
                                 value={{
-                                    assistantCoachUserId: data.assistant_coach_user_id,
-                                    delegatedPlayerIds: data.delegated_player_ids,
+                                    assistantAssignments: data.assistant_assignments.map((assignment) => ({
+                                        coachUserId: assignment.coach_user_id,
+                                        playerIds: assignment.player_ids,
+                                    })),
                                 }}
                                 onChange={(next) => {
                                     setData({
                                         ...data,
-                                        assistant_coach_user_id: next.assistantCoachUserId,
-                                        delegated_player_ids: next.delegatedPlayerIds,
+                                        assistant_assignments: next.assistantAssignments
+                                            .map((assignment) => ({
+                                                coach_user_id: assignment.coachUserId,
+                                                player_ids: assignment.playerIds,
+                                            }))
+                                            .filter((assignment) => assignment.player_ids.length > 0),
                                     });
                                 }}
                                 errors={{
-                                    assistant_coach_user_id: errors.assistant_coach_user_id,
-                                    delegated_player_ids: errors.delegated_player_ids as string | undefined,
+                                    assistant_assignments: assistantAssignmentError,
                                 }}
                             />
                         </div>

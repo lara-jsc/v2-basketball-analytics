@@ -116,8 +116,7 @@ export default function LiveGamesShow({
 
     const lineupForm = useForm({
         starting_player_ids: ownPlayers.slice(0, 5).map((player) => player.id),
-        assistant_coach_user_id: null as number | null,
-        delegated_player_ids: [] as number[],
+        assistant_assignments: [] as Array<{ coach_user_id: number; player_ids: number[] }>,
     });
 
     const viewerTeamName = viewerSide === 'opponent'
@@ -321,8 +320,7 @@ export default function LiveGamesShow({
         if (clearAssistant) {
             lineupForm.setData({
                 starting_player_ids: lineupForm.data.starting_player_ids,
-                assistant_coach_user_id: null,
-                delegated_player_ids: [],
+                assistant_assignments: [],
             });
         }
         lineupForm.post(route('live-games.lineup', { liveGame: liveGame.id }));
@@ -340,10 +338,13 @@ export default function LiveGamesShow({
         setConfirmLineupOpen(true);
     }
 
-    const selectedAssistantName =
-        assistantCoachOptions.find((coach) => coach.id === lineupForm.data.assistant_coach_user_id)?.name ?? null;
-    const hasAssistantAssignment =
-        selectedAssistantName !== null && lineupForm.data.delegated_player_ids.length > 0;
+    const assignedPlayerCount = lineupForm.data.assistant_assignments.reduce(
+        (count, assignment) => count + assignment.player_ids.length,
+        0,
+    );
+    const hasAssistantAssignment = lineupForm.data.assistant_assignments.length > 0;
+    const assistantAssignmentError = Object.entries(lineupForm.errors as Record<string, string | undefined>)
+        .find(([key]) => key.startsWith('assistant_assignments'))?.[1];
 
     // One reason string covers every non-clock block; the pad adds per-button clock reasons.
     const recordingBlockedReason = !canRecord
@@ -504,19 +505,24 @@ export default function LiveGamesShow({
                             expanded={assignExpanded}
                             onExpandedChange={setAssignExpanded}
                             value={{
-                                assistantCoachUserId: lineupForm.data.assistant_coach_user_id,
-                                delegatedPlayerIds: lineupForm.data.delegated_player_ids,
+                                assistantAssignments: lineupForm.data.assistant_assignments.map((assignment) => ({
+                                    coachUserId: assignment.coach_user_id,
+                                    playerIds: assignment.player_ids,
+                                })),
                             }}
                             onChange={(next) => {
                                 lineupForm.setData({
                                     ...lineupForm.data,
-                                    assistant_coach_user_id: next.assistantCoachUserId,
-                                    delegated_player_ids: next.delegatedPlayerIds,
+                                    assistant_assignments: next.assistantAssignments
+                                        .map((assignment) => ({
+                                            coach_user_id: assignment.coachUserId,
+                                            player_ids: assignment.playerIds,
+                                        }))
+                                        .filter((assignment) => assignment.player_ids.length > 0),
                                 });
                             }}
                             errors={{
-                                assistant_coach_user_id: lineupForm.errors.assistant_coach_user_id,
-                                delegated_player_ids: lineupForm.errors.delegated_player_ids,
+                                assistant_assignments: assistantAssignmentError,
                             }}
                         />
                     </form>
@@ -525,8 +531,8 @@ export default function LiveGamesShow({
                 <LineupConfirmModal
                     open={confirmLineupOpen}
                     onOpenChange={setConfirmLineupOpen}
-                    assistantName={selectedAssistantName}
                     hasAssignment={hasAssistantAssignment}
+                    assignedPlayerCount={assignedPlayerCount}
                     onConfirmLineup={() => postLineup(true)}
                     onConfirmWithAssistant={() => postLineup(false)}
                     onAssignAssistant={() => {

@@ -136,7 +136,50 @@ it('still refuses a foul on an opponent player even with a delegation', function
         ->assertStatus(422);
 });
 
-it('assigns an opponent player to an assistant via the lineup submission', function () {
+it('assigns multiple home players to multiple assistants via the lineup submission', function () {
+    Event::fake([LiveGameStateUpdated::class]);
+
+    $home = Team::factory()->create();
+    $opponent = Team::factory()->create();
+
+    $head = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
+    $assistantA = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
+    $assistantB = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
+
+    $homeStarters = Player::factory()->count(5)->for($home)->create(['is_active' => true]);
+    $homeBench = Player::factory()->count(2)->for($home)->create(['is_active' => true]);
+
+    $game = LiveGame::factory()->create([
+        'home_team_id' => $home->id,
+        'opponent_team_id' => $opponent->id,
+        'created_by_user_id' => $head->id,
+        'status' => LiveGame::STATUS_SETUP,
+        'home_main_coach_user_id' => $head->id,
+    ]);
+
+    $this->actingAs($head)
+        ->post(route('live-games.lineup', $game), [
+            'starting_player_ids' => $homeStarters->pluck('id')->all(),
+            'assistant_assignments' => [
+                [
+                    'coach_user_id' => $assistantA->id,
+                    'player_ids' => [$homeStarters[0]->id, $homeBench[0]->id],
+                ],
+                [
+                    'coach_user_id' => $assistantB->id,
+                    'player_ids' => [$homeStarters[1]->id, $homeBench[1]->id],
+                ],
+            ],
+        ])
+        ->assertRedirect();
+
+    expect(LiveGamePlayerDelegation::query()
+        ->where('live_game_id', $game->id)
+        ->where('player_id', $homeBench[1]->id)
+        ->value('coach_user_id'))->toBe($assistantB->id);
+});
+
+it('refuses to delegate an opponent player via lineup submission', function () {
     Event::fake([LiveGameStateUpdated::class]);
 
     $home = Team::factory()->create();
@@ -156,49 +199,17 @@ it('assigns an opponent player to an assistant via the lineup submission', funct
         'home_main_coach_user_id' => $head->id,
     ]);
 
-    // Submit lineup including an opponent player in the delegation list.
     $this->actingAs($head)
         ->post(route('live-games.lineup', $game), [
             'starting_player_ids' => $homeStarters->pluck('id')->all(),
-            'assistant_coach_user_id' => $assistant->id,
-            'delegated_player_ids' => [$opponentPlayer->id],
+            'assistant_assignments' => [
+                [
+                    'coach_user_id' => $assistant->id,
+                    'player_ids' => [$opponentPlayer->id],
+                ],
+            ],
         ])
-        ->assertRedirect();
-
-    expect(LiveGamePlayerDelegation::query()
-        ->where('live_game_id', $game->id)
-        ->where('player_id', $opponentPlayer->id)
-        ->value('coach_user_id'))->toBe($assistant->id);
-});
-
-it('refuses to delegate a player from a team not in this game', function () {
-    Event::fake([LiveGameStateUpdated::class]);
-
-    $home = Team::factory()->create();
-    $opponent = Team::factory()->create();
-    $stranger = Team::factory()->create();
-
-    $head = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
-    $assistant = User::factory()->forTeam($home)->create(['email_verified_at' => now()]);
-
-    $homeStarters = Player::factory()->count(5)->for($home)->create(['is_active' => true]);
-    $strangerPlayer = Player::factory()->for($stranger)->create(['is_active' => true]);
-
-    $game = LiveGame::factory()->create([
-        'home_team_id' => $home->id,
-        'opponent_team_id' => $opponent->id,
-        'created_by_user_id' => $head->id,
-        'status' => LiveGame::STATUS_SETUP,
-        'home_main_coach_user_id' => $head->id,
-    ]);
-
-    $this->actingAs($head)
-        ->post(route('live-games.lineup', $game), [
-            'starting_player_ids' => $homeStarters->pluck('id')->all(),
-            'assistant_coach_user_id' => $assistant->id,
-            'delegated_player_ids' => [$strangerPlayer->id],
-        ])
-        ->assertSessionHasErrors('delegated_player_ids');
+        ->assertSessionHasErrors('assistant_assignments');
 });
 
 it('credits plus-minus to the correct side for a delegated opponent shot', function () {
