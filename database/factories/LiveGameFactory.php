@@ -22,7 +22,7 @@ class LiveGameFactory extends Factory
             'opponent_team_id' => Team::factory(),
             'created_by_user_id' => User::factory(),
             'status' => LiveGame::STATUS_SETUP,
-            'game_date' => fake()->date(),
+            'game_date' => $this->faker->date(),
             'period_length_seconds' => 600,
             'current_period' => 1,
             'clock_seconds_remaining' => 600,

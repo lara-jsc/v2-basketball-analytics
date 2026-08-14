@@ -16,11 +16,11 @@ class PlayerShotZoneProfileFactory extends Factory
     public function definition(): array
     {
         // Generate plausible zone splits consistent with box-score totals.
-        $paintAttempted = fake()->numberBetween(20, 60);
-        $midAttempted = fake()->numberBetween(10, 40);
-        $cornerLeftAttempted = fake()->numberBetween(5, 25);
-        $cornerRightAttempted = fake()->numberBetween(5, 25);
-        $aboveBreakAttempted = fake()->numberBetween(10, 50);
+        $paintAttempted = $this->faker->numberBetween(20, 60);
+        $midAttempted = $this->faker->numberBetween(10, 40);
+        $cornerLeftAttempted = $this->faker->numberBetween(5, 25);
+        $cornerRightAttempted = $this->faker->numberBetween(5, 25);
+        $aboveBreakAttempted = $this->faker->numberBetween(10, 50);
 
         return [
             'player_id' => Player::factory(),

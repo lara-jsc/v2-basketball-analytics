@@ -10,11 +10,13 @@ class DemoUserSeeder extends Seeder
 {
     public function run(): void
     {
+        $password = (string) config('demo.password');
+
         User::updateOrCreate(
             ['email' => 'test@email.com'],
             [
                 'name' => 'Demo Admin',
-                'password' => 'password123',
+                'password' => $password,
                 'email_verified_at' => now(),
                 'team_id' => null,
             ],
@@ -28,7 +30,7 @@ class DemoUserSeeder extends Seeder
                 ['email' => 'warriors@email.com'],
                 [
                     'name' => 'Warriors Coach',
-                    'password' => 'password123',
+                    'password' => $password,
                     'email_verified_at' => now(),
                     'team_id' => $warriors->id,
                 ],
@@ -40,7 +42,7 @@ class DemoUserSeeder extends Seeder
                 ['email' => 'lakers@email.com'],
                 [
                     'name' => 'Lakers Coach',
-                    'password' => 'password123',
+                    'password' => $password,
                     'email_verified_at' => now(),
                     'team_id' => $lakers->id,
                 ],

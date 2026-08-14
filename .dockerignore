@@ -10,3 +10,12 @@ storage/framework/views/*
 tests
 .claude
 .DS_Store
+docs
+playwright-report
+.pytest_cache
+*.xlsx
+.agents
+.codex
+.cursor
+.superpowers
+.impeccable

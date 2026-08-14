@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Railway injects PORT. Default for local runs; 8080 is reserved for Reverb.
+export PORT="${PORT:-8000}"
+
 echo "🏀 HoopSense+ — Starting deployment..."
 
 # Composer dependencies and frontend assets are built into the image at
@@ -40,5 +43,5 @@ php artisan storage:link || true
 
 echo "✅ Deployment ready! Starting services..."
 
-# Start supervisor (web + queue)
+# Start supervisor (web + queue + reverb)
 exec supervisord -c /etc/supervisor/conf.d/supervisord.conf
