@@ -38,6 +38,7 @@ class ComputePlayerMatchup implements ShouldQueue
                 'playerA' => $this->playerAId,
                 'playerB' => $this->playerBId,
             ]);
+
             return;
         }
 
@@ -52,8 +53,9 @@ class ComputePlayerMatchup implements ShouldQueue
             Log::error('ComputePlayerMatchup: engine error', [
                 'playerA' => $this->playerAId,
                 'playerB' => $this->playerBId,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return;
         }
 
@@ -66,18 +68,18 @@ class ComputePlayerMatchup implements ShouldQueue
         $s = $player->stats->first();
 
         return [
-            'player_id'          => $player->id,
-            'pts'                => $s?->pts ?? 0,
-            'ast'                => $s?->ast ?? 0,
-            'reb'                => $s?->reb ?? 0,
-            'blk'                => $s?->blk ?? 0,
-            'stl'                => $s?->stl ?? 0,
-            'fg_pct'             => $s?->fg_pct ?? 0,
-            'three_p_pct'        => $s?->three_p_pct ?? 0,
-            'dr'                 => $s?->dr ?? 0,
+            'player_id' => $player->id,
+            'pts' => $s?->pts ?? 0,
+            'ast' => $s?->ast ?? 0,
+            'reb' => $s?->reb ?? 0,
+            'blk' => $s?->blk ?? 0,
+            'stl' => $s?->stl ?? 0,
+            'fg_pct' => $s?->fg_pct ?? 0,
+            'three_p_pct' => $s?->three_p_pct ?? 0,
+            'dr' => $s?->dr ?? 0,
             'offensive_rebounds' => $s?->offensive_rebounds ?? 0,
-            'min'                => $s?->min ?? 0,
-            'plus_minus'         => $s?->plus_minus ?? 0,
+            'min' => $s?->min ?? 0,
+            'plus_minus' => $s?->plus_minus ?? 0,
         ];
     }
 
@@ -86,7 +88,7 @@ class ComputePlayerMatchup implements ShouldQueue
         Log::error('ComputePlayerMatchup job failed', [
             'playerA' => $this->playerAId,
             'playerB' => $this->playerBId,
-            'error'   => $e->getMessage(),
+            'error' => $e->getMessage(),
         ]);
     }
 }

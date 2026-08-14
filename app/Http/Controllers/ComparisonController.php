@@ -9,6 +9,7 @@ use App\Repositories\TeamRepository;
 use App\Services\ComparisonAggregatorService;
 use App\Services\LineupService;
 use App\Services\PlayerMatchupService;
+use App\Services\ShotZoneService;
 use App\Services\WinProbabilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class ComparisonController extends Controller
         private readonly WinProbabilityService $winProbService,
         private readonly LineupService $lineupService,
         private readonly PlayerMatchupService $matchupService,
+        private readonly ShotZoneService $shotZoneService,
     ) {}
 
     /**
@@ -66,26 +68,31 @@ class ComparisonController extends Controller
         // Player matchup — only when both players are selected via query params
         $selectedAId = $request->integer('player_a') ?: null;
         $selectedBId = $request->integer('player_b') ?: null;
-        $matchup     = null;
+        $matchup = null;
 
         if ($selectedAId !== null && $selectedBId !== null) {
             $matchup = $this->matchupService->getOrDispatch($selectedAId, $selectedBId);
         }
 
+        $playerAShotZones = $selectedAId !== null ? $this->shotZoneService->profileFor($selectedAId) : null;
+        $playerBShotZones = $selectedBId !== null ? $this->shotZoneService->profileFor($selectedBId) : null;
+
         return Inertia::render('Comparison/Show', [
-            'teamA'          => $teamA,
-            'teamB'          => $teamB,
-            'playersA'       => $playersA->values(),
-            'playersB'       => $playersB->values(),
-            'teamAStats'     => $this->aggregator->aggregateStats($playersA),
-            'teamBStats'     => $this->aggregator->aggregateStats($playersB),
+            'teamA' => $teamA,
+            'teamB' => $teamB,
+            'playersA' => $playersA->values(),
+            'playersB' => $playersB->values(),
+            'teamAStats' => $this->aggregator->aggregateStats($playersA),
+            'teamBStats' => $this->aggregator->aggregateStats($playersB),
             'teamAPlusMinus' => $this->aggregator->teamPlusMinus($playersA),
             'teamBPlusMinus' => $this->aggregator->teamPlusMinus($playersB),
             'winProbability' => $winProbability,
-            'lineup'         => $lineup,
-            'matchup'        => $matchup,
-            'selectedAId'    => $selectedAId,
-            'selectedBId'    => $selectedBId,
+            'lineup' => $lineup,
+            'matchup' => $matchup,
+            'selectedAId' => $selectedAId,
+            'selectedBId' => $selectedBId,
+            'playerAShotZones' => $playerAShotZones,
+            'playerBShotZones' => $playerBShotZones,
         ]);
     }
 }

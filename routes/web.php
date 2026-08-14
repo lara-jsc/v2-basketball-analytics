@@ -2,9 +2,15 @@
 
 use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
+use App\Http\Controllers\LiveGameClockController;
+use App\Http\Controllers\LiveGameController;
+use App\Http\Controllers\LiveGameEventController;
+use App\Http\Controllers\LiveGameInviteController;
+use App\Http\Controllers\LiveGameSuggestionController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShotZoneProfileController;
 use App\Http\Controllers\TeamController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +27,46 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    Route::get('/live-games', [LiveGameController::class, 'index'])->name('live-games.index');
+    Route::get('/live-games/create', [LiveGameController::class, 'create'])->name('live-games.create');
+    Route::post('/live-games', [LiveGameController::class, 'store'])->name('live-games.store');
+    Route::get('/live-games/{liveGame}', [LiveGameController::class, 'show'])->name('live-games.show');
+    Route::post('/live-games/{liveGame}/lineup', [LiveGameController::class, 'submitLineup'])
+        ->can('record', 'liveGame')
+        ->name('live-games.lineup');
+    Route::post('/live-games/{liveGame}/start', [LiveGameController::class, 'start'])
+        ->can('record', 'liveGame')
+        ->name('live-games.start');
+    Route::post('/live-games/{liveGame}/finish', [LiveGameController::class, 'finish'])
+        ->can('record', 'liveGame')
+        ->name('live-games.finish');
+    Route::post('/live-games/{liveGame}/events', [LiveGameEventController::class, 'store'])
+        ->can('record', 'liveGame')
+        ->name('live-games.events.store');
+
+    Route::patch('/live-games/{liveGame}/events/{event}/zone', [LiveGameEventController::class, 'attachZone'])
+        ->can('record', 'liveGame')
+        ->name('live-games.events.zone');
+
+    Route::post('/live-games/{liveGame}/clock', [LiveGameClockController::class, 'store'])
+        ->can('record', 'liveGame')
+        ->name('live-games.clock.store');
+
+    Route::post('/live-games/{liveGame}/suggested-lineup', [LiveGameSuggestionController::class, 'store'])
+        ->can('record', 'liveGame')
+        ->name('live-games.suggested-lineup');
+
+    Route::post('/live-games/{liveGame}/suggested-lineup/apply', [LiveGameSuggestionController::class, 'apply'])
+        ->can('record', 'liveGame')
+        ->name('live-games.suggested-lineup.apply');
+
+    Route::post('/live-games/{liveGame}/correction', [LiveGameController::class, 'correction'])
+        ->can('record', 'liveGame')
+        ->name('live-games.correction');
+
+    Route::post('/live-game-invites/{notification}/dismiss', [LiveGameInviteController::class, 'dismiss'])
+        ->name('live-game-invites.dismiss');
+
     // ── Profile ───────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -31,8 +77,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/teams/create', [TeamController::class, 'create'])->name('teams.create');
     Route::post('/teams', [TeamController::class, 'store'])->name('teams.store');
     Route::get('/teams/{team}', [TeamController::class, 'show'])->name('teams.show');
+    Route::get('/teams/{team}/players/export', [TeamController::class, 'exportPlayers'])->name('teams.players.export');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
     Route::put('/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
+    Route::put('/teams/{team}/staffing', [TeamController::class, 'updateStaffing'])->name('teams.staffing.update');
     Route::patch('/teams/{team}/toggle-active', [TeamController::class, 'toggleActive'])->name('teams.toggleActive');
     Route::post('/teams/{team}/logo', [TeamController::class, 'uploadLogo'])->name('teams.uploadLogo');
 
@@ -48,14 +96,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/csv/upload', [CsvController::class, 'upload'])->name('csv.upload');
 
     // ── Player Histories ──────────────────────────────────────────────────
-    Route::get('/player-histories/template/download',      [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
+    Route::get('/players/{player}/histories/template', [PlayerHistoryController::class, 'downloadTemplate'])->name('player-histories.template');
+    Route::get('/players/{player}/histories/export', [PlayerHistoryController::class, 'export'])->name('player-histories.export');
     Route::post('/players/{player}/histories/import', [PlayerHistoryController::class, 'import'])->name('player-histories.import');
-    Route::get('/players/{player}/histories',         [PlayerHistoryController::class, 'index'])->name('player-histories.index');
-    Route::get('/players/{player}/histories/create',  [PlayerHistoryController::class, 'create'])->name('player-histories.create');
-    Route::post('/players/{player}/histories',        [PlayerHistoryController::class, 'store'])->name('player-histories.store');
-    Route::get('/player-histories/{history}/edit',    [PlayerHistoryController::class, 'edit'])->name('player-histories.edit');
-    Route::put('/player-histories/{history}',         [PlayerHistoryController::class, 'update'])->name('player-histories.update');
-    Route::delete('/player-histories/{history}',      [PlayerHistoryController::class, 'destroy'])->name('player-histories.destroy');
+    Route::get('/players/{player}/histories', [PlayerHistoryController::class, 'index'])->name('player-histories.index');
+    Route::get('/players/{player}/histories/create', [PlayerHistoryController::class, 'create'])->name('player-histories.create');
+    Route::post('/players/{player}/histories', [PlayerHistoryController::class, 'store'])->name('player-histories.store');
+    Route::get('/player-histories/{history}/edit', [PlayerHistoryController::class, 'edit'])->name('player-histories.edit');
+    Route::put('/player-histories/{history}', [PlayerHistoryController::class, 'update'])->name('player-histories.update');
+    Route::delete('/player-histories/{history}', [PlayerHistoryController::class, 'destroy'])->name('player-histories.destroy');
+
+    // ── Shot Zone Profiles ────────────────────────────────────────────────
+    Route::get('/shot-zone-profiles/template', [ShotZoneProfileController::class, 'downloadTemplate'])->name('shot-zone-profiles.template');
+    Route::post('/teams/{team}/shot-zone-profiles/import', [ShotZoneProfileController::class, 'import'])->name('shot-zone-profiles.import');
 
     // ── Team Comparison (Phase 3) ─────────────────────────────────────────
     Route::get('/comparison', [ComparisonController::class, 'index'])->name('comparison.index');

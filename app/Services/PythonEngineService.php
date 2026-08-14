@@ -19,11 +19,12 @@ use RuntimeException;
 class PythonEngineService
 {
     private string $bin;
+
     private string $enginePath;
 
     public function __construct()
     {
-        $this->bin        = (string) config('analytics.python_bin', 'python3');
+        $this->bin = (string) config('analytics.python_bin', 'python3');
         $this->enginePath = base_path((string) config('analytics.python_engine_path', 'analytics/engine.py'));
     }
 
@@ -33,7 +34,7 @@ class PythonEngineService
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      *
-     * @throws RuntimeException  on subprocess error or engine-returned error key
+     * @throws RuntimeException on subprocess error or engine-returned error key
      */
     public function call(string $command, array $payload): array
     {
@@ -43,13 +44,13 @@ class PythonEngineService
 
         if ($result->failed()) {
             Log::error('Python engine subprocess failed', [
-                'command'  => $command,
+                'command' => $command,
                 'exitCode' => $result->exitCode(),
-                'stderr'   => $result->errorOutput(),
+                'stderr' => $result->errorOutput(),
             ]);
 
             throw new RuntimeException(
-                "Python engine failed for command '{$command}': " . $result->errorOutput()
+                "Python engine failed for command '{$command}': ".$result->errorOutput()
             );
         }
 

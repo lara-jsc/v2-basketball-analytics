@@ -49,7 +49,7 @@ class LineupService
     private function cacheKey(int $homeTeamId, int $opponentTeamId): string
     {
         $vHome = (int) Cache::get("team.{$homeTeamId}.cache_version", 0);
-        $vOpp  = (int) Cache::get("team.{$opponentTeamId}.cache_version", 0);
+        $vOpp = (int) Cache::get("team.{$opponentTeamId}.cache_version", 0);
 
         return "lineup.{$homeTeamId}.{$opponentTeamId}.v{$vHome}.{$vOpp}";
     }

@@ -10,20 +10,23 @@ use App\Models\CsvImport;
 use App\Models\Player;
 use App\Models\PlayerHistory;
 use App\Models\Team;
+use App\Services\PlayerHistoryCsvService;
 use App\Services\PlayerHistoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class PlayerHistoryController extends Controller
 {
     public function __construct(
         private readonly PlayerHistoryService $historyService,
+        private readonly PlayerHistoryCsvService $playerHistoryCsvService,
     ) {}
 
     /**
@@ -32,19 +35,20 @@ class PlayerHistoryController extends Controller
     public function index(Player $player): InertiaResponse
     {
         $filters = array_filter([
-            'from'             => request('from'),
-            'to'               => request('to'),
-            'playing_team_id'  => request()->integer('playing_team_id') ?: null,
+            'from' => request('from'),
+            'to' => request('to'),
+            'playing_team_id' => request()->integer('playing_team_id') ?: null,
             'opponent_team_id' => request()->integer('opponent_team_id') ?: null,
         ]);
 
         $histories = $this->historyService->listForPlayer($player, $filters);
 
         return Inertia::render('Players/Histories/Index', [
-            'player'    => $player->load('team:id,code,name'),
+            'player' => $player->load('team:id,code,name'),
             'histories' => $histories,
-            'teams'     => Team::select('id', 'code', 'name')->orderBy('name')->get(),
-            'filters'   => $filters,
+            'teams' => Team::select('id', 'code', 'name')->orderBy('name')->get(),
+            'filters' => $filters,
+            'exportUrl' => route('player-histories.export', ['player' => $player, ...$filters]),
         ]);
     }
 
@@ -55,7 +59,11 @@ class PlayerHistoryController extends Controller
     {
         return Inertia::render('Players/Histories/Create', [
             'player' => $player->load('team:id,code,name'),
-            'teams'  => Team::select('id', 'code', 'name')->orderBy('name')->get(),
+            'playingTeam' => $player->team()->select('id', 'code', 'name')->first(),
+            'opponentTeams' => Team::select('id', 'code', 'name')
+                ->where('id', '!=', $player->team_id)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -79,13 +87,19 @@ class PlayerHistoryController extends Controller
      */
     public function edit(PlayerHistory $history): InertiaResponse
     {
+        $history->load([
+            'player.team:id,code,name',
+            'playingTeam:id,code,name',
+            'opponentTeam:id,code,name',
+        ]);
+
         return Inertia::render('Players/Histories/Edit', [
-            'history' => $history->load([
-                'player.team:id,code,name',
-                'playingTeam:id,code,name',
-                'opponentTeam:id,code,name',
-            ]),
-            'teams' => Team::select('id', 'code', 'name')->orderBy('name')->get(),
+            'history' => $history,
+            'playingTeam' => $history->player->team,
+            'opponentTeams' => Team::select('id', 'code', 'name')
+                ->where('id', '!=', $history->player->team_id)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -117,13 +131,16 @@ class PlayerHistoryController extends Controller
 
     /**
      * Stream an Excel (.xlsx) template with headers, one example row,
-     * and dropdown data validation on playing_team_id and opponent_team_id columns.
+     * and dropdown data validation on the opponent_team_id column scoped to a player.
      */
-    public function downloadTemplate(): Response
+    public function downloadTemplate(Player $player): Response
     {
-        $teams = Team::select('id', 'code', 'name')->orderBy('name')->get();
+        $teams = Team::select('id', 'code', 'name')
+            ->where('id', '!=', $player->team_id)
+            ->orderBy('name')
+            ->get();
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         // ── Sheet 1: Template ────────────────────────────────────────────────
         $sheet = $spreadsheet->getActiveSheet();
@@ -133,7 +150,7 @@ class PlayerHistoryController extends Controller
 
         // Write header row (bold)
         foreach ($headers as $colIndex => $header) {
-            $col  = $colIndex + 1;
+            $col = $colIndex + 1;
             $cell = $sheet->getCell([$col, 1]);
             $cell->setValue($header);
             $cell->getStyle()->getFont()->setBold(true);
@@ -183,47 +200,47 @@ class PlayerHistoryController extends Controller
             $teamsSheet->setCellValue([2, $rowIndex + 2], "{$team->id} | {$team->name} ({$team->code})");
         }
 
-        $teamCount      = $teams->count();
+        $teamCount = $teams->count();
         $teamListSource = $teamCount > 0
-            ? "Teams!\$B\$2:\$B\$" . ($teamCount + 1)
+            ? 'Teams!$B$2:$B$'.($teamCount + 1)
             : '"No teams yet"';
 
-        $teamsSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+        $teamsSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         // ── Dropdown validations ──────────────────────────────────────────────
         $spreadsheet->setActiveSheetIndex(0);
 
         $dropdowns = [
             'B' => [
-                'formula1'     => $teamListSource,
-                'promptTitle'  => 'Opponent Team',
-                'prompt'       => 'Select a team from the dropdown list.',
-                'errorTitle'   => 'Invalid team',
-                'error'        => 'Please select a team from the dropdown list.',
+                'formula1' => $teamListSource,
+                'promptTitle' => 'Opponent Team',
+                'prompt' => 'Select a team from the valid opponents dropdown list. Your player current team is excluded.',
+                'errorTitle' => 'Invalid team',
+                'error' => 'Please select a valid opponent from the dropdown list.',
             ],
             'C' => [
-                'formula1'     => '"PG,SG,SF,PF,C,G,F"',
-                'promptTitle'  => 'Position',
-                'prompt'       => 'Select a position: PG, SG, SF, PF, C, G, or F.',
-                'errorTitle'   => 'Invalid position',
-                'error'        => 'Please select a valid position from the dropdown.',
+                'formula1' => '"PG,SG,SF,PF,C,G,F"',
+                'promptTitle' => 'Position',
+                'prompt' => 'Select a position: PG, SG, SF, PF, C, G, or F.',
+                'errorTitle' => 'Invalid position',
+                'error' => 'Please select a valid position from the dropdown.',
             ],
             'X' => [
-                'formula1'     => '"1,0"',
-                'promptTitle'  => 'Started?',
-                'prompt'       => '1 = started the game, 0 = came off the bench.',
-                'errorTitle'   => 'Invalid value',
-                'error'        => 'Please enter 1 (started) or 0 (bench).',
+                'formula1' => '"1,0"',
+                'promptTitle' => 'Started?',
+                'prompt' => '1 = started the game, 0 = came off the bench.',
+                'errorTitle' => 'Invalid value',
+                'error' => 'Please enter 1 (started) or 0 (bench).',
             ],
         ];
 
         foreach ($dropdowns as $col => $config) {
-            $range      = "{$col}2:{$col}1001";
+            $range = "{$col}2:{$col}1001";
             $validation = $sheet->getDataValidation("{$col}2");
             $validation->setType(DataValidation::TYPE_LIST);
             $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
-            $validation->setShowDropDown(false);
+            $validation->setShowDropDown(true);
             $validation->setShowInputMessage(true);
             $validation->setPromptTitle($config['promptTitle']);
             $validation->setPrompt($config['prompt']);
@@ -236,7 +253,7 @@ class PlayerHistoryController extends Controller
 
         // Auto-size header columns
         foreach (range(1, count($headers)) as $col) {
-            $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $letter = Coordinate::stringFromColumnIndex($col);
             $sheet->getColumnDimension($letter)->setAutoSize(true);
         }
 
@@ -248,9 +265,36 @@ class PlayerHistoryController extends Controller
         $content = ob_get_clean();
 
         return response($content ?? '', 200, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="player-histories-template.xlsx"',
         ]);
+    }
+
+    public function export(Player $player): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $filters = array_filter([
+            'from' => request('from'),
+            'to' => request('to'),
+            'playing_team_id' => request()->integer('playing_team_id') ?: null,
+            'opponent_team_id' => request()->integer('opponent_team_id') ?: null,
+        ]);
+
+        $content = $this->playerHistoryCsvService->generateExportContent(
+            $this->historyService->listForPlayer($player, $filters),
+        );
+        $filename = sprintf(
+            '%s-%s-histories.csv',
+            strtolower($player->first_name),
+            strtolower($player->last_name),
+        );
+
+        return response()->streamDownload(
+            static function () use ($content): void {
+                echo $content;
+            },
+            $filename,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
     }
 
     /**
@@ -260,7 +304,7 @@ class PlayerHistoryController extends Controller
      */
     public function import(PlayerHistoryImportRequest $request, Player $player): RedirectResponse
     {
-        $headerError = $request->validateXlsxHeaders();
+        $headerError = $request->validateHeaders();
 
         if ($headerError !== null) {
             return back()->withErrors(['file' => $headerError]);
@@ -270,9 +314,9 @@ class PlayerHistoryController extends Controller
 
         /** @var CsvImport $csvImport */
         $csvImport = CsvImport::create([
-            'team_id'  => $player->team_id,
+            'team_id' => $player->team_id,
             'filename' => $path,
-            'status'   => CsvImport::STATUS_PENDING,
+            'status' => CsvImport::STATUS_PENDING,
         ]);
 
         PlayerHistoryImportJob::dispatchSync($csvImport->id, $player->id);

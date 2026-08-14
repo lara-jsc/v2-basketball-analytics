@@ -43,6 +43,7 @@ class ComputeWinProbability implements ShouldQueue
                 'teamB' => $this->teamBId,
                 'error' => $e->getMessage(),
             ]);
+
             return;
         }
 

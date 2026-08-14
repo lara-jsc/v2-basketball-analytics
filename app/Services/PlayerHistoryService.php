@@ -72,7 +72,7 @@ class PlayerHistoryService
     public function destroy(PlayerHistory $history): void
     {
         $playerId = $history->player_id;
-        $teamId   = $history->player->team_id;
+        $teamId = $history->player->team_id;
 
         DB::transaction(function () use ($history) {
             $this->repository->delete($history);

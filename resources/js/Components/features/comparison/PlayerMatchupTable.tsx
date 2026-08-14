@@ -1,3 +1,4 @@
+import { ShotZoneCourt, type ShotZoneProfile } from '@/Components/features/comparison/ShotZoneCourt';
 import { type PlayerMatchupResult, type PlayerStat, type PlayerWithStats } from '@/types';
 import { Loader2 } from 'lucide-react';
 import {
@@ -14,6 +15,8 @@ interface PlayerMatchupTableProps {
     playerB: PlayerWithStats;
     matchup: PlayerMatchupResult | null;
     isPending: boolean;
+    playerAShotZones?: ShotZoneProfile | null;
+    playerBShotZones?: ShotZoneProfile | null;
 }
 
 interface StatRow {
@@ -42,8 +45,8 @@ const STAT_ROWS: StatRow[] = [
     { label: 'SC-EFF', getValue: (s) => fmt(s.sc_eff),                dbKey: 'sc_eff',             higherIsBetter: true },
     { label: 'SH-EFF', getValue: (s) => fmt(s.sh_eff),                dbKey: 'sh_eff',             higherIsBetter: true },
     { label: 'EFF',    getValue: (s) => fmtAdv(s.eff, 1),             dbKey: 'eff',                higherIsBetter: true },
-    { label: 'eFG%',   getValue: (s) => fmtPct(s.efg_pct),           dbKey: 'efg_pct',            higherIsBetter: true },
-    { label: 'TS%',    getValue: (s) => fmtPct(s.ts_pct),            dbKey: 'ts_pct',             higherIsBetter: true },
+    { label: 'eFG%',   getValue: (s) => fmtPct(s.efg_pct),            dbKey: 'efg_pct',            higherIsBetter: true },
+    { label: 'TS%',    getValue: (s) => fmtPct(s.ts_pct),             dbKey: 'ts_pct',             higherIsBetter: true },
     { label: 'PF',     getValue: (s) => fmt(s.pf),                    dbKey: 'pf',                 higherIsBetter: false },
     { label: 'GP',     getValue: (s) => (s.gp ?? '—').toString(),     dbKey: 'gp',                 higherIsBetter: true },
 ];
@@ -62,13 +65,21 @@ function normalize(value: number | null | undefined, max: number): number {
     return Math.min(Math.round((value / max) * 100), 100);
 }
 
-export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: PlayerMatchupTableProps) {
+export function PlayerMatchupTable({
+    playerA,
+    playerB,
+    matchup,
+    isPending,
+    playerAShotZones,
+    playerBShotZones,
+}: PlayerMatchupTableProps) {
     const statA = playerA.stats[0] ?? null;
     const statB = playerB.stats[0] ?? null;
     const strongerA = matchup?.stronger_stats_a ?? [];
     const strongerB = matchup?.stronger_stats_b ?? [];
     const picA = playerA.profile_picture_path ? `/storage/${playerA.profile_picture_path}` : null;
     const picB = playerB.profile_picture_path ? `/storage/${playerB.profile_picture_path}` : null;
+    const hasShotZones = Boolean(playerAShotZones || playerBShotZones);
 
     const radarData = RADAR_KEYS.map(({ label, statKey, max }) => ({
         stat: label,
@@ -133,7 +144,7 @@ export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: Pla
                     </span>
                 </div>
             ) : matchup ? (
-                <div className="rounded-2xl px-5 py-4 space-y-3 bg-card"
+                <div className="rounded-2xl px-5 py-4 space-y-4 bg-card"
                      style={{ border: '1px solid hsl(var(--border))' }}>
                     <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
                         Matchup Edge Scores
@@ -143,8 +154,93 @@ export function PlayerMatchupTable({ playerA, playerB, matchup, isPending }: Pla
                         <span style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '12px', fontWeight: 900, color: 'rgba(249,160,27,0.6)' }}>VS</span>
                         <EdgeBar label={`${playerB.first_name} ${playerB.last_name}`} score={matchup.player_b_edge_score} isHigher={matchup.player_b_edge_score >= matchup.player_a_edge_score} reversed />
                     </div>
+                    {hasShotZones && (
+                        <div className="border-t border-border/60 pt-4">
+                            <div className="flex flex-wrap items-end justify-between gap-3">
+                                <div className="space-y-1">
+                                    <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                        Shot zones
+                                    </p>
+                                    <p className="text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
+                                        Mini courts show each player&apos;s most common shot area.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                                    <span>0.7 PPS</span>
+                                    <div
+                                        className="h-2 w-24 rounded-full sm:w-32"
+                                        aria-hidden="true"
+                                        style={{
+                                            background: 'linear-gradient(to right, oklch(0.52 0.12 240), oklch(0.62 0.15 150), oklch(0.72 0.20 55))',
+                                        }}
+                                    />
+                                    <span>1.4 PPS</span>
+                                </div>
+                            </div>
+
+                            <div className={`mt-3 grid gap-3 ${playerAShotZones && playerBShotZones ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                {playerAShotZones && (
+                                    <ShotZoneCourt
+                                        profile={playerAShotZones}
+                                        playerName={`${playerA.first_name} ${playerA.last_name}`}
+                                        compact
+                                    />
+                                )}
+                                {playerBShotZones && (
+                                    <ShotZoneCourt
+                                        profile={playerBShotZones}
+                                        playerName={`${playerB.first_name} ${playerB.last_name}`}
+                                        compact
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : null}
+
+            {!matchup && hasShotZones && (
+                <section className="rounded-2xl border border-border bg-card px-5 py-4">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div className="space-y-1">
+                            <p style={{ fontFamily: 'Orbitron, sans-serif', fontSize: '10px', fontWeight: 700, color: 'hsl(var(--muted-foreground))', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                Shot zones
+                            </p>
+                            <p className="text-sm text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 600 }}>
+                                Mini courts show each player&apos;s most common shot area.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                            <span>0.7 PPS</span>
+                            <div
+                                className="h-2 w-24 rounded-full sm:w-32"
+                                aria-hidden="true"
+                                style={{
+                                    background: 'linear-gradient(to right, oklch(0.52 0.12 240), oklch(0.62 0.15 150), oklch(0.72 0.20 55))',
+                                }}
+                            />
+                            <span>1.4 PPS</span>
+                        </div>
+                    </div>
+
+                    <div className={`mt-3 grid gap-3 ${playerAShotZones && playerBShotZones ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                        {playerAShotZones && (
+                            <ShotZoneCourt
+                                profile={playerAShotZones}
+                                playerName={`${playerA.first_name} ${playerA.last_name}`}
+                                compact
+                            />
+                        )}
+                        {playerBShotZones && (
+                            <ShotZoneCourt
+                                profile={playerBShotZones}
+                                playerName={`${playerB.first_name} ${playerB.last_name}`}
+                                compact
+                            />
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* ── Stat rows ── */}
             <div className="rounded-2xl overflow-hidden bg-card"

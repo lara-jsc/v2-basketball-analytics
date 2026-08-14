@@ -60,7 +60,7 @@ describe('CSV endpoints', function () {
 
             $csv = UploadedFile::fake()->createWithContent(
                 'roster.csv',
-                implode(',', CsvTemplateService::HEADERS) . "\nJohn,Doe,23,Point Guard,6.1,85.0,1\n"
+                implode(',', CsvTemplateService::HEADERS)."\nJohn,Doe,23,Point Guard,6.1,85.0,1\n"
             );
 
             $this->actingAs($this->user)
@@ -76,7 +76,7 @@ describe('CSV endpoints', function () {
 
             $csv = UploadedFile::fake()->createWithContent(
                 'roster.csv',
-                implode(',', CsvTemplateService::HEADERS) . "\nJane,Smith,11,Center,6.4,100.0,1\n"
+                implode(',', CsvTemplateService::HEADERS)."\nJane,Smith,11,Center,6.4,100.0,1\n"
             );
 
             $this->actingAs($this->user)
@@ -84,7 +84,7 @@ describe('CSV endpoints', function () {
 
             $this->assertDatabaseHas('csv_imports', [
                 'team_id' => $team->id,
-                'status'  => 'pending',
+                'status' => 'pending',
             ]);
         });
 

@@ -12,7 +12,8 @@ interface PlayerHistoryFormProps {
     /** Route to POST (create) or PUT (edit) */
     action: string;
     method: 'post' | 'put';
-    teams: Pick<Team, 'id' | 'code' | 'name'>[];
+    playingTeam: Pick<Team, 'id' | 'code' | 'name'>;
+    opponentTeams: Pick<Team, 'id' | 'code' | 'name'>[];
     /** Pre-populated when editing */
     history?: PlayerHistory;
     onSuccess?: () => void;
@@ -26,9 +27,8 @@ function toStr(value: number | null | undefined): string {
  * Shared form for creating and editing a single game history entry.
  * Used by both Players/Histories/Create and Players/Histories/Edit pages.
  */
-export function PlayerHistoryForm({ action, method, teams, history, onSuccess }: PlayerHistoryFormProps) {
+export function PlayerHistoryForm({ action, method, playingTeam, opponentTeams, history, onSuccess }: PlayerHistoryFormProps) {
     const { data, setData, post, put, processing, errors } = useForm<PlayerHistoryFormData>({
-        playing_team_id:          history?.playing_team_id  ?? '',
         opponent_team_id:         history?.opponent_team_id ?? '',
         game_date:                history?.game_date        ?? '',
         position_played:          history?.position_played  ?? '',
@@ -119,23 +119,13 @@ export function PlayerHistoryForm({ action, method, teams, history, onSuccess }:
 
                             {/* Playing team */}
                             <div className="space-y-1.5">
-                                <Label htmlFor="playing_team_id" className="text-xs">Playing For *</Label>
-                                <Select
-                                    value={data.playing_team_id !== '' ? String(data.playing_team_id) : ''}
-                                    onValueChange={(v) => setData('playing_team_id', Number(v))}
-                                >
-                                    <SelectTrigger id="playing_team_id" className="h-8 text-sm">
-                                        <SelectValue placeholder="Select team…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {teams.map((t) => (
-                                            <SelectItem key={t.id} value={String(t.id)}>
-                                                {t.code} — {t.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {errors.playing_team_id && <p className="text-xs text-destructive">{errors.playing_team_id}</p>}
+                                <Label className="text-xs">Playing For</Label>
+                                <div className="flex h-8 items-center rounded-md border border-border bg-muted/30 px-3 text-sm text-foreground">
+                                    {playingTeam.code} — {playingTeam.name}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Manual entries are recorded for the player current team.
+                                </p>
                             </div>
 
                             {/* Opponent team */}
@@ -149,7 +139,7 @@ export function PlayerHistoryForm({ action, method, teams, history, onSuccess }:
                                         <SelectValue placeholder="Select opponent…" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {teams.map((t) => (
+                                        {opponentTeams.map((t) => (
                                             <SelectItem key={t.id} value={String(t.id)}>
                                                 {t.code} — {t.name}
                                             </SelectItem>

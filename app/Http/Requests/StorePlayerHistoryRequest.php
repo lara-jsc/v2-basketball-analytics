@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePlayerHistoryRequest extends FormRequest
 {
@@ -26,32 +27,39 @@ class StorePlayerHistoryRequest extends FormRequest
      */
     public function rules(): array
     {
+        $player = $this->route('player');
+
         return [
-            'opponent_team_id'         => ['required', 'integer', 'exists:teams,id'],
-            'game_date'                => ['required', 'date_format:Y-m-d'],
-            'position_played'          => ['nullable', 'string', 'max:50'],
-            'minutes_played'           => ['nullable', 'numeric', 'min:0', 'max:999.99'],
-            'points'                   => ['nullable', 'integer', 'min:0', 'max:255'],
-            'field_goals_made'         => ['nullable', 'integer', 'min:0', 'max:255'],
-            'field_goals_attempted'    => ['nullable', 'integer', 'min:0', 'max:255'],
-            'three_pointers_made'      => ['nullable', 'integer', 'min:0', 'max:255'],
+            'opponent_team_id' => [
+                'required',
+                'integer',
+                'exists:teams,id',
+                Rule::notIn([$player?->team_id]),
+            ],
+            'game_date' => ['required', 'date_format:Y-m-d'],
+            'position_played' => ['nullable', 'string', 'max:50'],
+            'minutes_played' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'points' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'field_goals_made' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'field_goals_attempted' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'three_pointers_made' => ['nullable', 'integer', 'min:0', 'max:255'],
             'three_pointers_attempted' => ['nullable', 'integer', 'min:0', 'max:255'],
-            'free_throws_made'         => ['nullable', 'integer', 'min:0', 'max:255'],
-            'free_throws_attempted'    => ['nullable', 'integer', 'min:0', 'max:255'],
-            'offensive_rebounds'       => ['nullable', 'integer', 'min:0', 'max:255'],
-            'defensive_rebounds'       => ['nullable', 'integer', 'min:0', 'max:255'],
-            'rebounds'                 => ['nullable', 'integer', 'min:0', 'max:255'],
-            'assists'                  => ['nullable', 'integer', 'min:0', 'max:255'],
-            'steals'                   => ['nullable', 'integer', 'min:0', 'max:255'],
-            'blocks'                   => ['nullable', 'integer', 'min:0', 'max:255'],
-            'turnovers'                => ['nullable', 'integer', 'min:0', 'max:255'],
-            'personal_fouls'           => ['nullable', 'integer', 'min:0', 'max:255'],
-            'flagrant_fouls'           => ['nullable', 'integer', 'min:0', 'max:255'],
-            'technical_fouls'          => ['nullable', 'integer', 'min:0', 'max:255'],
-            'ejections'                => ['nullable', 'integer', 'min:0', 'max:255'],
-            'disqualifications'        => ['nullable', 'integer', 'min:0', 'max:255'],
-            'is_started'               => ['boolean'],
-            'notes'                    => ['nullable', 'string'],
+            'free_throws_made' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'free_throws_attempted' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'offensive_rebounds' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'defensive_rebounds' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'rebounds' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'assists' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'steals' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'blocks' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'turnovers' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'personal_fouls' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'flagrant_fouls' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'technical_fouls' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'ejections' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'disqualifications' => ['nullable', 'integer', 'min:0', 'max:255'],
+            'is_started' => ['boolean'],
+            'notes' => ['nullable', 'string'],
         ];
     }
 
@@ -60,6 +68,8 @@ class StorePlayerHistoryRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [];
+        return [
+            'opponent_team_id.not_in' => 'Opponent team must differ from the player current team.',
+        ];
     }
 }

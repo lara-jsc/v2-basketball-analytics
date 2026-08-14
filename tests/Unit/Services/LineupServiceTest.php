@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Cache;
 describe('LineupService', function () {
 
     beforeEach(function () {
-        $this->service = new LineupService();
+        $this->service = new LineupService;
         Cache::flush();
     });
 

@@ -34,14 +34,14 @@ class UpsertPlayerHistoryAction
     /**
      * Validate then upsert a history row. Returns the upserted model.
      *
-     * @param  int                   $playerId  Comes from the route — never from file data
-     * @param  array<string, mixed>  $row       Raw data from xlsx or form
+     * @param  int  $playerId  Comes from the route — never from file data
+     * @param  array<string, mixed>  $row  Raw data from xlsx or form
      *
-     * @throws RuntimeException  on validation failure (row is skipped, not fatal)
+     * @throws RuntimeException on validation failure (row is skipped, not fatal)
      */
     public function execute(int $playerId, array $row): PlayerHistory
     {
-        $playingTeamId  = $this->requirePositiveInt($row, 'playing_team_id');
+        $playingTeamId = $this->requirePositiveInt($row, 'playing_team_id');
         $opponentTeamId = $this->requirePositiveInt($row, 'opponent_team_id');
 
         if (! DB::table('players')->where('id', $playerId)->exists()) {
@@ -73,6 +73,7 @@ class UpsertPlayerHistoryAction
 
             if ($raw === null || $raw === '') {
                 $intStats[$col] = null;
+
                 continue;
             }
 
@@ -96,16 +97,16 @@ class UpsertPlayerHistoryAction
         $isStarted = $this->parseBool($row['is_started'] ?? '0');
 
         return $this->repository->upsert([
-            'player_id'        => $playerId,
-            'game_date'        => $gameDate,
-            'playing_team_id'  => $playingTeamId,
+            'player_id' => $playerId,
+            'game_date' => $gameDate,
+            'playing_team_id' => $playingTeamId,
             'opponent_team_id' => $opponentTeamId,
-            'position_played'  => isset($row['position_played']) && $row['position_played'] !== ''
+            'position_played' => isset($row['position_played']) && $row['position_played'] !== ''
                 ? trim((string) $row['position_played'])
                 : null,
-            'minutes_played'   => $minutesPlayed,
-            'is_started'       => $isStarted,
-            'notes'            => isset($row['notes']) && $row['notes'] !== ''
+            'minutes_played' => $minutesPlayed,
+            'is_started' => $isStarted,
+            'notes' => isset($row['notes']) && $row['notes'] !== ''
                 ? trim((string) $row['notes'])
                 : null,
             ...$intStats,

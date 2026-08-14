@@ -4,15 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTeamRequest;
 use App\Http\Requests\UpdateTeamRequest;
+use App\Http\Requests\UpdateTeamStaffingRequest;
 use App\Http\Requests\UploadTeamLogoRequest;
 use App\Models\Team;
+use App\Models\User;
 use App\Repositories\CsvImportRepository;
 use App\Repositories\PlayerRepository;
 use App\Repositories\TeamRepository;
+use App\Services\CsvTemplateService;
 use App\Services\TeamService;
+use App\Services\TeamStaffingService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TeamController extends Controller
 {
@@ -21,6 +26,7 @@ class TeamController extends Controller
         private readonly PlayerRepository $playerRepository,
         private readonly CsvImportRepository $csvImportRepository,
         private readonly TeamService $teamService,
+        private readonly CsvTemplateService $csvTemplateService,
     ) {}
 
     /**
@@ -58,11 +64,54 @@ class TeamController extends Controller
      */
     public function show(Team $team): Response
     {
-        return Inertia::render('Teams/Show', [
-            'team'         => $team,
-            'players'      => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
-            'latestImport' => fn () => $this->csvImportRepository->latestForTeam($team->id),
+        $team->load([
+            'mainCoach:id,name,email',
+            'assistantCoaches:id,name,email',
         ]);
+
+        $coachOptions = User::query()
+            ->where('team_id', $team->id)
+            ->whereNotNull('email_verified_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        return Inertia::render('Teams/Show', [
+            'team' => $team,
+            'players' => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
+            'latestImport' => fn () => $this->csvImportRepository->latestForTeam($team->id),
+            'playersExportUrl' => route('teams.players.export', $team),
+            'coachOptions' => $coachOptions,
+            'mainCoach' => $team->mainCoach,
+            'assistantCoaches' => $team->assistantCoaches,
+        ]);
+    }
+
+    public function exportPlayers(Team $team): StreamedResponse
+    {
+        $search = trim((string) request('search', ''));
+        $players = $this->playerRepository->forTeam($team->id)
+            ->filter(function ($player) use ($search): bool {
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(
+                    strtolower("{$player->first_name} {$player->last_name}"),
+                    strtolower($search),
+                );
+            })
+            ->values();
+
+        $content = $this->csvTemplateService->generateRosterExportContent($players);
+        $filename = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $team->code ?: $team->name) ?: 'team');
+
+        return response()->streamDownload(
+            static function () use ($content): void {
+                echo $content;
+            },
+            "{$filename}-players.csv",
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
     }
 
     /**
@@ -85,6 +134,24 @@ class TeamController extends Controller
         return redirect()
             ->route('teams.show', $team->id)
             ->with('success', 'Team updated successfully.');
+    }
+
+    public function updateStaffing(
+        UpdateTeamStaffingRequest $request,
+        Team $team,
+        TeamStaffingService $teamStaffingService,
+    ): RedirectResponse {
+        $payload = $request->staffingPayload();
+
+        $teamStaffingService->update(
+            $team,
+            $payload['main_coach_user_id'],
+            $payload['assistant_coach_user_ids'],
+        );
+
+        return redirect()
+            ->route('teams.show', $team->id)
+            ->with('success', 'Coach staffing updated.');
     }
 
     /**

@@ -17,11 +17,11 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Processes an uploaded player history Excel (.xlsx) file.
+ * Processes an uploaded player history import file (.xlsx or .csv).
  *
  * Flow:
  *  1. Mark CsvImport as processing.
- *  2. Load the xlsx and validate headers on the Template sheet.
+ *  2. Load the file and validate headers against the canonical import contract.
  *  3. For each data row: validate + upsert via UpsertPlayerHistoryAction.
  *     Invalid rows are skipped and logged; import continues.
  *  4. Dispatch RebuildPlayerStats per unique player_id in the file.
@@ -67,6 +67,7 @@ class PlayerHistoryImportJob implements ShouldQueue
 
         if (! Storage::exists($import->filename)) {
             $csvImportRepository->markFailed($import, "Uploaded file not found: {$import->filename}");
+
             return;
         }
 
@@ -77,6 +78,7 @@ class PlayerHistoryImportJob implements ShouldQueue
         } catch (RuntimeException $e) {
             // Header mismatch or unreadable file — fatal
             $csvImportRepository->markFailed($import, $e->getMessage());
+
             return;
         }
 
@@ -84,22 +86,35 @@ class PlayerHistoryImportJob implements ShouldQueue
 
         if ($rowsImported === 0 && $errors !== []) {
             $csvImportRepository->markFailed($import, implode("\n", $errors));
+
             return;
         }
 
         $import->update([
-            'status'        => CsvImport::STATUS_COMPLETED,
+            'status' => CsvImport::STATUS_COMPLETED,
             'rows_imported' => $rowsImported,
-            'error_log'     => $errors !== [] ? implode("\n", $errors) : null,
+            'error_log' => $errors !== [] ? implode("\n", $errors) : null,
         ]);
     }
 
     /**
-     * @return array{int, list<string>}  [rowsImported, errors]
+     * @return array{int, list<string>} [rowsImported, errors]
      *
-     * @throws RuntimeException  on header mismatch or unreadable file
+     * @throws RuntimeException on header mismatch or unreadable file
      */
     private function processRows(string $filePath, UpsertPlayerHistoryAction $upsertAction): array
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['csv', 'txt'], true)
+            ? $this->processCsvRows($filePath, $upsertAction)
+            : $this->processSpreadsheetRows($filePath, $upsertAction);
+    }
+
+    /**
+     * @return array{int, list<string>}
+     */
+    private function processSpreadsheetRows(string $filePath, UpsertPlayerHistoryAction $upsertAction): array
     {
         try {
             $spreadsheet = IOFactory::load($filePath);
@@ -114,11 +129,11 @@ class PlayerHistoryImportJob implements ShouldQueue
         $playingTeamId = (int) DB::table('players')->where('id', $this->playerId)->value('team_id');
 
         $rowsImported = 0;
-        $errors       = [];
-        $highestRow   = $sheet->getHighestDataRow();
+        $errors = [];
+        $highestRow = $sheet->getHighestDataRow();
 
         for ($rowIndex = 2; $rowIndex <= $highestRow; $rowIndex++) {
-            $rowData                    = $this->readRow($sheet, $rowIndex);
+            $rowData = $this->readRow($sheet, $rowIndex);
             $rowData['playing_team_id'] = $playingTeamId;
 
             // Skip completely empty rows
@@ -145,6 +160,74 @@ class PlayerHistoryImportJob implements ShouldQueue
     }
 
     /**
+     * @return array{int, list<string>}
+     */
+    private function processCsvRows(string $filePath, UpsertPlayerHistoryAction $upsertAction): array
+    {
+        $handle = fopen($filePath, 'r');
+
+        if ($handle === false) {
+            throw new RuntimeException('Could not read the uploaded CSV file.');
+        }
+
+        try {
+            $headerRow = fgetcsv($handle);
+
+            if ($headerRow === false) {
+                throw new RuntimeException('The uploaded CSV file is empty.');
+            }
+
+            $this->assertCsvHeaders($headerRow);
+
+            $playingTeamId = (int) DB::table('players')->where('id', $this->playerId)->value('team_id');
+            $rowsImported = 0;
+            $errors = [];
+            $rowIndex = 1;
+
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowIndex++;
+
+                if (count($row) !== count(self::HEADERS)) {
+                    $errors[] = "Row {$rowIndex}: column count mismatch (expected ".count(self::HEADERS).', got '.count($row).')';
+
+                    continue;
+                }
+
+                $rowData = array_combine(self::HEADERS, $row);
+
+                if ($rowData === false) {
+                    $errors[] = "Row {$rowIndex}: could not parse row.";
+
+                    continue;
+                }
+
+                $rowData['playing_team_id'] = $playingTeamId;
+
+                if ($this->isEmptyRow($rowData)) {
+                    continue;
+                }
+
+                $notes = strtoupper(trim((string) ($rowData['notes'] ?? '')));
+                if (str_starts_with($notes, 'DELETE THIS ROW')) {
+                    continue;
+                }
+
+                try {
+                    $upsertAction->execute($this->playerId, $rowData);
+                    $rowsImported++;
+                } catch (RuntimeException $e) {
+                    Log::warning("PlayerHistoryImportJob: skipping row {$rowIndex}", ['error' => $e->getMessage()]);
+                    $errors[] = "Row {$rowIndex}: {$e->getMessage()}";
+                }
+            }
+
+            return [$rowsImported, $errors];
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
      * Validate that the sheet's header row matches HEADERS exactly.
      *
      * @throws RuntimeException
@@ -160,8 +243,27 @@ class PlayerHistoryImportJob implements ShouldQueue
         if ($actual !== self::HEADERS) {
             throw new RuntimeException(
                 "Excel headers do not match the required template.\n"
-                . "Expected: " . implode(', ', self::HEADERS) . "\n"
-                . "Received: " . implode(', ', $actual)
+                .'Expected: '.implode(', ', self::HEADERS)."\n"
+                .'Received: '.implode(', ', $actual)
+            );
+        }
+    }
+
+    /**
+     * @param  array<int, string|null>  $headerRow
+     */
+    private function assertCsvHeaders(array $headerRow): void
+    {
+        $actual = array_map(
+            static fn (?string $header): string => trim(ltrim((string) $header, "\xEF\xBB\xBF")),
+            $headerRow,
+        );
+
+        if ($actual !== self::HEADERS) {
+            throw new RuntimeException(
+                "CSV headers do not match the required template.\n"
+                .'Expected: '.implode(', ', self::HEADERS)."\n"
+                .'Received: '.implode(', ', $actual)
             );
         }
     }
@@ -179,13 +281,13 @@ class PlayerHistoryImportJob implements ShouldQueue
         $data = [];
 
         foreach (self::HEADERS as $colIndex => $header) {
-            $col  = $colIndex + 1;
+            $col = $colIndex + 1;
             $cell = $sheet->getCell([$col, $rowIndex]);
 
             $value = match ($col) {
                 self::OPPONENT_TEAM_COL => $this->extractTeamId($cell->getValue()),
-                self::GAME_DATE_COL     => $this->resolveDate($cell),
-                default                 => $cell->getValue(),
+                self::GAME_DATE_COL => $this->resolveDate($cell),
+                default => $cell->getValue(),
             };
 
             $data[$header] = $value;
@@ -230,6 +332,7 @@ class PlayerHistoryImportJob implements ShouldQueue
         if (is_numeric($raw)) {
             try {
                 $dt = SpreadsheetDate::excelToDateTimeObject((float) $raw);
+
                 return $dt->format('Y-m-d');
             } catch (Throwable) {
                 return (string) $raw;
@@ -259,7 +362,7 @@ class PlayerHistoryImportJob implements ShouldQueue
     {
         Log::error('PlayerHistoryImportJob failed', [
             'csvImportId' => $this->csvImportId,
-            'error'       => $exception->getMessage(),
+            'error' => $exception->getMessage(),
         ]);
     }
 }

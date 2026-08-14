@@ -10,32 +10,39 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Vite inlines import.meta.env.VITE_* at build time.
+ARG VITE_APP_NAME="HoopSense+"
+ARG VITE_REVERB_APP_KEY
+ARG VITE_REVERB_HOST
+ARG VITE_REVERB_PORT=443
+ARG VITE_REVERB_SCHEME=https
+ENV VITE_APP_NAME=$VITE_APP_NAME \
+    VITE_REVERB_APP_KEY=$VITE_REVERB_APP_KEY \
+    VITE_REVERB_HOST=$VITE_REVERB_HOST \
+    VITE_REVERB_PORT=$VITE_REVERB_PORT \
+    VITE_REVERB_SCHEME=$VITE_REVERB_SCHEME
+
 COPY . .
 RUN npm run build
 
 # ------- Stage 2: Production image -------
-FROM php:8.4-cli
+FROM dunglas/frankenphp:php8.4
 
-# Install system dependencies
+RUN install-php-extensions \
+    pdo_mysql pdo_sqlite mbstring exif pcntl bcmath gd zip opcache
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     zip \
     unzip \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    libonig-dev \
-    libxml2-dev \
-    libzip-dev \
-    libsqlite3-dev \
     python3 \
     python3-pip \
     default-mysql-client \
     supervisor \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql pdo_sqlite mbstring exif pcntl bcmath gd zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY docker/php.ini /usr/local/etc/php/conf.d/app.ini
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -73,6 +80,6 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/start.sh /app/docker/start.sh
 RUN chmod +x /app/docker/start.sh
 
-EXPOSE ${PORT:-8080}
+EXPOSE 8000 8080
 
 CMD ["/app/docker/start.sh"]

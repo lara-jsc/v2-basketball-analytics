@@ -5,7 +5,7 @@ use App\Services\CsvTemplateService;
 describe('CsvTemplateService', function () {
 
     beforeEach(function () {
-        $this->service = new CsvTemplateService();
+        $this->service = new CsvTemplateService;
     });
 
     describe('generateTemplateContent', function () {
@@ -13,7 +13,7 @@ describe('CsvTemplateService', function () {
             $content = $this->service->generateTemplateContent();
 
             expect($content)->toBe(
-                'first_name,last_name,jersey_number,role,height_feet,weight_kg,is_active' . "\n"
+                'first_name,last_name,jersey_number,role,height_feet,weight_kg,is_active'."\n"
             );
         });
 

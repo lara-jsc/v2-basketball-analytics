@@ -53,8 +53,8 @@ class TeamPlayersSeeder extends Seeder
 
         foreach ($teams as $teamData) {
             $createdTeams[$teamData['code']] = Team::create([
-                'code'      => $teamData['code'],
-                'name'      => $teamData['name'],
+                'code' => $teamData['code'],
+                'name' => $teamData['name'],
                 'logo_path' => null,
                 'is_active' => true,
             ]);
@@ -70,10 +70,10 @@ class TeamPlayersSeeder extends Seeder
                 $player = Player::factory()
                     ->forTeam($team)
                     ->create([
-                        'first_name'    => $playerData['first_name'],
-                        'last_name'     => $playerData['last_name'],
+                        'first_name' => $playerData['first_name'],
+                        'last_name' => $playerData['last_name'],
                         'jersey_number' => $playerData['jersey_number'],
-                        'role'          => $playerData['role'],
+                        'role' => $playerData['role'],
                     ]);
 
                 // 10 per-game history records — spaced 14 days apart to avoid the

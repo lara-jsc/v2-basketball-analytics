@@ -1,6 +1,6 @@
 import { type PlayerStat, type PlayerWithStats, type Team } from '@/types';
 import { Link, router } from '@inertiajs/react';
-import { ChevronDown, ChevronUp, ClipboardList, Pencil, Power, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardList, Download, Pencil, Power, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { DeletePlayerDialog } from './DeletePlayerDialog';
 import { PlayerFormSheet } from './PlayerFormSheet';
@@ -8,9 +8,10 @@ import { PlayerFormSheet } from './PlayerFormSheet';
 interface PlayersTableProps {
     players: PlayerWithStats[];
     team: Team;
+    exportUrl: string;
 }
 
-export function PlayersTable({ players, team }: PlayersTableProps) {
+export function PlayersTable({ players, team, exportUrl }: PlayersTableProps) {
     const [editPlayer, setEditPlayer]     = useState<PlayerWithStats | null>(null);
     const [deletePlayer, setDeletePlayer] = useState<PlayerWithStats | null>(null);
     const [selectedId, setSelectedId]     = useState<number | null>(players[0]?.id ?? null);
@@ -50,6 +51,9 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
     const filteredPlayers = players.filter((p) =>
         `${p.first_name} ${p.last_name}`.toLowerCase().includes(search.toLowerCase()),
     );
+    const rosterExportUrl = search.trim() === ''
+        ? exportUrl
+        : `${exportUrl}?search=${encodeURIComponent(search.trim())}`;
 
     const selectedPlayer = players.find((p) => p.id === selectedId) ?? null;
     const stat: PlayerStat | null = selectedPlayer?.stats[0] ?? null;
@@ -61,10 +65,19 @@ export function PlayersTable({ players, team }: PlayersTableProps) {
                 {/* ── Left panel: player list ─────────────────────────────── */}
                 <div className="w-56 border-r border-border flex flex-col shrink-0">
                     {/* Header */}
-                    <div className="px-4 py-3 border-b border-border">
+                    <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border">
                         <p className="text-[10px] font-ui font-bold tracking-widest text-muted-foreground uppercase">
                             Players
                         </p>
+                        <a
+                            href={rosterExportUrl}
+                            download
+                            title="Download filtered roster CSV"
+                            aria-label="Download filtered roster CSV"
+                            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <Download size={13} />
+                        </a>
                     </div>
 
                     {/* Search */}

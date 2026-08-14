@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\PlayerHistory;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
 
 class PlayerHistoryRepository
 {
@@ -59,13 +60,18 @@ class PlayerHistoryRepository
      */
     public function upsert(array $data): PlayerHistory
     {
+        $gameDate = Carbon::parse((string) $data['game_date'])->startOfDay();
+
         return PlayerHistory::updateOrCreate(
             [
-                'player_id'        => $data['player_id'],
-                'game_date'        => $data['game_date'],
+                'player_id' => $data['player_id'],
+                'game_date' => $gameDate,
                 'opponent_team_id' => $data['opponent_team_id'],
             ],
-            $data,
+            [
+                ...$data,
+                'game_date' => $gameDate,
+            ],
         );
     }
 

@@ -16,18 +16,18 @@ class CsvImportFactory extends Factory
     public function definition(): array
     {
         return [
-            'team_id'       => Team::factory(),
-            'filename'      => 'imports/1/roster.csv',
-            'status'        => CsvImport::STATUS_PENDING,
+            'team_id' => Team::factory(),
+            'filename' => 'imports/1/roster.csv',
+            'status' => CsvImport::STATUS_PENDING,
             'rows_imported' => 0,
-            'error_log'     => null,
+            'error_log' => null,
         ];
     }
 
     public function completed(int $rows = 10): static
     {
         return $this->state([
-            'status'        => CsvImport::STATUS_COMPLETED,
+            'status' => CsvImport::STATUS_COMPLETED,
             'rows_imported' => $rows,
         ]);
     }
@@ -35,7 +35,7 @@ class CsvImportFactory extends Factory
     public function failed(string $error = 'Something went wrong'): static
     {
         return $this->state([
-            'status'    => CsvImport::STATUS_FAILED,
+            'status' => CsvImport::STATUS_FAILED,
             'error_log' => $error,
         ]);
     }

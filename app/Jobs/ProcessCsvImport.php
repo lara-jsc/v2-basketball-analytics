@@ -34,7 +34,7 @@ class ProcessCsvImport implements ShouldQueue
     {
         Log::error('ProcessCsvImport job failed', [
             'csvImportId' => $this->csvImportId,
-            'error'       => $exception->getMessage(),
+            'error' => $exception->getMessage(),
         ]);
     }
 }

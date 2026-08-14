@@ -136,4 +136,44 @@
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
     }
+
+    /*
+     * Live Games accents — Day Game (deep, AA) / Arena Night (glow).
+     * Prefer these over hardcoded cyan-100 / amber-100 text on light surfaces.
+     */
+    .live-text-info {
+        @apply text-cyan-800 dark:text-cyan-200;
+    }
+
+    .live-text-info-soft {
+        @apply text-cyan-700 dark:text-cyan-100;
+    }
+
+    .live-text-warn {
+        @apply text-amber-900 dark:text-amber-200;
+    }
+
+    .live-text-warn-soft {
+        @apply text-amber-800 dark:text-amber-100;
+    }
+
+    .live-text-danger {
+        @apply text-red-800 dark:text-red-200;
+    }
+
+    .live-text-danger-soft {
+        @apply text-red-800 dark:text-red-100;
+    }
+
+    .live-badge-info {
+        @apply border border-cyan-600/30 bg-cyan-100 text-cyan-900 dark:border-cyan-300/40 dark:bg-cyan-300/10 dark:text-cyan-100;
+    }
+
+    .live-badge-warn {
+        @apply border border-amber-700/30 bg-amber-100 text-amber-950 dark:border-amber-300/40 dark:bg-amber-300/10 dark:text-amber-100;
+    }
+
+    .live-badge-danger {
+        @apply border border-red-600/30 bg-red-100 text-red-900 dark:border-red-300/50 dark:bg-red-400/10 dark:text-red-100;
+    }
 }

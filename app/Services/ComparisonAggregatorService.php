@@ -35,12 +35,12 @@ class ComparisonAggregatorService
         }
 
         return [
-            'avg_pts'         => round($stats->avg('pts') ?? 0, 2),
-            'avg_reb'         => round($stats->avg('reb') ?? 0, 2),
-            'avg_ast'         => round($stats->avg('ast') ?? 0, 2),
-            'avg_fg_pct'      => round($stats->avg('fg_pct') ?? 0, 2),
-            'avg_blk'         => round($stats->avg('blk') ?? 0, 2),
-            'avg_stl'         => round($stats->avg('stl') ?? 0, 2),
+            'avg_pts' => round($stats->avg('pts') ?? 0, 2),
+            'avg_reb' => round($stats->avg('reb') ?? 0, 2),
+            'avg_ast' => round($stats->avg('ast') ?? 0, 2),
+            'avg_fg_pct' => round($stats->avg('fg_pct') ?? 0, 2),
+            'avg_blk' => round($stats->avg('blk') ?? 0, 2),
+            'avg_stl' => round($stats->avg('stl') ?? 0, 2),
             'avg_to_per_game' => round($stats->avg('to_per_game') ?? 0, 2),
         ];
     }
@@ -61,8 +61,8 @@ class ComparisonAggregatorService
             return null;
         }
 
-        $totalMinutes   = $eligible->sum('min');
-        $weightedSum    = $eligible->sum(fn ($s) => $s->plus_minus * $s->min);
+        $totalMinutes = $eligible->sum('min');
+        $weightedSum = $eligible->sum(fn ($s) => $s->plus_minus * $s->min);
 
         return round($weightedSum / $totalMinutes, 2);
     }
@@ -77,18 +77,19 @@ class ComparisonAggregatorService
     {
         return $players->map(function (Player $p): array {
             $s = $p->stats->first();
+
             return [
-                'player_id'   => $p->id,
-                'name'        => "{$p->first_name} {$p->last_name}",
-                'pts'         => $s?->pts ?? 0,
-                'reb'         => $s?->reb ?? 0,
-                'ast'         => $s?->ast ?? 0,
-                'blk'         => $s?->blk ?? 0,
-                'stl'         => $s?->stl ?? 0,
-                'fg_pct'      => $s?->fg_pct ?? 0,
+                'player_id' => $p->id,
+                'name' => "{$p->first_name} {$p->last_name}",
+                'pts' => $s?->pts ?? 0,
+                'reb' => $s?->reb ?? 0,
+                'ast' => $s?->ast ?? 0,
+                'blk' => $s?->blk ?? 0,
+                'stl' => $s?->stl ?? 0,
+                'fg_pct' => $s?->fg_pct ?? 0,
                 'to_per_game' => $s?->to_per_game ?? 0,
-                'min'         => $s?->min ?? 0,
-                'plus_minus'  => $s?->plus_minus ?? 0,
+                'min' => $s?->min ?? 0,
+                'plus_minus' => $s?->plus_minus ?? 0,
             ];
         })->values()->all();
     }
@@ -97,12 +98,12 @@ class ComparisonAggregatorService
     private function emptyAggregates(): array
     {
         return [
-            'avg_pts'         => 0.0,
-            'avg_reb'         => 0.0,
-            'avg_ast'         => 0.0,
-            'avg_fg_pct'      => 0.0,
-            'avg_blk'         => 0.0,
-            'avg_stl'         => 0.0,
+            'avg_pts' => 0.0,
+            'avg_reb' => 0.0,
+            'avg_ast' => 0.0,
+            'avg_fg_pct' => 0.0,
+            'avg_blk' => 0.0,
+            'avg_stl' => 0.0,
             'avg_to_per_game' => 0.0,
         ];
     }

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PlayerStat extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'player_id',
         'pc',
@@ -48,27 +49,27 @@ class PlayerStat extends Model
     ];
 
     protected $casts = [
-        'three_p_pct'         => 'float',
-        'fg_pct'              => 'float',
-        'ft_pct'              => 'float',
-        'sc_eff'              => 'float',
-        'sh_eff'              => 'float',
-        'pts'                 => 'float',
-        'reb'                 => 'float',
-        'ast'                 => 'float',
-        'ast_to'              => 'float',
-        'blk'                 => 'float',
-        'stl'                 => 'float',
-        'stl_to'              => 'float',
-        'dr'                  => 'float',
-        'offensive_rebounds'  => 'float',
-        'min'                 => 'float',
-        'pf'                  => 'float',
-        'to_per_game'         => 'float',
-        'plus_minus'          => 'float',
-        'eff'                 => 'float',
-        'efg_pct'             => 'float',
-        'ts_pct'              => 'float',
+        'three_p_pct' => 'float',
+        'fg_pct' => 'float',
+        'ft_pct' => 'float',
+        'sc_eff' => 'float',
+        'sh_eff' => 'float',
+        'pts' => 'float',
+        'reb' => 'float',
+        'ast' => 'float',
+        'ast_to' => 'float',
+        'blk' => 'float',
+        'stl' => 'float',
+        'stl_to' => 'float',
+        'dr' => 'float',
+        'offensive_rebounds' => 'float',
+        'min' => 'float',
+        'pf' => 'float',
+        'to_per_game' => 'float',
+        'plus_minus' => 'float',
+        'eff' => 'float',
+        'efg_pct' => 'float',
+        'ts_pct' => 'float',
     ];
 
     /** @return BelongsTo<Player, PlayerStat> */

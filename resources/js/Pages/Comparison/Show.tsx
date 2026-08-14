@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { TeamStatsPanel } from '@/Components/features/comparison/TeamStatsPanel';
-import { WinProbabilityBar } from '@/Components/features/comparison/WinProbabilityBar';
 import { PlayerMatchupTable } from '@/Components/features/comparison/PlayerMatchupTable';
+import { type ShotZoneProfile } from '@/Components/features/comparison/ShotZoneCourt';
 import { LineupModal } from '@/Components/features/lineup/LineupModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import {
@@ -31,6 +31,8 @@ interface ComparisonShowProps extends PageProps {
   matchup: PlayerMatchupResult | null;
   selectedAId: number | null;
   selectedBId: number | null;
+  playerAShotZones: ShotZoneProfile | null;
+  playerBShotZones: ShotZoneProfile | null;
 }
 
 const POLL_INTERVAL = 3000;
@@ -49,6 +51,8 @@ export default function ComparisonShow({
   matchup,
   selectedAId,
   selectedBId,
+  playerAShotZones,
+  playerBShotZones,
 }: ComparisonShowProps) {
   const [lineupOpen, setLineupOpen] = useState(false);
   const [localPlayerA, setLocalPlayerA] = useState<string>(
@@ -298,11 +302,13 @@ export default function ComparisonShow({
 
             {selectedPlayerA && selectedPlayerB ? (
               <PlayerMatchupTable
-                playerA={selectedPlayerA}
-                playerB={selectedPlayerB}
-                matchup={matchup}
-                isPending={isPendingMatchup}
-              />
+                  playerA={selectedPlayerA}
+                  playerB={selectedPlayerB}
+                  matchup={matchup}
+                  isPending={isPendingMatchup}
+                  playerAShotZones={playerAShotZones}
+                  playerBShotZones={playerBShotZones}
+                />
             ) : (
               <div className="flex items-center justify-center rounded-2xl py-14 text-center bg-card"
                 style={{ border: '1px dashed hsl(var(--border))' }}>
@@ -321,6 +327,7 @@ export default function ComparisonShow({
         lineup={lineup}
         teamName={teamA.name}
         players={playersA}
+        opponentTeamId={teamB.id}
       />
     </AuthenticatedLayout>
   );

@@ -14,6 +14,7 @@ interface PlayerHistorySheetProps {
     onOpenChange: (open: boolean) => void;
     playerId: number;
     playerName: string;
+    playingTeam: Pick<Team, 'id' | 'code' | 'name'>;
     teams: Pick<Team, 'id' | 'code' | 'name'>[];
     /** When provided, the sheet is in edit mode. */
     history?: PlayerHistory;
@@ -27,10 +28,12 @@ export function PlayerHistorySheet({
     onOpenChange,
     playerId,
     playerName,
+    playingTeam,
     teams,
     history,
 }: PlayerHistorySheetProps) {
     const isEdit = !!history;
+    const opponentTeams = teams.filter((team) => team.id !== playingTeam.id);
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -52,7 +55,8 @@ export function PlayerHistorySheet({
                                 : route('player-histories.store', playerId)
                         }
                         method={isEdit ? 'put' : 'post'}
-                        teams={teams}
+                        playingTeam={playingTeam}
+                        opponentTeams={opponentTeams}
                         history={history}
                         onSuccess={() => onOpenChange(false)}
                     />

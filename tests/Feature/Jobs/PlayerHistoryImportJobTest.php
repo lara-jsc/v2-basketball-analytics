@@ -22,8 +22,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 function buildHistoryXlsx(array $rows = [], ?array $headers = null): string
 {
-    $spreadsheet = new Spreadsheet();
-    $sheet       = $spreadsheet->getActiveSheet();
+    $spreadsheet = new Spreadsheet;
+    $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Template');
 
     $hdrs = $headers ?? PlayerHistoryImportJob::HEADERS;
@@ -55,10 +55,40 @@ function storeHistoryImport(Team $team, string $content): CsvImport
     Storage::put($path, $content);
 
     return CsvImport::create([
-        'team_id'  => $team->id,
+        'team_id' => $team->id,
         'filename' => $path,
-        'status'   => CsvImport::STATUS_PENDING,
+        'status' => CsvImport::STATUS_PENDING,
     ]);
+}
+
+function storeHistoryCsvImport(Team $team, string $content): CsvImport
+{
+    $path = "player-history-imports/test-{$team->id}.csv";
+    Storage::put($path, $content);
+
+    return CsvImport::create([
+        'team_id' => $team->id,
+        'filename' => $path,
+        'status' => CsvImport::STATUS_PENDING,
+    ]);
+}
+
+function buildHistoryCsvJob(array $rows = [], ?array $headers = null): string
+{
+    $stream = fopen('php://temp', 'r+');
+    $headerRow = $headers ?? PlayerHistoryImportJob::HEADERS;
+
+    fputcsv($stream, $headerRow);
+
+    foreach ($rows as $row) {
+        fputcsv($stream, $row);
+    }
+
+    rewind($stream);
+    $content = stream_get_contents($stream);
+    fclose($stream);
+
+    return $content === false ? '' : $content;
 }
 
 /**
@@ -111,11 +141,11 @@ describe('PlayerHistoryImportJob', function () {
     // -----------------------------------------------------------------------
 
     it('imports a row and auto-fills playing_team_id from the player team', function () {
-        $playingTeam  = Team::factory()->create();
+        $playingTeam = Team::factory()->create();
         $opponentTeam = Team::factory()->create();
-        $player       = Player::factory()->for($playingTeam)->create();
+        $player = Player::factory()->for($playingTeam)->create();
 
-        $xlsx   = buildHistoryXlsx([validRow($opponentTeam->id)]);
+        $xlsx = buildHistoryXlsx([validRow($opponentTeam->id)]);
         $import = storeHistoryImport($playingTeam, $xlsx);
 
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
@@ -124,17 +154,17 @@ describe('PlayerHistoryImportJob', function () {
         expect($import->fresh()->rows_imported)->toBe(1);
 
         $this->assertDatabaseHas('player_histories', [
-            'player_id'        => $player->id,
-            'playing_team_id'  => $playingTeam->id,   // injected automatically
+            'player_id' => $player->id,
+            'playing_team_id' => $playingTeam->id,   // injected automatically
             'opponent_team_id' => $opponentTeam->id,
-            'points'           => 22,
+            'points' => 22,
         ]);
     });
 
     it('imports multiple rows', function () {
-        $playingTeam  = Team::factory()->create();
+        $playingTeam = Team::factory()->create();
         $opponentTeam = Team::factory()->create();
-        $player       = Player::factory()->for($playingTeam)->create();
+        $player = Player::factory()->for($playingTeam)->create();
 
         $xlsx = buildHistoryXlsx([
             validRow($opponentTeam->id, '2025-01-15'),
@@ -148,15 +178,36 @@ describe('PlayerHistoryImportJob', function () {
         expect(PlayerHistory::where('player_id', $player->id)->count())->toBe(2);
     });
 
-    it('skips the example row that starts with DELETE THIS ROW', function () {
-        $playingTeam  = Team::factory()->create();
+    it('imports a csv file using the same header contract as xlsx', function () {
+        $playingTeam = Team::factory()->create();
         $opponentTeam = Team::factory()->create();
-        $player       = Player::factory()->for($playingTeam)->create();
+        $player = Player::factory()->for($playingTeam)->create();
 
-        $exampleRow   = validRow($opponentTeam->id);
+        $csv = buildHistoryCsvJob([validRow($opponentTeam->id)]);
+        $import = storeHistoryCsvImport($playingTeam, $csv);
+
+        PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
+
+        expect($import->fresh()->status)->toBe(CsvImport::STATUS_COMPLETED);
+        expect($import->fresh()->rows_imported)->toBe(1);
+
+        $this->assertDatabaseHas('player_histories', [
+            'player_id' => $player->id,
+            'playing_team_id' => $playingTeam->id,
+            'opponent_team_id' => $opponentTeam->id,
+            'points' => 22,
+        ]);
+    });
+
+    it('skips the example row that starts with DELETE THIS ROW', function () {
+        $playingTeam = Team::factory()->create();
+        $opponentTeam = Team::factory()->create();
+        $player = Player::factory()->for($playingTeam)->create();
+
+        $exampleRow = validRow($opponentTeam->id);
         $exampleRow[count($exampleRow) - 1] = 'DELETE THIS ROW - EXAMPLE ONLY';
 
-        $xlsx   = buildHistoryXlsx([$exampleRow, validRow($opponentTeam->id)]);
+        $xlsx = buildHistoryXlsx([$exampleRow, validRow($opponentTeam->id)]);
         $import = storeHistoryImport($playingTeam, $xlsx);
 
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
@@ -166,11 +217,11 @@ describe('PlayerHistoryImportJob', function () {
     });
 
     it('upserts on duplicate player+date+opponent instead of inserting twice', function () {
-        $playingTeam  = Team::factory()->create();
+        $playingTeam = Team::factory()->create();
         $opponentTeam = Team::factory()->create();
-        $player       = Player::factory()->for($playingTeam)->create();
+        $player = Player::factory()->for($playingTeam)->create();
 
-        $xlsx   = buildHistoryXlsx([validRow($opponentTeam->id, '2025-03-01')]);
+        $xlsx = buildHistoryXlsx([validRow($opponentTeam->id, '2025-03-01')]);
         $import = storeHistoryImport($playingTeam, $xlsx);
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
 
@@ -186,13 +237,13 @@ describe('PlayerHistoryImportJob', function () {
     // -----------------------------------------------------------------------
 
     it('marks import as failed when the file does not exist on storage', function () {
-        $team   = Team::factory()->create();
+        $team = Team::factory()->create();
         $player = Player::factory()->for($team)->create();
 
         $import = CsvImport::create([
-            'team_id'  => $team->id,
+            'team_id' => $team->id,
             'filename' => 'player-history-imports/nonexistent.xlsx',
-            'status'   => CsvImport::STATUS_PENDING,
+            'status' => CsvImport::STATUS_PENDING,
         ]);
 
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
@@ -201,10 +252,10 @@ describe('PlayerHistoryImportJob', function () {
     });
 
     it('marks import as failed when headers do not match', function () {
-        $team   = Team::factory()->create();
+        $team = Team::factory()->create();
         $player = Player::factory()->for($team)->create();
 
-        $xlsx   = buildHistoryXlsx([], ['wrong_col', 'another_col']);
+        $xlsx = buildHistoryXlsx([], ['wrong_col', 'another_col']);
         $import = storeHistoryImport($team, $xlsx);
 
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
@@ -213,15 +264,28 @@ describe('PlayerHistoryImportJob', function () {
         expect($import->fresh()->error_log)->toContain('headers do not match');
     });
 
-    it('skips rows with an invalid game_date and continues', function () {
-        $playingTeam  = Team::factory()->create();
-        $opponentTeam = Team::factory()->create();
-        $player       = Player::factory()->for($playingTeam)->create();
+    it('marks csv imports as failed when headers do not match', function () {
+        $team = Team::factory()->create();
+        $player = Player::factory()->for($team)->create();
 
-        $badRow  = validRow($opponentTeam->id);
+        $csv = buildHistoryCsvJob([], ['wrong_col', 'another_col']);
+        $import = storeHistoryCsvImport($team, $csv);
+
+        PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
+
+        expect($import->fresh()->status)->toBe(CsvImport::STATUS_FAILED);
+        expect($import->fresh()->error_log)->toContain('headers do not match');
+    });
+
+    it('skips rows with an invalid game_date and continues', function () {
+        $playingTeam = Team::factory()->create();
+        $opponentTeam = Team::factory()->create();
+        $player = Player::factory()->for($playingTeam)->create();
+
+        $badRow = validRow($opponentTeam->id);
         $badRow[0] = 'not-a-date'; // game_date
 
-        $xlsx   = buildHistoryXlsx([$badRow, validRow($opponentTeam->id, '2025-02-01')]);
+        $xlsx = buildHistoryXlsx([$badRow, validRow($opponentTeam->id, '2025-02-01')]);
         $import = storeHistoryImport($playingTeam, $xlsx);
 
         PlayerHistoryImportJob::dispatchSync($import->id, $player->id);
