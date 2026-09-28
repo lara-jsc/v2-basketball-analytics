@@ -70,7 +70,7 @@ ComputePlayerPlusMinus(playerStat->id)   ← dispatched with the *stat row id*, 
 
 Consequences to respect when changing anything here:
 - Roster CSV import must not write stat columns. That was deliberately removed (see `docs/csv-roster-only-refactor-plan.md`).
-- Any new write path into `player_histories` must dispatch `RebuildPlayerStats` and invalidate the win-probability cache (`WinProbabilityService::invalidateForTeam`).
+- Any new write path into `player_histories` must dispatch `RebuildPlayerStats`. That job also invalidates the team's win-probability/lineup cache (`WinProbabilityService::invalidateForTeam`).
 - Team-level plus-minus is derived at read time (minutes-weighted average of active players) in the Service layer — never stored.
 
 ### Python engine bridge

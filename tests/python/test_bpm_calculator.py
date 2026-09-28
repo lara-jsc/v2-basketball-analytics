@@ -75,20 +75,34 @@ class TestComputeBpm:
         low  = compute_bpm(_make_payload(pts=20, ast=5, min=40.0))
         assert high["plus_minus"] > low["plus_minus"]
 
-    def test_fewer_minutes_does_not_divide_by_near_zero(self):
-        # min=0 is clamped to _MIN_THRESHOLD=1.0 — should not raise
+    def test_zero_minutes_returns_none(self):
+        # No minutes → a per-36 rate is meaningless; report "not available"
         result = compute_bpm(_make_payload(pts=10, min=0))
-        assert isinstance(result["plus_minus"], float)
+        assert result["plus_minus"] is None
+
+    def test_missing_minutes_returns_none(self):
+        result = compute_bpm({"player_id": 1, "stats": {"pts": 10}})
+        assert result["plus_minus"] is None
+
+    def test_null_minutes_returns_none(self):
+        result = compute_bpm(_make_payload(pts=10, min=None))
+        assert result["plus_minus"] is None
+
+    def test_small_minutes_are_clamped_not_nulled(self):
+        # 0.5 min is real playing time: clamped to 1.0, same as min=1.0
+        tiny = compute_bpm(_make_payload(pts=2, min=0.5))
+        one = compute_bpm(_make_payload(pts=2, min=1.0))
+        assert tiny["plus_minus"] == one["plus_minus"]
 
     def test_bpm_is_rounded_to_2_decimal_places(self):
         result = compute_bpm(_make_payload(pts=17, ast=4, reb=6, min=33.0))
         value = result["plus_minus"]
         assert round(value, 2) == value
 
-    def test_missing_stats_default_to_zero(self):
-        # Payload with only player_id and empty stats — should not raise
-        result = compute_bpm({"player_id": 1, "stats": {}})
-        assert isinstance(result["plus_minus"], float)
+    def test_missing_counting_stats_default_to_zero(self):
+        # Only minutes present — other stats default to 0, should not raise
+        result = compute_bpm({"player_id": 1, "stats": {"min": 36}})
+        assert result["plus_minus"] == pytest.approx(-5.0)
 
     def test_string_stat_values_are_coerced(self):
         # Laravel may serialize floats as strings in some edge cases

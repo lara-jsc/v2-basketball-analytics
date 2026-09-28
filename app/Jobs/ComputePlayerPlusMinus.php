@@ -15,7 +15,7 @@ use Throwable;
  *
  * Python contract:
  *   Input  (stdin JSON): { "command": "bpm", "payload": { "player_id": int, "stats": {...} } }
- *   Output (stdout JSON): { "player_id": int, "plus_minus": float }
+ *   Output (stdout JSON): { "player_id": int, "plus_minus": float|null }  (null = no minutes recorded)
  *
  * On success: writes result to player_stats.plus_minus.
  * On failure: logs the error; plus_minus stays null — UI renders "—".
@@ -65,7 +65,7 @@ class ComputePlayerPlusMinus implements ShouldQueue
             return;
         }
 
-        if (! isset($result['plus_minus'])) {
+        if (! array_key_exists('plus_minus', $result)) {
             Log::error('ComputePlayerPlusMinus: missing plus_minus in engine response', [
                 'playerStatId' => $this->playerStatId,
                 'response' => $result,
@@ -74,7 +74,9 @@ class ComputePlayerPlusMinus implements ShouldQueue
             return;
         }
 
-        $stat->update(['plus_minus' => (float) $result['plus_minus']]);
+        // Null means the player has no minutes recorded — UI renders "—".
+        $plusMinus = $result['plus_minus'];
+        $stat->update(['plus_minus' => $plusMinus === null ? null : (float) $plusMinus]);
     }
 
     public function failed(Throwable $exception): void

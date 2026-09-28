@@ -51,18 +51,21 @@ const STAT_ROWS: StatRow[] = [
     { label: 'GP',     getValue: (s) => (s.gp ?? '—').toString(),     dbKey: 'gp',                 higherIsBetter: true },
 ];
 
-const RADAR_KEYS: Array<{ label: string; statKey: keyof PlayerStat; max: number }> = [
-    { label: 'SH-EFF', statKey: 'sh_eff',   max: 100 },
-    { label: 'AST',    statKey: 'ast',       max: 15  },
-    { label: 'DR',     statKey: 'dr',        max: 15  },
-    { label: 'DD2',    statKey: 'dd2',       max: 82  },
-    { label: 'SC-EFF', statKey: 'sc_eff',    max: 100 },
-    { label: 'PTS',    statKey: 'pts',       max: 40  },
+const RADAR_KEYS: Array<{ label: string; statKey: keyof PlayerStat; min: number; max: number }> = [
+    // SH-EFF is negative for most shooters (−1 = never scores), so its scale starts below zero.
+    { label: 'SH-EFF', statKey: 'sh_eff',   min: -1, max: 0.5 },
+    { label: 'AST',    statKey: 'ast',       min: 0,  max: 15  },
+    { label: 'DR',     statKey: 'dr',        min: 0,  max: 15  },
+    { label: 'DD2',    statKey: 'dd2',       min: 0,  max: 82  },
+    // SC-EFF is points per field-goal attempt; 2.0 is already an extreme season.
+    { label: 'SC-EFF', statKey: 'sc_eff',    min: 0,  max: 2   },
+    { label: 'PTS',    statKey: 'pts',       min: 0,  max: 40  },
 ];
 
-function normalize(value: number | null | undefined, max: number): number {
+function normalize(value: number | null | undefined, min: number, max: number): number {
     if (value === null || value === undefined) return 0;
-    return Math.min(Math.round((value / max) * 100), 100);
+    const scaled = Math.round(((value - min) / (max - min)) * 100);
+    return Math.min(Math.max(scaled, 0), 100);
 }
 
 export function PlayerMatchupTable({
@@ -81,10 +84,10 @@ export function PlayerMatchupTable({
     const picB = playerB.profile_picture_path ? `/storage/${playerB.profile_picture_path}` : null;
     const hasShotZones = Boolean(playerAShotZones || playerBShotZones);
 
-    const radarData = RADAR_KEYS.map(({ label, statKey, max }) => ({
+    const radarData = RADAR_KEYS.map(({ label, statKey, min, max }) => ({
         stat: label,
-        A: normalize(statA?.[statKey] as number | null, max),
-        B: normalize(statB?.[statKey] as number | null, max),
+        A: normalize(statA?.[statKey] as number | null, min, max),
+        B: normalize(statB?.[statKey] as number | null, min, max),
     }));
 
     return (

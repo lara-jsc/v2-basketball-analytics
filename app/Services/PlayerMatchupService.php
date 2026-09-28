@@ -48,6 +48,7 @@ class PlayerMatchupService
     {
         [$lo, $hi] = $playerAId < $playerBId ? [$playerAId, $playerBId] : [$playerBId, $playerAId];
 
-        return "matchup.{$lo}.{$hi}";
+        // v2: results cached before eff/efg_pct/ts_pct were sent scored those stats as ties.
+        return "matchup.v2.{$lo}.{$hi}";
     }
 }
