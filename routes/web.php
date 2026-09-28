@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ComparisonController;
 use App\Http\Controllers\CsvController;
 use App\Http\Controllers\LiveGameClockController;
@@ -67,6 +68,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/live-game-invites/{notification}/dismiss', [LiveGameInviteController::class, 'dismiss'])
         ->name('live-game-invites.dismiss');
 
+    // ── Accounts (admin only) ─────────────────────────────────────────────
+    Route::middleware('can:admin')->prefix('accounts')->name('accounts.')->group(function () {
+        Route::get('/', [AccountController::class, 'index'])->name('index');
+        Route::get('/create', [AccountController::class, 'create'])->name('create');
+        Route::post('/', [AccountController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [AccountController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [AccountController::class, 'update'])->name('update');
+    });
+
     // ── Profile ───────────────────────────────────────────────────────────
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -80,7 +90,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/teams/{team}/players/export', [TeamController::class, 'exportPlayers'])->name('teams.players.export');
     Route::get('/teams/{team}/edit', [TeamController::class, 'edit'])->name('teams.edit');
     Route::put('/teams/{team}', [TeamController::class, 'update'])->name('teams.update');
-    Route::put('/teams/{team}/staffing', [TeamController::class, 'updateStaffing'])->name('teams.staffing.update');
+    Route::put('/teams/{team}/staffing', [TeamController::class, 'updateStaffing'])
+        ->can('admin')
+        ->name('teams.staffing.update');
     Route::patch('/teams/{team}/toggle-active', [TeamController::class, 'toggleActive'])->name('teams.toggleActive');
     Route::post('/teams/{team}/logo', [TeamController::class, 'uploadLogo'])->name('teams.uploadLogo');
 

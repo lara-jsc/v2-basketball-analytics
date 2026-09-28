@@ -215,12 +215,37 @@ export interface PlayerMatchupResult {
 
 // ─── Inertia Page Props ───────────────────────────────────────────────────────
 
+export type UserRole = 'admin' | 'coach';
+
+export type StaffingSlot = 'main' | 'assistant';
+
+/** Row shape from AccountService::summary(). */
+export interface AccountSummary {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  team_id: number | null;
+  team: { id: number; name: string } | null;
+  staffing: StaffingSlot | null;
+  email_verified: boolean;
+}
+
+/** Team option for the account form, from AccountService::teamOptions(). */
+export interface AccountTeamOption {
+  id: number;
+  name: string;
+  main_coach: { id: number; name: string } | null;
+}
+
 export interface PageProps {
   auth: {
     user: {
       id: number;
       name: string;
       email: string;
+      role: UserRole;
+      is_admin: boolean;
       team_id: number | null;
       team: { id: number; name: string } | null;
     } | null;

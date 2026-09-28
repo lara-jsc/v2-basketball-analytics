@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\Team;
 use App\Models\User;
 use Database\Seeders\DemoUserSeeder;
@@ -34,4 +35,13 @@ it('defaults to password123 when DEMO_PASSWORD is unset', function () {
     $user = User::query()->where('email', 'test@email.com')->firstOrFail();
 
     expect(Hash::check('password123', $user->password))->toBeTrue();
+});
+
+it('seeds the demo admin with the admin role and team coaches as coaches', function () {
+    Team::factory()->create(['code' => 'GSW']);
+
+    $this->seed(DemoUserSeeder::class);
+
+    expect(User::query()->where('email', 'test@email.com')->firstOrFail()->role)->toBe(UserRole::Admin)
+        ->and(User::query()->where('email', 'warriors@email.com')->firstOrFail()->role)->toBe(UserRole::Coach);
 });

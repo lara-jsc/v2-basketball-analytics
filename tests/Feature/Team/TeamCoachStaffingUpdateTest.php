@@ -216,7 +216,7 @@ class TeamCoachStaffingUpdateTest extends TestCase
     private function actingUserAndTeam(): array
     {
         $team = Team::factory()->create();
-        $actor = User::factory()->forTeam($team)->create(['email_verified_at' => now()]);
+        $actor = User::factory()->admin()->create();
 
         return [$actor, $team];
     }

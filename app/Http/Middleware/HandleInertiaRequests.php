@@ -48,12 +48,18 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'role' => $user->role->value,
+                    'is_admin' => $user->isAdmin(),
                     'team_id' => $user->team_id,
                     'team' => $user->team === null ? null : [
                         'id' => $user->team->id,
                         'name' => $user->team->name,
                     ],
                 ],
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
             ],
             'liveGameInvite' => $liveGameInvite,
         ];
