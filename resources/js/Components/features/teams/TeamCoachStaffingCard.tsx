@@ -1,5 +1,6 @@
 import { TeamCoachStaffingSheet } from '@/Components/features/teams/TeamCoachStaffingSheet';
-import { type CoachOption, type Team, type TeamCoachSummary } from '@/types';
+import { type CoachOption, type PageProps, type Team, type TeamCoachSummary } from '@/types';
+import { usePage } from '@inertiajs/react';
 import { ClipboardList, Pencil, Shield, UserRound } from 'lucide-react';
 import { useState } from 'react';
 
@@ -16,6 +17,7 @@ export function TeamCoachStaffingCard({
     mainCoach,
     assistantCoaches,
 }: TeamCoachStaffingCardProps) {
+    const canManage = usePage<PageProps>().props.auth.user?.is_admin ?? false;
     const [open, setOpen] = useState(false);
     const hasEligibleCoaches = coachOptions.length > 0;
 
@@ -35,13 +37,15 @@ export function TeamCoachStaffingCard({
                         </p>
                     </div>
 
-                    <button
-                        onClick={() => setOpen(true)}
-                        className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                        <Pencil size={12} />
-                        Manage staffing
-                    </button>
+                    {canManage && (
+                        <button
+                            onClick={() => setOpen(true)}
+                            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-ui font-semibold tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <Pencil size={12} />
+                            Manage staffing
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid gap-4 px-5 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
@@ -71,7 +75,7 @@ export function TeamCoachStaffingCard({
                         <p className="mt-1 text-xs text-muted-foreground">
                             {hasEligibleCoaches
                                 ? 'Verified users on this team can be assigned here.'
-                                : 'Verify team users first to enable staffing assignments.'}
+                                : 'Create a coach account for this team under Accounts to enable staffing.'}
                         </p>
                     </div>
                 </div>

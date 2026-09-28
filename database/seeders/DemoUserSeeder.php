@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -16,6 +17,7 @@ class DemoUserSeeder extends Seeder
             ['email' => 'test@email.com'],
             [
                 'name' => 'Demo Admin',
+                'role' => UserRole::Admin,
                 'password' => $password,
                 'email_verified_at' => now(),
                 'team_id' => null,

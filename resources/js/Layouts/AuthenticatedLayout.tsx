@@ -14,6 +14,7 @@ import {
     Settings,
     Sun,
     Swords,
+    UserCog,
     Users2,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -154,6 +155,9 @@ export default function AuthenticatedLayout({ children, header, mainClassName, p
                     <NavItem href={route('comparison.index')} icon={<Swords size={20} />}          label="Team Comparison" isCollapsed={isCollapsed} />
                     <NavItem href={route('comparison.index')} icon={<BarChart3 size={20} />}        label="Player Matchup"  isCollapsed={isCollapsed} />
                     <NavItem href={route('live-games.index')}  icon={<Radio size={20} />}            label="Live Games"      isCollapsed={isCollapsed} />
+                    {user?.is_admin && (
+                        <NavItem href={route('accounts.index')} icon={<UserCog size={20} />} label="Accounts" isCollapsed={isCollapsed} />
+                    )}
                 </nav>
 
                 {/* ── Bottom ── */}
@@ -177,7 +181,7 @@ export default function AuthenticatedLayout({ children, header, mainClassName, p
                             >
                                 <span className="block truncate text-sm font-semibold text-foreground">{user.name}</span>
                                 <span className="block truncate text-xs text-muted-foreground">
-                                    {user.team?.name ?? 'No team'}
+                                    {user.is_admin ? 'Admin' : (user.team?.name ?? 'No team')}
                                 </span>
                             </span>
                         </div>
