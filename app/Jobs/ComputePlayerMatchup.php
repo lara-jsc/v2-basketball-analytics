@@ -79,6 +79,9 @@ class ComputePlayerMatchup implements ShouldQueue
             'dr' => $s?->dr ?? 0,
             'offensive_rebounds' => $s?->offensive_rebounds ?? 0,
             'min' => $s?->min ?? 0,
+            'eff' => $s?->eff ?? 0,
+            'efg_pct' => $s?->efg_pct ?? 0,
+            'ts_pct' => $s?->ts_pct ?? 0,
             'plus_minus' => $s?->plus_minus ?? 0,
         ];
     }

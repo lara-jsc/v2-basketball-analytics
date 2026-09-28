@@ -45,7 +45,8 @@ _MIN_THRESHOLD: float = 1.0  # avoid dividing by near-zero minutes
 def compute_bpm(payload: dict) -> dict[str, object]:
     """
     Compute Box Plus-Minus for a single player.
-    Returns { "player_id": int, "plus_minus": float }.
+    Returns { "player_id": int, "plus_minus": float | None }.
+    plus_minus is None when the player has no minutes recorded.
     """
     player_id: int = int(payload["player_id"])
     stats: dict = payload["stats"]
@@ -58,7 +59,11 @@ def compute_bpm(payload: dict) -> dict[str, object]:
     blk: float = safe_float(stats.get("blk", 0))
     stl: float = safe_float(stats.get("stl", 0))
     to_per_game: float = safe_float(stats.get("to_per_game", 0))
-    minutes: float = max(safe_float(stats.get("min", 0)), _MIN_THRESHOLD)
+    raw_minutes: float = safe_float(stats.get("min", 0))
+    if raw_minutes <= 0:
+        # No minutes recorded — scaling to 36 minutes would inflate the score 36×.
+        return {"player_id": player_id, "plus_minus": None}
+    minutes: float = max(raw_minutes, _MIN_THRESHOLD)
 
     # Positive contribution score
     positive: float = (
