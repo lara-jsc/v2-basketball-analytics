@@ -1,0 +1,22 @@
+# FrankenPHP web server. Railway gives a service one generated domain, so
+# Reverb shares it: websocket (/app/{key}) and publish API (/apps/{id}/...)
+# are proxied to the Reverb process on 8080; everything else is Laravel.
+{
+	frankenphp
+	auto_https off
+	admin off
+}
+
+:{$PORT:8000} {
+	root * /app/public
+	encode zstd br gzip
+
+	@reverb path /app/* /apps/*
+	handle @reverb {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle {
+		php_server
+	}
+}

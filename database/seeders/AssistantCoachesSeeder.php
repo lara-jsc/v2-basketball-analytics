@@ -29,7 +29,7 @@ class AssistantCoachesSeeder extends Seeder
                     ['email' => $email],
                     [
                         'name' => ucfirst($coachBase).' Coach '.$i,
-                        'password' => 'password123',
+                        'password' => (string) config('demo.password'),
                         'email_verified_at' => now(),
                         'team_id' => $team->id,
                     ],

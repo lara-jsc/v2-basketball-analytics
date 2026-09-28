@@ -73,6 +73,9 @@ RUN mkdir -p storage/framework/{cache,sessions,views,testing} \
     bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# Web server config (proxies Reverb on the same domain)
+COPY docker/Caddyfile /etc/frankenphp/Caddyfile
+
 # Create supervisord config
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
