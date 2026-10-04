@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Repositories\TeamJoinRequestRepository;
 use App\Services\LiveGame\LiveGameInviteReader;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -33,7 +34,7 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
 
         if ($user !== null) {
-            $user->loadMissing('team:id,name');
+            $user->loadMissing(['team:id,name', 'joinRequest.team:id,name']);
         }
 
         $liveGameInvite = null;
@@ -55,6 +56,12 @@ class HandleInertiaRequests extends Middleware
                         'id' => $user->team->id,
                         'name' => $user->team->name,
                     ],
+                    // A request only matters while the user has no team yet.
+                    'join_request' => $user->joinRequest === null || $user->team_id !== null ? null : [
+                        'status' => $user->joinRequest->status->value,
+                        'team_name' => $user->joinRequest->team->name,
+                        'requested_at' => $user->joinRequest->updated_at?->toIso8601String(),
+                    ],
                 ],
             ],
             'flash' => [
@@ -62,6 +69,10 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
             'liveGameInvite' => $liveGameInvite,
+            // Pending join requests this user can decide on, per team.
+            'joinRequestQueue' => fn () => $user === null
+                ? []
+                : app(TeamJoinRequestRepository::class)->queueFor($user),
         ];
     }
 }

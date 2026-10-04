@@ -3,9 +3,10 @@ import { CsvUploadForm } from '@/Components/features/csv/CsvUploadForm';
 import { ImportStatus } from '@/Components/features/csv/ImportStatus';
 import { PlayerFormSheet } from '@/Components/features/players/PlayerFormSheet';
 import { TeamCoachStaffingCard } from '@/Components/features/teams/TeamCoachStaffingCard';
+import { TeamJoinRequestsCard } from '@/Components/features/teams/TeamJoinRequestsCard';
 import { PlayersTable } from '@/Components/features/players/PlayersTable';
 import { TeamFormSheet } from '@/Components/features/teams/TeamFormSheet';
-import { type CoachOption, type CsvImport, type PageProps, type PlayerWithStats, type Team, type TeamCoachSummary } from '@/types';
+import { type CoachOption, type CsvImport, type PageProps, type PlayerWithStats, type Team, type TeamCoachSummary, type TeamJoinRequestSummary } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -26,6 +27,8 @@ interface TeamsShowProps extends PageProps {
     coachOptions: CoachOption[];
     mainCoach: TeamCoachSummary | null;
     assistantCoaches: TeamCoachSummary[];
+    canManageJoinRequests: boolean;
+    pendingJoinRequests: TeamJoinRequestSummary[];
 }
 
 /**
@@ -47,6 +50,8 @@ export default function TeamsShow({
     coachOptions,
     mainCoach,
     assistantCoaches,
+    canManageJoinRequests,
+    pendingJoinRequests,
 }: TeamsShowProps) {
     const { flash } = usePage<TeamsShowProps>().props;
     const [addPlayerOpen, setAddPlayerOpen] = useState(false);
@@ -145,6 +150,10 @@ export default function TeamsShow({
                     mainCoach={mainCoach}
                     assistantCoaches={assistantCoaches}
                 />
+
+                {canManageJoinRequests && (
+                    <TeamJoinRequestsCard teamId={team.id} requests={pendingJoinRequests} />
+                )}
 
                 {/* ── Players section ────────────────────────────────────── */}
                 <div className="flex flex-col gap-2">

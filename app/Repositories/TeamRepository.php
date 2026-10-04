@@ -44,4 +44,39 @@ class TeamRepository
     {
         $team->update($data);
     }
+
+    /**
+     * Active teams a self-signup main coach may claim (no main coach yet).
+     *
+     * @return Collection<int, Team>
+     */
+    public function claimableForSignup(): Collection
+    {
+        return Team::query()
+            ->where('is_active', true)
+            ->whereNull('main_coach_user_id')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+    }
+
+    /**
+     * Teams a self-signup assistant may request to join (has a main coach).
+     *
+     * @return Collection<int, Team>
+     */
+    public function joinableForSignup(): Collection
+    {
+        return Team::query()
+            ->whereNotNull('main_coach_user_id')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+    }
+
+    /**
+     * Lock the team row for a staffing-slot check inside a transaction.
+     */
+    public function lockForUpdate(int $id): Team
+    {
+        return Team::query()->lockForUpdate()->findOrFail($id);
+    }
 }

@@ -23,6 +23,10 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'coach_type' => 'main',
+            'team_mode' => 'create',
+            'team_code' => 'SLF',
+            'team_name' => 'Self Team',
         ]);
 
         $this->assertAuthenticated();

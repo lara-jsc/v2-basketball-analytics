@@ -46,10 +46,10 @@ export function AccountForm({ mode, teams, account }: AccountFormProps) {
     const selectedTeam = teams.find((team) => String(team.id) === data.team_id) ?? null;
     const mainSlotTaken = selectedTeam?.main_coach !== null && selectedTeam?.main_coach !== undefined;
 
-    const willClearStaffing =
-        isEdit &&
-        account.staffing !== null &&
-        (data.role === 'admin' || data.team_id !== String(account.team_id ?? ''));
+    const isStaffed = isEdit && account.staffing !== null;
+    // Promotion to admin frees the slot; moving a staffed coach to another team is refused server-side.
+    const willClearStaffing = isStaffed && data.role === 'admin';
+    const moveBlocked = isStaffed && data.role === 'coach' && data.team_id !== String(account.team_id ?? '');
 
     const handleTeamChange = (teamId: string): void => {
         const team = teams.find((option) => String(option.id) === teamId);
@@ -239,6 +239,15 @@ export function AccountForm({ mode, teams, account }: AccountFormProps) {
                                 Saving removes {account?.name} as{' '}
                                 {account?.staffing === 'main' ? 'main coach' : 'an assistant coach'} of{' '}
                                 {account?.team?.name}.
+                            </span>
+                        </p>
+                    )}
+                    {moveBlocked && (
+                        <p className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-foreground">
+                            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-destructive" />
+                            <span>
+                                {account?.name} is {account?.staffing === 'main' ? 'the main coach' : 'an assistant coach'} of{' '}
+                                {account?.team?.name}. Remove them from that team&apos;s staff first.
                             </span>
                         </p>
                     )}

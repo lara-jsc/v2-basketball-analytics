@@ -213,6 +213,37 @@ class TeamCoachStaffingUpdateTest extends TestCase
     }
 
     /** @return array{0: User, 1: Team} */
+    public function test_it_keeps_an_unverified_coach_who_already_holds_the_main_slot(): void
+    {
+        [$actor, $team] = $this->actingUserAndTeam();
+        $selfSignup = User::factory()->unverified()->forTeam($team)->create();
+        $team->forceFill(['main_coach_user_id' => $selfSignup->id])->save();
+        $assistant = User::factory()->forTeam($team)->create();
+
+        $this->actingAs($actor)
+            ->put(route('teams.staffing.update', $team), [
+                'main_coach_user_id' => $selfSignup->id,
+                'assistant_coach_user_ids' => [$assistant->id],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('teams.show', $team));
+
+        $this->assertSame([$assistant->id], $team->assistantCoaches()->pluck('users.id')->all());
+    }
+
+    public function test_it_still_rejects_promoting_an_unverified_coach_into_the_main_slot(): void
+    {
+        [$actor, $team] = $this->actingUserAndTeam();
+        $unverified = User::factory()->unverified()->forTeam($team)->create();
+
+        $this->actingAs($actor)
+            ->put(route('teams.staffing.update', $team), [
+                'main_coach_user_id' => $unverified->id,
+                'assistant_coach_user_ids' => [],
+            ])
+            ->assertSessionHasErrors('main_coach_user_id');
+    }
+
     private function actingUserAndTeam(): array
     {
         $team = Team::factory()->create();

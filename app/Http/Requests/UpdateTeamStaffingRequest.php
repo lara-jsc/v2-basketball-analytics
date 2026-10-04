@@ -46,14 +46,19 @@ class UpdateTeamStaffingRequest extends FormRequest
             if ($mainCoachUserId !== null) {
                 $mainCoach = User::query()->find($mainCoachUserId);
 
+                $alreadyMain = (int) $team->main_coach_user_id === $mainCoachUserId;
+
                 if ($mainCoach === null || (int) $mainCoach->team_id !== (int) $team->id) {
                     $validator->errors()->add('main_coach_user_id', 'Select a verified user from this team.');
-                } elseif ($mainCoach->email_verified_at === null) {
+                } elseif ($mainCoach->email_verified_at === null && ! $alreadyMain) {
                     $validator->errors()->add('main_coach_user_id', 'Select a verified user from this team.');
                 }
             }
 
             if ($assistantCoachUserIds !== []) {
+                // Coaches already on staff (e.g. approved before verifying) may be kept as-is.
+                $currentAssistantIds = $team->assistantCoaches()->pluck('users.id')->map(fn ($id) => (int) $id)->all();
+
                 $assistants = User::query()
                     ->whereIn('id', $assistantCoachUserIds)
                     ->get()
@@ -62,7 +67,10 @@ class UpdateTeamStaffingRequest extends FormRequest
                 foreach ($assistantCoachUserIds as $assistantCoachUserId) {
                     $assistant = $assistants->get($assistantCoachUserId);
 
-                    if ($assistant === null || (int) $assistant->team_id !== (int) $team->id || $assistant->email_verified_at === null) {
+                    $unverified = $assistant?->email_verified_at === null
+                        && ! in_array($assistantCoachUserId, $currentAssistantIds, true);
+
+                    if ($assistant === null || (int) $assistant->team_id !== (int) $team->id || $unverified) {
                         $validator->errors()->add('assistant_coach_user_ids', 'Select only verified users from this team.');
                         break;
                     }

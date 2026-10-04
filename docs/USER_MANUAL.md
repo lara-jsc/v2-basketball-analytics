@@ -41,13 +41,36 @@ suggests substitutions.
 ## 2. Logging in
 
 **Who:** Everyone
-**Before you start:** An Admin has created your account and given you your email and password.
+**Before you start:** You have an account — you signed up yourself (see [Sign up as a coach](#sign-up-as-a-coach)) or an Admin created one for you.
 
 1. Open HoopSense+ in your browser.
 2. Type your **Email** and **Password**.
 3. Click **Sign In**. You land on the **Dashboard**.
 
 > Forgot your password? Ask your Admin to reset it (see [section 3](#3-create-a-coach-account-admin)).
+
+### Sign up as a coach
+
+**Who:** New coaches
+**Before you start:** Nothing — open the sign-in page and click **Create a coach account**.
+
+1. Fill in **Name**, **Email**, **Password** and **Confirm password**.
+2. Under **I am a**, choose one:
+   - **Main coach** — then choose **Create new team** (type a short team code and the team name) or **Claim existing team** (pick a team that has no main coach yet). You become that team's main coach.
+   - **Assistant coach** — pick the team you help. This sends a join request to that team's main coach.
+3. Click **Create account** and confirm your email.
+
+> **Assistants:** until your request is approved, the Dashboard shows **Request pending** with a **Cancel request** button. If the request is declined (or you cancel it), the Dashboard lets you pick a team and **Send request** again.
+>
+> **One team per coach:** a coach can only be on one team's staff.
+
+### Approve an assistant's join request
+
+**Who:** The team's main coach, or an Admin
+
+1. When someone is waiting, the **Dashboard** shows how many coaches are waiting for approval and **Teams & Players** in the menu shows a number. Click **Review** (or open your team).
+2. In **Join Requests**, click **Approve**, or **Decline** and then confirm.
+3. Approved assistants appear under **Assistant Coaches** right away.
 
 ### Change your password
 
@@ -88,7 +111,7 @@ suggests substitutions.
 3. To reset the password, type a **New password** and confirm it. Leave it blank to keep the old one.
 4. Click **Save changes**.
 
-> Changing a coach's team removes them from their old team's staff. A yellow warning tells you before you save.
+> A coach who is a main or assistant coach of a team can't be moved to another team. Remove them from the old team's staff first (see [Change who coaches a team](#change-who-coaches-a-team)), then change their team. Promoting a coach to Admin removes them from the staff automatically.
 
 ### Change who coaches a team
 
