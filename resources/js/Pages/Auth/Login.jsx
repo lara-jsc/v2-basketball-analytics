@@ -204,12 +204,12 @@ export default function Login({ status, canResetPassword }) {
 
                                         <p className="mt-5 text-center text-sm text-slate-300/80">
                                             Don&apos;t have an account?{' '}
-                                            <a
-                                                href="mailto:admin@hoopsenseplus.com"
+                                            <Link
+                                                href={route('register')}
                                                 className="font-semibold text-[#77a9ff] transition hover:text-[#9bc0ff]"
                                             >
-                                                Contact Administrator
-                                            </a>
+                                                Create a coach account
+                                            </Link>
                                         </p>
                                     </div>
 

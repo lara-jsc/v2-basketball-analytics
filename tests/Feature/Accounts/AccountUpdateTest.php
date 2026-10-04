@@ -50,20 +50,41 @@ it('changes the password when one is given', function () {
     expect(Hash::check('Brand-new-pass-1', $coach->fresh()->password))->toBeTrue();
 });
 
-it('clears the old staffing slots when a coach changes team', function () {
-    $oldTeam = Team::factory()->create();
+it('blocks moving a staffed coach to another team', function () {
+    $oldTeam = Team::factory()->create(['name' => 'Old']);
     $newTeam = Team::factory()->create();
     $coach = User::factory()->forTeam($oldTeam)->create();
     $oldTeam->forceFill(['main_coach_user_id' => $coach->id])->save();
+
+    $this->actingAs($this->admin)
+        ->put(route('accounts.update', $coach), updatePayload($coach, ['team_id' => $newTeam->id]))
+        ->assertSessionHasErrors(['team_id' => "Remove this coach from Old's staff before moving them to another team."]);
+
+    expect($coach->fresh()->team_id)->toBe($oldTeam->id)
+        ->and($oldTeam->fresh()->main_coach_user_id)->toBe($coach->id);
+});
+
+it('blocks moving an assistant coach to another team', function () {
+    $oldTeam = Team::factory()->create();
+    $coach = User::factory()->forTeam($oldTeam)->create();
     $oldTeam->assistantCoaches()->attach($coach->id);
+
+    $this->actingAs($this->admin)
+        ->put(route('accounts.update', $coach), updatePayload($coach, ['team_id' => Team::factory()->create()->id]))
+        ->assertSessionHasErrors('team_id');
+
+    expect($oldTeam->assistantCoaches()->count())->toBe(1);
+});
+
+it('moves an unstaffed coach freely', function () {
+    $newTeam = Team::factory()->create();
+    $coach = User::factory()->forTeam(Team::factory()->create())->create();
 
     $this->actingAs($this->admin)
         ->put(route('accounts.update', $coach), updatePayload($coach, ['team_id' => $newTeam->id]))
         ->assertRedirect(route('accounts.index'));
 
-    expect($coach->fresh()->team_id)->toBe($newTeam->id)
-        ->and($oldTeam->fresh()->main_coach_user_id)->toBeNull()
-        ->and($oldTeam->assistantCoaches()->count())->toBe(0);
+    expect($coach->fresh()->team_id)->toBe($newTeam->id);
 });
 
 it('keeps staffing when the team does not change', function () {

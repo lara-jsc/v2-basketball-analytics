@@ -129,6 +129,10 @@ it('still registers self-signups as coaches', function () {
         'email' => 'self@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'coach_type' => 'main',
+        'team_mode' => 'create',
+        'team_code' => 'SLF',
+        'team_name' => 'Self Team',
     ]);
 
     expect(User::query()->where('email', 'self@example.com')->firstOrFail()->role)

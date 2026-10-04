@@ -44,7 +44,8 @@ export default function AuthenticatedLayout({ children, header, mainClassName, p
     const { theme, toggleTheme } = useAppearance();
     const isDark = theme === 'dark';
     const page = usePage<PageProps>();
-    const { auth, liveGameInvite: sharedInvite } = page.props;
+    const { auth, liveGameInvite: sharedInvite, joinRequestQueue = [] } = page.props;
+    const pendingJoinRequests = joinRequestQueue.reduce((sum, entry) => sum + entry.count, 0);
     const user = auth.user;
     const [liveInvite, setLiveInvite] = useState<InvitePayload | null>(sharedInvite ?? null);
 
@@ -151,7 +152,7 @@ export default function AuthenticatedLayout({ children, header, mainClassName, p
                 {/* ── Nav items ── */}
                 <nav className="relative z-10 flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-4">
                     <NavItem href={route('dashboard')}        icon={<LayoutDashboard size={20} />} label="Dashboard"      isCollapsed={isCollapsed} />
-                    <NavItem href={route('teams.index')}      icon={<Users2 size={20} />}          label="Teams & Players" isCollapsed={isCollapsed} />
+                    <NavItem href={route('teams.index')}      icon={<Users2 size={20} />}          label="Teams & Players" isCollapsed={isCollapsed} badge={pendingJoinRequests} />
                     <NavItem href={route('comparison.index')} icon={<Swords size={20} />}          label="Team Comparison" isCollapsed={isCollapsed} />
                     <NavItem href={route('comparison.index')} icon={<BarChart3 size={20} />}        label="Player Matchup"  isCollapsed={isCollapsed} />
                     <NavItem href={route('live-games.index')}  icon={<Radio size={20} />}            label="Live Games"      isCollapsed={isCollapsed} />
@@ -262,9 +263,11 @@ interface NavItemProps {
     icon: ReactNode;
     label: string;
     isCollapsed: boolean;
+    /** Count shown as a pill (a dot when the sidebar is collapsed). */
+    badge?: number;
 }
 
-function NavItem({ href, icon, label, isCollapsed }: NavItemProps) {
+function NavItem({ href, icon, label, isCollapsed, badge = 0 }: NavItemProps) {
     const { url } = usePage();
     const hrefPath = href.split('?')[0];
     const isActive = url === hrefPath || (hrefPath !== '/' && url.startsWith(hrefPath));
@@ -293,6 +296,9 @@ function NavItem({ href, icon, label, isCollapsed }: NavItemProps) {
                       filter: 'drop-shadow(0 0 6px rgba(255,140,0,0.8))',
                   } : { color: 'hsl(var(--muted-foreground))' }}>
                 {icon}
+                {badge > 0 && isCollapsed && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" aria-hidden />
+                )}
             </span>
 
             <span
@@ -305,6 +311,13 @@ function NavItem({ href, icon, label, isCollapsed }: NavItemProps) {
             >
                 {label}
             </span>
+
+            {badge > 0 && !isCollapsed && (
+                <span aria-hidden className="relative ml-auto rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-accent-foreground">
+                    {badge}
+                </span>
+            )}
+            {badge > 0 && <span className="sr-only">{`, ${badge} pending join request${badge === 1 ? '' : 's'}`}</span>}
         </Link>
     );
 }

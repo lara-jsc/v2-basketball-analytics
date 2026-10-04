@@ -29,6 +29,24 @@ export interface TeamCoachSummary {
   email: string;
 }
 
+export interface JoinRequestQueueEntry {
+  team_id: number;
+  team_name: string;
+  count: number;
+}
+
+export interface JoinableTeam {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface TeamJoinRequestSummary {
+  id: number;
+  created_at: string;
+  user: { id: number; name: string; email: string };
+}
+
 export interface Player {
   id: number;
   team_id: number;
@@ -248,6 +266,7 @@ export interface PageProps {
       is_admin: boolean;
       team_id: number | null;
       team: { id: number; name: string } | null;
+      join_request: { status: 'pending' | 'approved' | 'rejected'; team_name: string; requested_at: string | null } | null;
     } | null;
   };
   flash?: {
@@ -255,6 +274,8 @@ export interface PageProps {
     error?: string;
   };
   liveGameInvite?: LiveGameInviteBanner | null;
+  /** Pending join requests the viewer can decide on, per team. */
+  joinRequestQueue?: JoinRequestQueueEntry[];
   /** Required by Inertia's PageProps constraint. */
   [key: string]: unknown;
 }

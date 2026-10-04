@@ -98,7 +98,7 @@ Expensive results (win probability, lineups) use a dispatch-and-poll shape: `Win
 - Player history import auto-fills `playing_team_id` from the player's current team — the template only asks for `opponent_team_id`.
 - Profile pictures and team logos live in Laravel storage and are served via signed URLs.
 - Tablet (768–1024px) is the primary breakpoint; design there first.
-- Real-time possession tracking and per-user team ownership are explicitly out of scope — do not scaffold for them.
+- Real-time possession tracking is explicitly out of scope — do not scaffold for it. Team ownership is limited to staffing: one team per coach (`users.team_id`); self-signup main coaches create or claim a team; self-signup assistants join via `team_join_requests`, approved by that team's main coach or an admin (`TeamPolicy::manageJoinRequests`).
 
 ## Testing
 

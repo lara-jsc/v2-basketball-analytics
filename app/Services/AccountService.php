@@ -80,8 +80,9 @@ class AccountService
     }
 
     /**
-     * Update an account. Moving a coach to another team, or promoting
-     * them to admin, frees every staffing slot they held.
+     * Update an account. Promoting a coach to admin frees every staffing
+     * slot they held. Moving a staffed coach to another team is refused by
+     * UpdateAccountRequest (one team per coach), so it never reaches here.
      *
      * @param  array{name: string, email: string, password?: string|null, role: string, team_id: int|null}  $data
      */
@@ -91,7 +92,7 @@ class AccountService
             $role = UserRole::from($data['role']);
             $teamId = $role === UserRole::Admin ? null : $data['team_id'];
 
-            if ($role === UserRole::Admin || $teamId !== $user->team_id) {
+            if ($role === UserRole::Admin) {
                 $this->accountRepository->clearStaffing($user);
             }
 

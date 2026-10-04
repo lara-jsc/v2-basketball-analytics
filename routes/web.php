@@ -8,11 +8,14 @@ use App\Http\Controllers\LiveGameController;
 use App\Http\Controllers\LiveGameEventController;
 use App\Http\Controllers\LiveGameInviteController;
 use App\Http\Controllers\LiveGameSuggestionController;
+use App\Http\Controllers\MyJoinRequestController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\PlayerHistoryController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShotZoneProfileController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeamJoinRequestController;
+use App\Repositories\TeamRepository;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -24,9 +27,17 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     // ── Dashboard ─────────────────────────────────────────────────────────
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
+    Route::get('/dashboard', function (TeamRepository $teamRepository) {
+        $user = request()->user();
+        $needsTeam = ! $user->isAdmin() && $user->team_id === null;
+
+        return Inertia::render('Dashboard', [
+            'joinableTeams' => fn () => $needsTeam ? $teamRepository->joinableForSignup() : [],
+        ]);
     })->name('dashboard');
+
+    Route::post('/join-request', [MyJoinRequestController::class, 'store'])->name('join-request.store');
+    Route::delete('/join-request', [MyJoinRequestController::class, 'destroy'])->name('join-request.destroy');
 
     Route::get('/live-games', [LiveGameController::class, 'index'])->name('live-games.index');
     Route::get('/live-games/create', [LiveGameController::class, 'create'])->name('live-games.create');
@@ -93,6 +104,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/teams/{team}/staffing', [TeamController::class, 'updateStaffing'])
         ->can('admin')
         ->name('teams.staffing.update');
+    Route::scopeBindings()->group(function () {
+        Route::post('/teams/{team}/join-requests/{joinRequest}/approve', [TeamJoinRequestController::class, 'approve'])
+            ->can('manageJoinRequests', 'team')
+            ->name('teams.join-requests.approve');
+        Route::post('/teams/{team}/join-requests/{joinRequest}/reject', [TeamJoinRequestController::class, 'reject'])
+            ->can('manageJoinRequests', 'team')
+            ->name('teams.join-requests.reject');
+    });
     Route::patch('/teams/{team}/toggle-active', [TeamController::class, 'toggleActive'])->name('teams.toggleActive');
     Route::post('/teams/{team}/logo', [TeamController::class, 'uploadLogo'])->name('teams.uploadLogo');
 

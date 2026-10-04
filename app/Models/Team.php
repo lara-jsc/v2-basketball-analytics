@@ -50,6 +50,12 @@ class Team extends Model
             ->orderBy('name');
     }
 
+    /** @return HasMany<TeamJoinRequest, Team> */
+    public function joinRequests(): HasMany
+    {
+        return $this->hasMany(TeamJoinRequest::class);
+    }
+
     /** @return HasMany<LiveGame, Team> */
     public function liveGamesAsHome(): HasMany
     {

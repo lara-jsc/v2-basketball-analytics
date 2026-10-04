@@ -10,6 +10,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Repositories\CsvImportRepository;
 use App\Repositories\PlayerRepository;
+use App\Repositories\TeamJoinRequestRepository;
 use App\Repositories\TeamRepository;
 use App\Services\CsvTemplateService;
 use App\Services\TeamService;
@@ -27,6 +28,7 @@ class TeamController extends Controller
         private readonly CsvImportRepository $csvImportRepository,
         private readonly TeamService $teamService,
         private readonly CsvTemplateService $csvTemplateService,
+        private readonly TeamJoinRequestRepository $teamJoinRequestRepository,
     ) {}
 
     /**
@@ -75,6 +77,8 @@ class TeamController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
+        $canManageJoinRequests = request()->user()->can('manageJoinRequests', $team);
+
         return Inertia::render('Teams/Show', [
             'team' => $team,
             'players' => fn () => $this->playerRepository->forTeamWithLatestStats($team->id),
@@ -83,6 +87,10 @@ class TeamController extends Controller
             'coachOptions' => $coachOptions,
             'mainCoach' => $team->mainCoach,
             'assistantCoaches' => $team->assistantCoaches,
+            'canManageJoinRequests' => $canManageJoinRequests,
+            'pendingJoinRequests' => fn () => $canManageJoinRequests
+                ? $this->teamJoinRequestRepository->pendingForTeam($team->id)
+                : [],
         ]);
     }
 

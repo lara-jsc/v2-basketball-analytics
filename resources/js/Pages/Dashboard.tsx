@@ -1,5 +1,7 @@
+import { JoinRequestBanner } from '@/Components/features/dashboard/JoinRequestBanner';
+import { JoinRequestQueueCallout } from '@/Components/features/dashboard/JoinRequestQueueCallout';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { type PageProps } from '@/types';
+import { type JoinableTeam, type PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import {
     BarChart2,
@@ -21,7 +23,7 @@ import {
     YAxis,
 } from 'recharts';
 
-export default function Dashboard({ auth }: PageProps) {
+export default function Dashboard({ auth, joinableTeams = [] }: PageProps & { joinableTeams?: JoinableTeam[] }) {
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
@@ -46,6 +48,9 @@ export default function Dashboard({ auth }: PageProps) {
                         </span>
                     </div>
                 </div>
+
+                <JoinRequestBanner joinableTeams={joinableTeams} />
+                <JoinRequestQueueCallout />
 
                 {/* ── Summary cards ── */}
                 <div className="grid grid-cols-3 gap-4">

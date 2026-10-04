@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\UserRole;
+use App\Models\Team;
 use App\Models\User;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -57,6 +58,22 @@ class UpdateAccountRequest extends FormRequest
 
             if ($demotingAdmin && User::query()->where('role', UserRole::Admin)->count() <= 1) {
                 $validator->errors()->add('role', 'At least one admin account must remain.');
+            }
+
+            $movingTeams = $this->input('role') === UserRole::Coach->value
+                && $account->team_id !== null
+                && (int) $this->input('team_id') !== $account->team_id;
+
+            if ($movingTeams) {
+                $staffedTeam = Team::query()
+                    ->where('id', $account->team_id)
+                    ->where(fn ($query) => $query->where('main_coach_user_id', $account->id)
+                        ->orWhereHas('assistantCoaches', fn ($assistants) => $assistants->where('users.id', $account->id)))
+                    ->first();
+
+                if ($staffedTeam !== null) {
+                    $validator->errors()->add('team_id', "Remove this coach from {$staffedTeam->name}'s staff before moving them to another team.");
+                }
             }
         });
     }
